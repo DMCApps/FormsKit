@@ -87,29 +87,31 @@ struct FormViewModelTests {
 
     // MARK: - Visibility
 
-    @Test("Row without conditions is always visible")
-    func rowAlwaysVisible() {
+    @Test("Row with no showRow actions targeting it is always visible")
+    func rowWithNoShowActionsIsAlwaysVisible() {
         let form = makeForm(rows: [AnyFormRow(BooleanSwitchRow(id: "t", title: "T"))])
         let vm = FormViewModel(formDefinition: form)
         let row = form.rows.first!
         #expect(vm.isRowVisible(row) == true)
     }
 
-    @Test("Row with condition is hidden/shown correctly")
-    func conditionalVisibility() {
-        let conditionalRow = BooleanSwitchRow(
-            id: "advanced",
-            title: "Advanced",
-            conditions: [.isTrue(rowId: "showAdvanced")]
-        )
+    @Test("Row is hidden/shown by showRow action on another row")
+    func showRowActionControlsVisibility() {
         let form = makeForm(rows: [
-            AnyFormRow(BooleanSwitchRow(id: "showAdvanced", title: "Show Advanced")),
-            AnyFormRow(conditionalRow)
+            // "showAdvanced" toggle has a showRow action targeting "advanced".
+            AnyFormRow(BooleanSwitchRow(
+                id: "showAdvanced",
+                title: "Show Advanced",
+                onChange: [
+                    .showRow(id: "advanced", when: [.isTrue(rowId: "showAdvanced")])
+                ]
+            )),
+            AnyFormRow(BooleanSwitchRow(id: "advanced", title: "Advanced"))
         ])
         let vm = FormViewModel(formDefinition: form)
         let advancedRow = form.rows[1]
 
-        // Initially showAdvanced is false (default).
+        // Initially showAdvanced is false (default) → "advanced" should be hidden.
         #expect(vm.isRowVisible(advancedRow) == false)
 
         // Turn showAdvanced on.
@@ -119,6 +121,45 @@ struct FormViewModelTests {
         // Turn it off again.
         vm.setBool(false, for: "showAdvanced")
         #expect(vm.isRowVisible(advancedRow) == false)
+    }
+
+    @Test("Row with no showRow targeting it is always visible regardless of other row states")
+    func rowWithNoTargetingShowActionsIsAlwaysVisible() {
+        let form = makeForm(rows: [
+            AnyFormRow(BooleanSwitchRow(
+                id: "toggle",
+                title: "Toggle",
+                onChange: [.showRow(id: "other", when: [.isTrue(rowId: "toggle")])]
+            )),
+            AnyFormRow(TextInputRow(id: "other", title: "Other")),
+            // "free" has no showRow actions pointing at it — always visible.
+            AnyFormRow(TextInputRow(id: "free", title: "Free"))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+        let freeRow = form.rows[2]
+
+        vm.setBool(false, for: "toggle")
+        #expect(vm.isRowVisible(freeRow) == true)
+
+        vm.setBool(true, for: "toggle")
+        #expect(vm.isRowVisible(freeRow) == true)
+    }
+
+    @Test("showRow with empty conditions always shows the target")
+    func showRowWithEmptyConditionsAlwaysShows() {
+        let form = makeForm(rows: [
+            AnyFormRow(BooleanSwitchRow(
+                id: "source",
+                title: "Source",
+                // Empty conditions — target is always shown.
+                onChange: [.showRow(id: "target", when: [])]
+            )),
+            AnyFormRow(TextInputRow(id: "target", title: "Target"))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+        let targetRow = form.rows[1]
+
+        #expect(vm.isRowVisible(targetRow) == true)
     }
 
     // MARK: - Validation
@@ -150,19 +191,20 @@ struct FormViewModelTests {
 
     @Test("validateAll skips hidden rows")
     func validateAllSkipsHiddenRows() {
-        let hiddenRow = TextInputRow(
-            id: "secret",
-            title: "Secret",
-            isRequired: true,
-            conditions: [.isTrue(rowId: "show")]
-        )
+        // "show" starts false; a showRow action on "show" targets "secret".
+        // When "show" is false, "secret" is hidden and should not be validated.
         let form = makeForm(rows: [
-            AnyFormRow(BooleanSwitchRow(id: "show", title: "Show", defaultValue: false)),
-            AnyFormRow(hiddenRow)
+            AnyFormRow(BooleanSwitchRow(
+                id: "show",
+                title: "Show",
+                defaultValue: false,
+                onChange: [.showRow(id: "secret", when: [.isTrue(rowId: "show")])]
+            )),
+            AnyFormRow(TextInputRow(id: "secret", title: "Secret", isRequired: true))
         ])
         let vm = FormViewModel(formDefinition: form)
 
-        // "show" is false, so "secret" is hidden — should not be validated.
+        // "show" is false → "secret" is hidden → should not be validated.
         let isValid = vm.validateAll()
         #expect(isValid == true)
     }
@@ -515,50 +557,50 @@ struct FormViewModelTests {
         #expect(vm.errors.isEmpty)
     }
 
-    // MARK: - onChange Handlers
+    // MARK: - Actions dispatch
 
-    @Test("Immediate onChange handler fires on setValue")
-    func immediateOnChangeHandlerFires() {
-        nonisolated(unsafe) var received: AnyCodableValue?
+    @Test("Immediate .custom action fires on setValue")
+    func immediateCustomActionFires() {
+        nonisolated(unsafe) var receivedRowId: String?
         let row = TextInputRow(
             id: "text",
             title: "Text",
-            onChange: [.immediate { received = $0 }]
+            onChange: [.custom { _, rowId in receivedRowId = rowId }]
         )
         let form = makeForm(rows: [AnyFormRow(row)])
         let vm = FormViewModel(formDefinition: form)
 
         vm.setString("hello", for: "text")
 
-        #expect(received == .string("hello"))
+        #expect(receivedRowId == "text")
     }
 
-    @Test("Immediate onChange handler fires with nil when value is cleared")
-    func immediateOnChangeHandlerFiresWithNil() {
-        nonisolated(unsafe) var callCount = 0
-        let row = BooleanSwitchRow(
-            id: "flag",
-            title: "Flag",
-            onChange: [.immediate { _ in callCount += 1 }]
+    @Test("Immediate .custom action receives the current form store")
+    func customActionReceivesStore() {
+        nonisolated(unsafe) var capturedValue: AnyCodableValue?
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [.custom { store, rowId in capturedValue = store[rowId] }]
         )
         let form = makeForm(rows: [AnyFormRow(row)])
         let vm = FormViewModel(formDefinition: form)
 
-        vm.setValue(nil, for: "flag")
+        vm.setString("hello", for: "text")
 
-        #expect(callCount == 1)
+        #expect(capturedValue == .string("hello"))
     }
 
-    @Test("Multiple onChange handlers on one row all fire")
-    func multipleOnChangeHandlersFire() {
+    @Test("Multiple .custom actions on one row all fire")
+    func multipleCustomActionsFire() {
         nonisolated(unsafe) var countA = 0
         nonisolated(unsafe) var countB = 0
         let row = TextInputRow(
             id: "text",
             title: "Text",
             onChange: [
-                .immediate { _ in countA += 1 },
-                .immediate { _ in countB += 1 }
+                .custom { _, _ in countA += 1 },
+                .custom { _, _ in countB += 1 }
             ]
         )
         let form = makeForm(rows: [AnyFormRow(row)])
@@ -570,32 +612,13 @@ struct FormViewModelTests {
         #expect(countB == 1)
     }
 
-    @Test("onChange handler receives the new value, not the old")
-    func onChangeHandlerReceivesNewValue() {
-        nonisolated(unsafe) var values: [AnyCodableValue?] = []
-        let row = TextInputRow(
-            id: "text",
-            title: "Text",
-            onChange: [.immediate { values.append($0) }]
-        )
-        let form = makeForm(rows: [AnyFormRow(row)])
-        let vm = FormViewModel(formDefinition: form)
-
-        vm.setString("first", for: "text")
-        vm.setString("second", for: "text")
-
-        #expect(values.count == 2)
-        #expect(values[0] == .string("first"))
-        #expect(values[1] == .string("second"))
-    }
-
-    @Test("onChange handler does not fire for a different row's changes")
-    func onChangeHandlerNotFiredForOtherRow() {
+    @Test(".custom action does not fire for a different row's changes")
+    func customActionNotFiredForOtherRow() {
         nonisolated(unsafe) var callCount = 0
         let watchedRow = TextInputRow(
             id: "watched",
             title: "Watched",
-            onChange: [.immediate { _ in callCount += 1 }]
+            onChange: [.custom { _, _ in callCount += 1 }]
         )
         let otherRow = TextInputRow(id: "other", title: "Other")
         let form = makeForm(rows: [AnyFormRow(watchedRow), AnyFormRow(otherRow)])
@@ -606,24 +629,121 @@ struct FormViewModelTests {
         #expect(callCount == 0)
     }
 
-    @Test("Row without onChange handlers — setValue does not crash")
-    func noOnChangeHandlersDoesNotCrash() {
-        let row = TextInputRow(id: "text", title: "Text") // no onChange
+    @Test("Row without actions — setValue does not crash")
+    func noActionsDoesNotCrash() {
+        let row = TextInputRow(id: "text", title: "Text")
         let form = makeForm(rows: [AnyFormRow(row)])
         let vm = FormViewModel(formDefinition: form)
 
-        // Should not crash.
         vm.setString("hello", for: "text")
         #expect(vm.value(for: "text") as String? == "hello")
     }
 
-    @Test("Debounced onChange handler fires after delay")
-    func debouncedOnChangeHandlerFiresAfterDelay() async {
-        nonisolated(unsafe) var received: AnyCodableValue?
+    @Test(".setValue action updates the target row's value")
+    func setValueActionUpdatesTargetRow() {
+        let sourceRow = BooleanSwitchRow(
+            id: "source",
+            title: "Source",
+            onChange: [
+                .setValue(on: "target") { store in
+                    guard case let .bool(val) = store["source"] else { return nil }
+                    return .string(val ? "yes" : "no")
+                }
+            ]
+        )
+        let targetRow = TextInputRow(id: "target", title: "Target", defaultValue: "unset")
+        let form = makeForm(rows: [AnyFormRow(sourceRow), AnyFormRow(targetRow)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setBool(true, for: "source")
+
+        let target: String? = vm.value(for: "target")
+        #expect(target == "yes")
+    }
+
+    @Test(".setValue action returning nil does not overwrite target")
+    func setValueActionNilDoesNotOverwrite() {
+        let sourceRow = TextInputRow(
+            id: "source",
+            title: "Source",
+            onChange: [
+                .setValue(on: "target") { _ in nil } // always returns nil
+            ]
+        )
+        let targetRow = TextInputRow(id: "target", title: "Target", defaultValue: "initial")
+        let form = makeForm(rows: [AnyFormRow(sourceRow), AnyFormRow(targetRow)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("something", for: "source")
+
+        let target: String? = vm.value(for: "target")
+        #expect(target == "initial") // unchanged
+    }
+
+    @Test(".runValidation action re-runs validators on the changed row")
+    func runValidationActionFiresValidators() {
         let row = TextInputRow(
             id: "text",
             title: "Text",
-            onChange: [.debounced(0.05) { received = $0 }]
+            validators: [.minLength(5, trigger: .onChange)],
+            onChange: [.runValidation()]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("hi", for: "text") // too short
+        #expect(vm.errorsForRow("text").isEmpty == false)
+
+        vm.setString("hello world", for: "text")
+        #expect(vm.errorsForRow("text").isEmpty == true)
+    }
+
+    @Test(".onSave action fires after successful save")
+    func onSaveActionFiresOnSave() async {
+        nonisolated(unsafe) var savedStore: FormValueStore?
+        let row = TextInputRow(
+            id: "city",
+            title: "City",
+            onChange: [
+                .onSave { store in savedStore = store }
+            ]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+        vm.setString("NYC", for: "city")
+
+        let result = await vm.save()
+
+        #expect(result == true)
+        #expect(savedStore != nil)
+        let city: String? = savedStore?.value(for: "city")
+        #expect(city == "NYC")
+    }
+
+    @Test(".onSave action does NOT fire on onChange")
+    func onSaveActionDoesNotFireOnChange() {
+        nonisolated(unsafe) var callCount = 0
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [.onSave { _ in callCount += 1 }]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("hello", for: "text")
+        vm.setString("world", for: "text")
+
+        #expect(callCount == 0) // not called — only called on save
+    }
+
+    @Test("Debounced .custom action fires after delay")
+    func debouncedCustomActionFiresAfterDelay() async {
+        nonisolated(unsafe) var receivedRowId: String?
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [.custom(timing: .debounced(0.05)) { _, rowId in receivedRowId = rowId }]
         )
         let form = makeForm(rows: [AnyFormRow(row)])
         let vm = FormViewModel(formDefinition: form)
@@ -631,21 +751,23 @@ struct FormViewModelTests {
         vm.setString("debounced", for: "text")
 
         // Should not have fired yet.
-        #expect(received == nil)
+        #expect(receivedRowId == nil)
 
         // Wait for debounce to complete.
         try? await Task.sleep(for: .milliseconds(150))
 
-        #expect(received == .string("debounced"))
+        #expect(receivedRowId == "text")
     }
 
-    @Test("Debounced onChange handler fires with the latest value after rapid updates")
-    func debouncedOnChangeHandlerUsesLatestValue() async {
-        nonisolated(unsafe) var receivedValues: [AnyCodableValue?] = []
+    @Test("Debounced .custom action fires with the latest store after rapid updates")
+    func debouncedCustomActionUsesLatestStore() async {
+        nonisolated(unsafe) var capturedValues: [AnyCodableValue?] = []
         let row = TextInputRow(
             id: "text",
             title: "Text",
-            onChange: [.debounced(0.05) { receivedValues.append($0) }]
+            onChange: [.custom(timing: .debounced(0.05)) { store, rowId in
+                capturedValues.append(store[rowId])
+            }]
         )
         let form = makeForm(rows: [AnyFormRow(row)])
         let vm = FormViewModel(formDefinition: form)
@@ -659,20 +781,20 @@ struct FormViewModelTests {
         try? await Task.sleep(for: .milliseconds(150))
 
         // Only one handler invocation with the final value.
-        #expect(receivedValues.count == 1)
-        #expect(receivedValues[0] == .string("c"))
+        #expect(capturedValues.count == 1)
+        #expect(capturedValues[0] == .string("c"))
     }
 
-    @Test("Both immediate and debounced handlers on same row both fire")
-    func immediateAndDebouncedHandlersBothFire() async {
+    @Test("Immediate and debounced actions on same row both fire")
+    func immediateAndDebouncedActionsBothFire() async {
         nonisolated(unsafe) var immediateCount = 0
         nonisolated(unsafe) var debouncedCount = 0
         let row = TextInputRow(
             id: "text",
             title: "Text",
             onChange: [
-                .immediate { _ in immediateCount += 1 },
-                .debounced(0.05) { _ in debouncedCount += 1 }
+                .custom(timing: .immediate) { _, _ in immediateCount += 1 },
+                .custom(timing: .debounced(0.05)) { _, _ in debouncedCount += 1 }
             ]
         )
         let form = makeForm(rows: [AnyFormRow(row)])
@@ -691,13 +813,13 @@ struct FormViewModelTests {
         #expect(debouncedCount == 1)
     }
 
-    @Test("reset cancels pending debounced onChange handlers")
-    func resetCancelsPendingDebouncedHandlers() async {
+    @Test("reset cancels pending debounced actions")
+    func resetCancelsPendingDebouncedActions() async {
         nonisolated(unsafe) var debouncedCallCount = 0
         let row = TextInputRow(
             id: "text",
             title: "Text",
-            onChange: [.debounced(0.05) { _ in debouncedCallCount += 1 }]
+            onChange: [.custom(timing: .debounced(0.05)) { _, _ in debouncedCallCount += 1 }]
         )
         let form = makeForm(rows: [AnyFormRow(row)])
         let vm = FormViewModel(formDefinition: form)
@@ -713,15 +835,16 @@ struct FormViewModelTests {
 
     // MARK: - visibleRows
 
-    @Test("visibleRows filters by conditions")
-    func visibleRowsFiltered() {
+    @Test("visibleRows filters by showRow actions")
+    func visibleRowsFilteredByShowRowActions() {
         let form = makeForm(rows: [
-            AnyFormRow(BooleanSwitchRow(id: "show", title: "Show", defaultValue: false)),
-            AnyFormRow(TextInputRow(
-                id: "hidden",
-                title: "Hidden",
-                conditions: [.isTrue(rowId: "show")]
-            ))
+            AnyFormRow(BooleanSwitchRow(
+                id: "show",
+                title: "Show",
+                defaultValue: false,
+                onChange: [.showRow(id: "hidden", when: [.isTrue(rowId: "show")])]
+            )),
+            AnyFormRow(TextInputRow(id: "hidden", title: "Hidden"))
         ])
         let vm = FormViewModel(formDefinition: form)
 

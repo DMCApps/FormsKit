@@ -51,11 +51,11 @@ public final class FormViewModel {
     /// Use this to react to the save event without subclassing the view model.
     public var onSave: ((FormValueStore) -> Void)?
 
-    /// Cancellable debounce tasks keyed by row ID.
+    /// Cancellable debounce tasks keyed by row ID (for debounced validators).
     private var debounceTimers: [String: Task<Void, Never>] = [:]
 
-    /// Cancellable debounce tasks for value-change handlers, keyed by row ID.
-    private var handlerDebounceTimers: [String: Task<Void, Never>] = [:]
+    /// Cancellable debounce tasks for row actions, keyed by a composite key of rowId + actionIndex.
+    private var actionDebounceTimers: [String: Task<Void, Never>] = [:]
 
     // MARK: - Initialisation
 
@@ -108,7 +108,7 @@ public final class FormViewModel {
 
     // MARK: - Value Writing
 
-    /// Set a raw `AnyCodableValue` for a row, triggering applicable validators.
+    /// Set a raw `AnyCodableValue` for a row, triggering applicable validators and actions.
     public func setValue(_ value: AnyCodableValue?, for rowId: String) {
         values[rowId] = value
         isDirty = true
@@ -118,8 +118,8 @@ public final class FormViewModel {
         runValidators(for: rowId, trigger: .onChange)
         // Schedule debounced validators.
         scheduleDebouncedValidation(for: rowId)
-        // Dispatch registered value-change handlers.
-        dispatchValueChangeHandlers(for: rowId, newValue: value)
+        // Dispatch row actions declared on the changed row.
+        dispatchActions(for: rowId)
         // Auto-save when the form is configured to save on every change.
         if case .onChange = formDefinition.saveBehaviour {
             let capturedSelf = self
@@ -165,10 +165,30 @@ public final class FormViewModel {
 
     // MARK: - Visibility
 
-    /// Returns true if the given row should be visible based on its conditions.
+    /// Returns true if the given row should be visible.
+    ///
+    /// Visibility is controlled by `.showRow` actions on *other* rows.
+    /// If no row in the form has a `.showRow` action targeting this row's ID,
+    /// the row is always visible. Otherwise it is visible when at least one
+    /// `.showRow` action targeting it has all its conditions satisfied.
     public func isRowVisible(_ row: AnyFormRow) -> Bool {
-        guard !row.conditions.isEmpty else { return true }
-        return row.conditions.allSatisfy { $0.evaluate(with: values) }
+        // Collect all .showRow actions across the form that target this row.
+        let showActions = formDefinition.rows.flatMap { sourceRow in
+            sourceRow.onChange.compactMap { action -> [FormCondition]? in
+                if case let .showRow(targetId, conditions, _) = action, targetId == row.id {
+                    return conditions
+                }
+                return nil
+            }
+        }
+
+        // No .showRow actions point at this row → always visible.
+        guard !showActions.isEmpty else { return true }
+
+        // Visible if ANY showRow action has all its conditions satisfied.
+        return showActions.contains { conditions in
+            conditions.isEmpty || conditions.allSatisfy { $0.evaluate(with: values) }
+        }
     }
 
     /// All rows from the form definition that are currently visible.
@@ -218,6 +238,7 @@ public final class FormViewModel {
         guard let persistence else {
             isDirty = false
             onSave?(values)
+            dispatchOnSaveActions()
             return true
         }
 
@@ -229,6 +250,7 @@ public final class FormViewModel {
             isDirty = false
             isSaving = false
             onSave?(values)
+            dispatchOnSaveActions()
             return true
         } catch {
             saveError = error
@@ -277,8 +299,8 @@ public final class FormViewModel {
         // Cancel all pending debounce timers.
         debounceTimers.values.forEach { $0.cancel() }
         debounceTimers = [:]
-        handlerDebounceTimers.values.forEach { $0.cancel() }
-        handlerDebounceTimers = [:]
+        actionDebounceTimers.values.forEach { $0.cancel() }
+        actionDebounceTimers = [:]
     }
 
     /// Clear persisted data for this form.
@@ -377,8 +399,6 @@ public final class FormViewModel {
         // Cancel any existing timer for this row.
         debounceTimers[rowId]?.cancel()
 
-        // Capture self as unowned inside a nonisolated async Task to avoid
-        // Sendable closure capture warnings while keeping the weak-self safety.
         let capturedSelf = self
         debounceTimers[rowId] = Task {
             try? await Task.sleep(for: .seconds(maxDelay))
@@ -399,35 +419,72 @@ public final class FormViewModel {
         errors[rowId] = rowErrors
     }
 
-    /// Dispatch the `onChange` handlers declared on the row definition.
-    /// Immediate handlers (debounce == nil) fire synchronously; debounced handlers are scheduled via a Task.
-    private func dispatchValueChangeHandlers(for rowId: String, newValue: AnyCodableValue?) {
-        guard let row = formDefinition.rows.first(where: { $0.id == rowId }),
-              !row.onChange.isEmpty else { return }
+    /// Dispatch all onChange actions declared on the row with the given ID.
+    /// Immediate actions fire synchronously; debounced actions are scheduled via a Task.
+    private func dispatchActions(for rowId: String) {
+        guard let row = formDefinition.rows.first(where: { $0.id == rowId }) else { return }
 
-        let immediateHandlers = row.onChange.filter { $0.debounce == nil }
-        let debouncedHandlers = row.onChange.filter { $0.debounce != nil }
+        let onChangeActions = row.onChange.enumerated().filter(\.element.isOnChangeAction)
 
-        // Fire immediate handlers now.
-        for handler in immediateHandlers {
-            handler.run(newValue)
-        }
+        for (index, action) in onChangeActions {
+            let timing = action.timing ?? .immediate
 
-        // Schedule debounced handlers using the longest debounce interval.
-        if !debouncedHandlers.isEmpty {
-            let maxDelay = debouncedHandlers.compactMap(\.debounce).max() ?? 0.5
+            if timing.debounce == nil {
+                // Immediate — fire now.
+                executeAction(action, rowId: rowId)
+            } else {
+                // Debounced — cancel any pending task for this action slot and reschedule.
+                let timerKey = "\(rowId)_\(index)"
+                actionDebounceTimers[timerKey]?.cancel()
 
-            handlerDebounceTimers[rowId]?.cancel()
-
-            let capturedSelf = self
-            handlerDebounceTimers[rowId] = Task {
-                try? await Task.sleep(for: .seconds(maxDelay))
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    let currentValue = capturedSelf.values[rowId]
-                    for handler in debouncedHandlers {
-                        handler.run(currentValue)
+                let delay = timing.debounce ?? 0.5
+                let capturedSelf = self
+                actionDebounceTimers[timerKey] = Task {
+                    try? await Task.sleep(for: .seconds(delay))
+                    guard !Task.isCancelled else { return }
+                    await MainActor.run {
+                        capturedSelf.executeAction(action, rowId: rowId)
                     }
+                }
+            }
+        }
+    }
+
+    /// Execute a single `FormRowAction` against the current form state.
+    private func executeAction(_ action: FormRowAction, rowId: String) {
+        switch action {
+        case .showRow:
+            // Show/hide is evaluated reactively via isRowVisible — no imperative state to update.
+            break
+
+        case let .setValue(targetRowId, _, valueFactory):
+            // Derive the new value from the current store and apply it if non-nil.
+            // Use the internal setter to avoid triggering a full action dispatch cycle on the target.
+            if let newValue = valueFactory(values) {
+                values[targetRowId] = newValue
+                isDirty = true
+                errors[targetRowId] = []
+            }
+
+        case .runValidation:
+            runValidators(for: rowId, trigger: .onChange)
+            scheduleDebouncedValidation(for: rowId)
+
+        case let .custom(_, handler):
+            handler(values, rowId)
+
+        case .onSave:
+            // onSave actions are dispatched from save(), not here.
+            break
+        }
+    }
+
+    /// Fire all `.onSave` actions across every row in the form.
+    private func dispatchOnSaveActions() {
+        for row in formDefinition.rows {
+            for action in row.onChange {
+                if case let .onSave(handler) = action {
+                    handler(values)
                 }
             }
         }
