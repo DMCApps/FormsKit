@@ -187,7 +187,7 @@ struct TypedFormViewModelTests {
     @Test("validateAll returns false for missing required field")
     func validateAllFailsForRequired() {
         let form = TypedFormDefinition<SettingsRowID>(id: "v", title: "V") {
-            TextInputRow(id: SettingsRowID.email.rawValue, title: "Email", isRequired: true)
+            TextInputRow(id: SettingsRowID.email.rawValue, title: "Email", validators: [.required()])
         }
         let vm = TypedFormViewModel(form: form)
 
@@ -199,7 +199,7 @@ struct TypedFormViewModelTests {
     @Test("rowHasError returns true when errors exist")
     func rowHasErrorReturnsTrueWhenErrors() {
         let form = TypedFormDefinition<SettingsRowID>(id: "v", title: "V") {
-            TextInputRow(id: SettingsRowID.email.rawValue, title: "Email", isRequired: true)
+            TextInputRow(id: SettingsRowID.email.rawValue, title: "Email", validators: [.required()])
         }
         let vm = TypedFormViewModel(form: form)
         vm.validateAll()
@@ -256,7 +256,7 @@ struct TypedFormViewModelTests {
     @Test("onSave closure does NOT fire when validation fails")
     func onSaveClosureDoesNotFireOnFailure() async {
         let form = TypedFormDefinition<SettingsRowID>(id: "fail", title: "Fail") {
-            TextInputRow(id: SettingsRowID.email.rawValue, title: "Email", isRequired: true)
+            TextInputRow(id: SettingsRowID.email.rawValue, title: "Email", validators: [.required()])
         }
         var called = false
         let vm = TypedFormViewModel(form: form, onSave: { _ in called = true })

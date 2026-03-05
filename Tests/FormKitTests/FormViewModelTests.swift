@@ -167,7 +167,7 @@ struct FormViewModelTests {
     @Test("validateAll catches required fields")
     func validateAllRequired() {
         let form = makeForm(rows: [
-            AnyFormRow(TextInputRow(id: "name", title: "Name", isRequired: true))
+            AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))
         ])
         let vm = FormViewModel(formDefinition: form)
 
@@ -179,7 +179,7 @@ struct FormViewModelTests {
     @Test("validateAll passes when required field is filled")
     func validateAllPassesWhenFilled() {
         let form = makeForm(rows: [
-            AnyFormRow(TextInputRow(id: "name", title: "Name", isRequired: true))
+            AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))
         ])
         let vm = FormViewModel(formDefinition: form)
         vm.setString("Alice", for: "name")
@@ -200,7 +200,7 @@ struct FormViewModelTests {
                 defaultValue: false,
                 onChange: [.showRow(id: "secret", when: [.isTrue(rowId: "show")])]
             )),
-            AnyFormRow(TextInputRow(id: "secret", title: "Secret", isRequired: true))
+            AnyFormRow(TextInputRow(id: "secret", title: "Secret", validators: [.required()]))
         ])
         let vm = FormViewModel(formDefinition: form)
 
@@ -212,7 +212,7 @@ struct FormViewModelTests {
     @Test("User-supplied onSave validators fire on validateAll")
     func onSaveValidatorsFire() {
         let form = makeForm(rows: [
-            AnyFormRow(EmailInputRow(id: "email", title: "Email", isRequired: false))
+            AnyFormRow(EmailInputRow(id: "email", title: "Email"))
         ])
         let vm = FormViewModel(formDefinition: form)
         vm.setString("notanemail", for: "email")
@@ -244,7 +244,7 @@ struct FormViewModelTests {
     @Test("Save with invalid form returns false")
     func saveInvalidReturnsFalse() async {
         let form = makeForm(rows: [
-            AnyFormRow(TextInputRow(id: "name", title: "Name", isRequired: true))
+            AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))
         ])
         let vm = FormViewModel(formDefinition: form)
         let result = await vm.save()
@@ -254,7 +254,7 @@ struct FormViewModelTests {
     @Test("Save with valid form (no persistence) returns true")
     func saveValidNoPersistence() async {
         let form = makeForm(rows: [
-            AnyFormRow(TextInputRow(id: "name", title: "Name", isRequired: true))
+            AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))
         ])
         let vm = FormViewModel(formDefinition: form)
         vm.setString("Alice", for: "name")
@@ -328,7 +328,7 @@ struct FormViewModelTests {
     @Test("onSave closure does NOT fire when validation fails")
     func onSaveDoesNotFireOnValidationFailure() async {
         let form = makeForm(rows: [
-            AnyFormRow(TextInputRow(id: "name", title: "Name", isRequired: true))
+            AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))
         ])
         var onSaveCalled = false
         let vm = FormViewModel(formDefinition: form, onSave: { _ in

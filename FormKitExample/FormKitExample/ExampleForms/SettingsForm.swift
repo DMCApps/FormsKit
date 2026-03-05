@@ -35,7 +35,6 @@ enum SettingsForm {
             id: "displayName",
             title: "Display Name",
             placeholder: "Enter your name",
-            isRequired: true,
             validators: [
                 .required(),
                 .minLength(2),
@@ -47,7 +46,6 @@ enum SettingsForm {
         EmailInputRow(
             id: "contactEmail",
             title: "Contact Email",
-            isRequired: false,
             validators: [.email(trigger: .onDebouncedInput(seconds: 0.8))]
         )
 

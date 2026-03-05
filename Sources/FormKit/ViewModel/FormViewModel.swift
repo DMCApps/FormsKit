@@ -207,11 +207,6 @@ public final class FormViewModel {
         for row in formDefinition.rows where isRowVisible(row) {
             var rowErrors: [String] = []
 
-            // Required field check (built-in, not dependent on user-supplied validators).
-            if row.isRequired, !values.hasValue(for: row.id) {
-                rowErrors.append("This field is required")
-            }
-
             // User-supplied .onSave validators.
             let validatorErrors = row.validators
                 .filter { $0.trigger == .onSave }
