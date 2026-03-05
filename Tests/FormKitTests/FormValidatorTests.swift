@@ -158,6 +158,86 @@ struct FormValidatorTests {
         #expect(ValidationTrigger.onSave.debounceDuration == nil)
     }
 
+    // MARK: - double
+
+    @Test("double — valid decimal strings pass")
+    func doubleValidStringsPass() {
+        let v = FormValidator.double()
+        #expect(v.validate(.string("37.7833")) == nil)
+        #expect(v.validate(.string("-122.4167")) == nil)
+        #expect(v.validate(.string("0")) == nil)
+        #expect(v.validate(.string("1e5")) == nil)
+    }
+
+    @Test("double — invalid strings fail")
+    func doubleInvalidStringsFail() {
+        let v = FormValidator.double()
+        #expect(v.validate(.string("abc")) != nil)
+        #expect(v.validate(.string("12.34.56")) != nil)
+        #expect(v.validate(.string("--1")) != nil)
+    }
+
+    @Test("double — empty string passes (not responsible for required)")
+    func doubleEmptyStringPasses() {
+        let v = FormValidator.double()
+        #expect(v.validate(.string("")) == nil)
+        #expect(v.validate(nil) == nil)
+    }
+
+    @Test("double — non-string values pass through")
+    func doubleNonStringPasses() {
+        let v = FormValidator.double()
+        #expect(v.validate(.int(5)) == nil)
+        #expect(v.validate(.bool(true)) == nil)
+    }
+
+    @Test("double — custom message returned on failure")
+    func doubleCustomMessage() {
+        let v = FormValidator.double(message: "Bad number")
+        #expect(v.validate(.string("nope")) == "Bad number")
+    }
+
+    // MARK: - ipv4
+
+    @Test("ipv4 — valid addresses pass")
+    func ipv4ValidAddressesPass() {
+        let v = FormValidator.ipv4()
+        #expect(v.validate(.string("192.168.1.1")) == nil)
+        #expect(v.validate(.string("0.0.0.0")) == nil)
+        #expect(v.validate(.string("255.255.255.255")) == nil)
+        #expect(v.validate(.string("128.218.229.26")) == nil)
+    }
+
+    @Test("ipv4 — invalid format fails")
+    func ipv4InvalidFormatFails() {
+        let v = FormValidator.ipv4()
+        #expect(v.validate(.string("999.999.999.999")) != nil) // octets out of range
+        #expect(v.validate(.string("192.168.1")) != nil) // only 3 octets
+        #expect(v.validate(.string("192.168.1.1.1")) != nil) // 5 octets
+        #expect(v.validate(.string("abc.def.ghi.jkl")) != nil) // non-numeric
+        #expect(v.validate(.string("192.168.1.256")) != nil) // octet > 255
+    }
+
+    @Test("ipv4 — empty string passes (not responsible for required)")
+    func ipv4EmptyStringPasses() {
+        let v = FormValidator.ipv4()
+        #expect(v.validate(.string("")) == nil)
+        #expect(v.validate(nil) == nil)
+    }
+
+    @Test("ipv4 — non-string values pass through")
+    func ipv4NonStringPasses() {
+        let v = FormValidator.ipv4()
+        #expect(v.validate(.int(42)) == nil)
+        #expect(v.validate(.bool(false)) == nil)
+    }
+
+    @Test("ipv4 — custom message returned on failure")
+    func ipv4CustomMessage() {
+        let v = FormValidator.ipv4(message: "Bad IP")
+        #expect(v.validate(.string("notanip")) == "Bad IP")
+    }
+
     // MARK: - Custom error messages
 
     @Test("custom error messages are returned")

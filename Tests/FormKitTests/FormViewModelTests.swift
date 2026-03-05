@@ -493,6 +493,202 @@ struct FormViewModelTests {
         #expect(vm.errors.isEmpty)
     }
 
+    // MARK: - onChange Handlers
+
+    @Test("Immediate onChange handler fires on setValue")
+    func immediateOnChangeHandlerFires() {
+        nonisolated(unsafe) var received: AnyCodableValue?
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [.immediate { received = $0 }]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("hello", for: "text")
+
+        #expect(received == .string("hello"))
+    }
+
+    @Test("Immediate onChange handler fires with nil when value is cleared")
+    func immediateOnChangeHandlerFiresWithNil() {
+        nonisolated(unsafe) var callCount = 0
+        let row = BooleanSwitchRow(
+            id: "flag",
+            title: "Flag",
+            onChange: [.immediate { _ in callCount += 1 }]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setValue(nil, for: "flag")
+
+        #expect(callCount == 1)
+    }
+
+    @Test("Multiple onChange handlers on one row all fire")
+    func multipleOnChangeHandlersFire() {
+        nonisolated(unsafe) var countA = 0
+        nonisolated(unsafe) var countB = 0
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [
+                .immediate { _ in countA += 1 },
+                .immediate { _ in countB += 1 }
+            ]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("test", for: "text")
+
+        #expect(countA == 1)
+        #expect(countB == 1)
+    }
+
+    @Test("onChange handler receives the new value, not the old")
+    func onChangeHandlerReceivesNewValue() {
+        nonisolated(unsafe) var values: [AnyCodableValue?] = []
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [.immediate { values.append($0) }]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("first", for: "text")
+        vm.setString("second", for: "text")
+
+        #expect(values.count == 2)
+        #expect(values[0] == .string("first"))
+        #expect(values[1] == .string("second"))
+    }
+
+    @Test("onChange handler does not fire for a different row's changes")
+    func onChangeHandlerNotFiredForOtherRow() {
+        nonisolated(unsafe) var callCount = 0
+        let watchedRow = TextInputRow(
+            id: "watched",
+            title: "Watched",
+            onChange: [.immediate { _ in callCount += 1 }]
+        )
+        let otherRow = TextInputRow(id: "other", title: "Other")
+        let form = makeForm(rows: [AnyFormRow(watchedRow), AnyFormRow(otherRow)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("change other", for: "other")
+
+        #expect(callCount == 0)
+    }
+
+    @Test("Row without onChange handlers — setValue does not crash")
+    func noOnChangeHandlersDoesNotCrash() {
+        let row = TextInputRow(id: "text", title: "Text") // no onChange
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        // Should not crash.
+        vm.setString("hello", for: "text")
+        #expect(vm.value(for: "text") as String? == "hello")
+    }
+
+    @Test("Debounced onChange handler fires after delay")
+    func debouncedOnChangeHandlerFiresAfterDelay() async {
+        nonisolated(unsafe) var received: AnyCodableValue?
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [.debounced(0.05) { received = $0 }]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("debounced", for: "text")
+
+        // Should not have fired yet.
+        #expect(received == nil)
+
+        // Wait for debounce to complete.
+        try? await Task.sleep(for: .milliseconds(150))
+
+        #expect(received == .string("debounced"))
+    }
+
+    @Test("Debounced onChange handler fires with the latest value after rapid updates")
+    func debouncedOnChangeHandlerUsesLatestValue() async {
+        nonisolated(unsafe) var receivedValues: [AnyCodableValue?] = []
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [.debounced(0.05) { receivedValues.append($0) }]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        // Rapid updates — only the last should fire.
+        vm.setString("a", for: "text")
+        vm.setString("b", for: "text")
+        vm.setString("c", for: "text")
+
+        // Wait for debounce.
+        try? await Task.sleep(for: .milliseconds(150))
+
+        // Only one handler invocation with the final value.
+        #expect(receivedValues.count == 1)
+        #expect(receivedValues[0] == .string("c"))
+    }
+
+    @Test("Both immediate and debounced handlers on same row both fire")
+    func immediateAndDebouncedHandlersBothFire() async {
+        nonisolated(unsafe) var immediateCount = 0
+        nonisolated(unsafe) var debouncedCount = 0
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [
+                .immediate { _ in immediateCount += 1 },
+                .debounced(0.05) { _ in debouncedCount += 1 }
+            ]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("hello", for: "text")
+
+        // Immediate fires synchronously.
+        #expect(immediateCount == 1)
+        #expect(debouncedCount == 0)
+
+        // Wait for debounce.
+        try? await Task.sleep(for: .milliseconds(150))
+
+        #expect(immediateCount == 1)
+        #expect(debouncedCount == 1)
+    }
+
+    @Test("reset cancels pending debounced onChange handlers")
+    func resetCancelsPendingDebouncedHandlers() async {
+        nonisolated(unsafe) var debouncedCallCount = 0
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [.debounced(0.05) { _ in debouncedCallCount += 1 }]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("trigger", for: "text")
+        vm.reset() // cancels the pending debounce task
+
+        try? await Task.sleep(for: .milliseconds(150))
+
+        // Handler should not have fired since it was cancelled.
+        #expect(debouncedCallCount == 0)
+    }
+
     // MARK: - visibleRows
 
     @Test("visibleRows filters by conditions")

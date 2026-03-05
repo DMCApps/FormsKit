@@ -54,6 +54,9 @@ public final class FormViewModel {
     /// Cancellable debounce tasks keyed by row ID.
     private var debounceTimers: [String: Task<Void, Never>] = [:]
 
+    /// Cancellable debounce tasks for value-change handlers, keyed by row ID.
+    private var handlerDebounceTimers: [String: Task<Void, Never>] = [:]
+
     // MARK: - Initialisation
 
     /// - Parameters:
@@ -115,6 +118,8 @@ public final class FormViewModel {
         runValidators(for: rowId, trigger: .onChange)
         // Schedule debounced validators.
         scheduleDebouncedValidation(for: rowId)
+        // Dispatch registered value-change handlers.
+        dispatchValueChangeHandlers(for: rowId, newValue: value)
         // Auto-save when the form is configured to save on every change.
         if case .onChange = formDefinition.saveBehaviour {
             let capturedSelf = self
@@ -272,6 +277,8 @@ public final class FormViewModel {
         // Cancel all pending debounce timers.
         debounceTimers.values.forEach { $0.cancel() }
         debounceTimers = [:]
+        handlerDebounceTimers.values.forEach { $0.cancel() }
+        handlerDebounceTimers = [:]
     }
 
     /// Clear persisted data for this form.
@@ -390,5 +397,39 @@ public final class FormViewModel {
             .filter(\.trigger.isDebouncedInput)
             .compactMap { $0.validate(values[rowId]) }
         errors[rowId] = rowErrors
+    }
+
+    /// Dispatch the `onChange` handlers declared on the row definition.
+    /// Immediate handlers (debounce == nil) fire synchronously; debounced handlers are scheduled via a Task.
+    private func dispatchValueChangeHandlers(for rowId: String, newValue: AnyCodableValue?) {
+        guard let row = formDefinition.rows.first(where: { $0.id == rowId }),
+              !row.onChange.isEmpty else { return }
+
+        let immediateHandlers = row.onChange.filter { $0.debounce == nil }
+        let debouncedHandlers = row.onChange.filter { $0.debounce != nil }
+
+        // Fire immediate handlers now.
+        for handler in immediateHandlers {
+            handler.run(newValue)
+        }
+
+        // Schedule debounced handlers using the longest debounce interval.
+        if !debouncedHandlers.isEmpty {
+            let maxDelay = debouncedHandlers.compactMap(\.debounce).max() ?? 0.5
+
+            handlerDebounceTimers[rowId]?.cancel()
+
+            let capturedSelf = self
+            handlerDebounceTimers[rowId] = Task {
+                try? await Task.sleep(for: .seconds(maxDelay))
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    let currentValue = capturedSelf.values[rowId]
+                    for handler in debouncedHandlers {
+                        handler.run(currentValue)
+                    }
+                }
+            }
+        }
     }
 }
