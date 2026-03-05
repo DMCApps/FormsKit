@@ -38,39 +38,41 @@ where RowID.RawValue == String {
     ///   - id: Unique identifier for this form. Used as the persistence key.
     ///   - title: Display title shown in the navigation bar.
     ///   - persistence: Optional persistence backend.
-    ///   - showsSaveButton: Whether to render a Save button. Defaults to `true`.
-    ///   - saveButtonTitle: Label for the Save button. Defaults to `"Save"`.
+    ///   - saveBehaviour: Controls when and how form values are saved. Defaults to `.buttonBottomForm()`.
     ///   - rows: Row builder closure — use `RowID` enum cases for the `id:` parameter.
     public init(id: String,
                 title: String,
                 persistence: (any FormPersistence)? = nil,
-                showsSaveButton: Bool = true,
-                saveButtonTitle: String = "Save",
+                saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                 @FormRowBuilder rows: () -> [AnyFormRow]) {
         definition = FormDefinition(
             id: id,
             title: title,
             persistence: persistence,
-            showsSaveButton: showsSaveButton,
-            saveButtonTitle: saveButtonTitle,
+            saveBehaviour: saveBehaviour,
             rows: rows
         )
     }
 
     /// Create a typed form from a pre-built array of rows.
+    ///
+    /// - Parameters:
+    ///   - id: Unique identifier for this form. Used as the persistence key.
+    ///   - title: Display title shown in the navigation bar.
+    ///   - rows: Pre-built array of rows.
+    ///   - persistence: Optional persistence backend.
+    ///   - saveBehaviour: Controls when and how form values are saved. Defaults to `.buttonBottomForm()`.
     public init(id: String,
                 title: String,
                 rows: [AnyFormRow],
                 persistence: (any FormPersistence)? = nil,
-                showsSaveButton: Bool = true,
-                saveButtonTitle: String = "Save") {
+                saveBehaviour: FormSaveBehaviour = .buttonBottomForm()) {
         definition = FormDefinition(
             id: id,
             title: title,
             rows: rows,
             persistence: persistence,
-            showsSaveButton: showsSaveButton,
-            saveButtonTitle: saveButtonTitle
+            saveBehaviour: saveBehaviour
         )
     }
 }
@@ -104,6 +106,7 @@ where RowID.RawValue == String {
 /// - Note: `TypedFormViewModel` is not itself `@Observable`. Observable state lives on
 ///   `viewModel` (which is `@Observable`). Access `form.viewModel.xyz` in SwiftUI views
 ///   to get automatic updates. Use `TypedFormViewModel` methods for all mutations.
+@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 public final class TypedFormViewModel<RowID: RawRepresentable & Sendable>
 where RowID.RawValue == String {
     // MARK: - Underlying ViewModel
@@ -114,24 +117,34 @@ where RowID.RawValue == String {
     // MARK: - Initialisers
 
     /// Create a typed view model from a `TypedFormDefinition`.
+    ///
+    /// - Parameters:
+    ///   - form: The typed form definition.
+    ///   - persistence: Optional persistence backend override.
+    ///   - onSave: Optional closure called after a successful save with the final form values.
     public init(form: TypedFormDefinition<RowID>,
-                initialValues: FormValueStore? = nil,
-                persistence: (any FormPersistence)? = nil) {
+                persistence: (any FormPersistence)? = nil,
+                onSave: ((FormValueStore) -> Void)? = nil) {
         viewModel = FormViewModel(
             formDefinition: form.definition,
-            initialValues: initialValues,
-            persistence: persistence
+            persistence: persistence,
+            onSave: onSave
         )
     }
 
     /// Create a typed view model directly from a plain `FormDefinition`.
+    ///
+    /// - Parameters:
+    ///   - formDefinition: The form definition.
+    ///   - persistence: Optional persistence backend override.
+    ///   - onSave: Optional closure called after a successful save with the final form values.
     public init(formDefinition: FormDefinition,
-                initialValues: FormValueStore? = nil,
-                persistence: (any FormPersistence)? = nil) {
+                persistence: (any FormPersistence)? = nil,
+                onSave: ((FormValueStore) -> Void)? = nil) {
         viewModel = FormViewModel(
             formDefinition: formDefinition,
-            initialValues: initialValues,
-            persistence: persistence
+            persistence: persistence,
+            onSave: onSave
         )
     }
 

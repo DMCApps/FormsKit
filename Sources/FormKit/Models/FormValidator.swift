@@ -169,6 +169,33 @@ public extension FormValidator {
         }
     }
 
+    // MARK: Double
+
+    /// The string value must parse as a valid Double (e.g. "37.7833" or "-122.4167").
+    /// Passes when the field is empty — combine with `.required()` to enforce a value.
+    static func double(message: String = "Must be a valid decimal number",
+                       trigger: ValidationTrigger = .onSave) -> FormValidator {
+        FormValidator(trigger: trigger) { value in
+            guard case let .string(s) = value, !s.isEmpty else { return nil }
+            return Swift.Double(s) != nil ? nil : message
+        }
+    }
+
+    // MARK: IPv4
+
+    /// The string value must be a valid IPv4 address (e.g. "192.168.1.1").
+    /// Each octet must be 0–255. Passes when the field is empty.
+    static func ipv4(message: String = "Must be a valid IPv4 address (e.g. 192.168.1.1)",
+                     trigger: ValidationTrigger = .onSave) -> FormValidator {
+        FormValidator(trigger: trigger) { value in
+            guard case let .string(s) = value, !s.isEmpty else { return nil }
+            let pattern = #"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$"#
+            guard s.range(of: pattern, options: .regularExpression) != nil else { return message }
+            let valid = s.split(separator: ".").compactMap { Int($0) }.allSatisfy { $0 <= 255 }
+            return valid ? nil : message
+        }
+    }
+
     // MARK: Custom
 
     /// A custom validator with a user-provided predicate.

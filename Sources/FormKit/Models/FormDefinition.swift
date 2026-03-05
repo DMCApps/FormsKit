@@ -1,5 +1,31 @@
 import Foundation
 
+// MARK: - FormSaveBehaviour
+
+/// Controls how and when a form persists its values.
+public enum FormSaveBehaviour: Sendable {
+    /// Automatically saves to persistence after every value change. No save button is shown.
+    case onChange
+
+    /// Shows a Save button in the navigation bar. Values are only saved when tapped.
+    /// - Parameter title: Label for the button. Defaults to `"Save"`.
+    case buttonNavigationBar(title: String = "Save")
+
+    /// Shows a prominent Save button at the bottom of the form. Values are only saved when tapped.
+    /// - Parameter title: Label for the button. Defaults to `"Save"`.
+    case buttonBottomForm(title: String = "Save")
+
+    /// The title to display on the save button, or nil for `.onChange`.
+    var saveButtonTitle: String? {
+        switch self {
+        case .onChange:
+            return nil
+        case let .buttonNavigationBar(title), let .buttonBottomForm(title):
+            return title
+        }
+    }
+}
+
 // MARK: - FormDefinition
 
 /// Describes a complete form: its identity, title, rows, and optional persistence.
@@ -17,11 +43,8 @@ public struct FormDefinition: Sendable, Identifiable {
     /// Optional persistence backend. When nil, values live in-memory for the session.
     public let persistence: (any FormPersistence)?
 
-    /// Whether to render a Save button at the bottom of the form.
-    public let showsSaveButton: Bool
-
-    /// Label for the Save button. Defaults to "Save".
-    public let saveButtonTitle: String
+    /// Controls when and how form values are saved.
+    public let saveBehaviour: FormSaveBehaviour
 
     // MARK: Initialiser — Array of AnyFormRow
 
@@ -29,14 +52,12 @@ public struct FormDefinition: Sendable, Identifiable {
                 title: String,
                 rows: [AnyFormRow],
                 persistence: (any FormPersistence)? = nil,
-                showsSaveButton: Bool = true,
-                saveButtonTitle: String = "Save") {
+                saveBehaviour: FormSaveBehaviour = .buttonBottomForm()) {
         self.id = id
         self.title = title
         self.rows = rows
         self.persistence = persistence
-        self.showsSaveButton = showsSaveButton
-        self.saveButtonTitle = saveButtonTitle
+        self.saveBehaviour = saveBehaviour
     }
 
     // MARK: Initialiser — Result Builder DSL
@@ -52,15 +73,13 @@ public struct FormDefinition: Sendable, Identifiable {
     public init(id: String,
                 title: String,
                 persistence: (any FormPersistence)? = nil,
-                showsSaveButton: Bool = true,
-                saveButtonTitle: String = "Save",
+                saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                 @FormRowBuilder rows: () -> [AnyFormRow]) {
         self.id = id
         self.title = title
         self.rows = rows()
         self.persistence = persistence
-        self.showsSaveButton = showsSaveButton
-        self.saveButtonTitle = saveButtonTitle
+        self.saveBehaviour = saveBehaviour
     }
 }
 

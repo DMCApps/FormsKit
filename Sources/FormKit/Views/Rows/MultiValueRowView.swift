@@ -4,6 +4,7 @@ import SwiftUI
 
 /// Renders a MultiValueRowRepresentable as a list of checkmark-toggled options.
 /// Works without knowing the generic type T — operates on string descriptions only.
+@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct MultiValueRowView: View {
     let row: any MultiValueRowRepresentable
     let rowId: String

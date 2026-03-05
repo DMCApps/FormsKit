@@ -5,8 +5,8 @@ import PackageDescription
 let package = Package(
     name: "FormKit",
     platforms: [
-        .iOS(.v17),
-        .tvOS(.v17),
+        .iOS(.v15),
+        .tvOS(.v15),
         .visionOS(.v1),
         .macOS(.v14)
     ],

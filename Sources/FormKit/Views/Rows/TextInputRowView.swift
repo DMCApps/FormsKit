@@ -1,14 +1,37 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
+
+// MARK: - FormKeyboardType + UIKeyboardType
+
+#if os(iOS)
+extension FormKeyboardType {
+    var uiKeyboardType: UIKeyboardType {
+        switch self {
+        case .default: return .default
+        case .decimalPad: return .decimalPad
+        case .numberPad: return .numberPad
+        case .emailAddress: return .emailAddress
+        case .url: return .URL
+        case .phonePad: return .phonePad
+        }
+    }
+}
+#endif
 
 // MARK: - TextInputRowView
 
 /// Renders a TextInputRow as a TextField or SecureField.
+@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct TextInputRowView: View {
     let row: TextInputRow
     @Bindable var viewModel: FormViewModel
 
     private var text: String {
-        viewModel.value(for: row.id) ?? row.defaultText ?? ""
+        if let stored: String = viewModel.value(for: row.id) { return stored }
+        if case let .string(s) = row.defaultValue { return s }
+        return ""
     }
 
     var body: some View {
@@ -51,6 +74,7 @@ struct TextInputRowView: View {
                 .textContentType(.none)
                 .autocorrectionDisabled()
 #if os(iOS)
+                .keyboardType(row.keyboardType.uiKeyboardType)
                 .textInputAutocapitalization(.never)
 #endif
         }

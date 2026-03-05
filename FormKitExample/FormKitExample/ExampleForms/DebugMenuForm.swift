@@ -28,7 +28,7 @@ enum DebugMenuForm {
             id: "baseURL",
             title: "API Base URL",
             placeholder: "https://api.example.com",
-            defaultText: "https://api.dev.example.com",
+            defaultValue: "https://api.dev.example.com",
             validators: [
                 .regex("^https?://", message: "Must start with http:// or https://", trigger: .onSave)
             ]
@@ -39,21 +39,21 @@ enum DebugMenuForm {
             title: "Request Timeout (seconds)",
             placeholder: "30",
             kind: .integer,
-            defaultInt: 30,
+            defaultValue: 30,
             validators: [.range(1 ... 300)]
         )
 
         BooleanSwitchRow(
             id: "sslPinning",
             title: "SSL Certificate Pinning",
-            defaultIsOn: true
+            defaultValue: true
         )
 
         BooleanSwitchRow(
             id: "responseLogging",
             title: "Log All Responses",
             subtitle: "Warning: may expose sensitive data",
-            defaultIsOn: false
+            defaultValue: false
         )
     }
 
@@ -77,7 +77,7 @@ enum DebugMenuForm {
         BooleanSwitchRow(
             id: "mockAPI",
             title: "Use Mock API",
-            defaultIsOn: false
+            defaultValue: false
         )
 
         // Mock delay slider — only visible when mock API is enabled.
@@ -86,7 +86,7 @@ enum DebugMenuForm {
             title: "Mock API Delay (ms)",
             placeholder: "200",
             kind: .integer,
-            defaultInt: 200,
+            defaultValue: 200,
             conditions: [.isTrue(rowId: "mockAPI")],
             validators: [.range(0 ... 5000)]
         )
@@ -103,14 +103,14 @@ enum DebugMenuForm {
         SingleValueRow<DebugEnvironment>(
             id: "environment",
             title: "Environment",
-            defaultSelection: .dev
+            defaultValue: .dev
         )
 
         // Log level — only shown in dev/staging.
         SingleValueRow<LogLevel>(
             id: "logLevel",
             title: "Log Level",
-            defaultSelection: .debug,
+            defaultValue: .debug,
             conditions: [
                 .or([
                     .equals(rowId: "environment", string: DebugEnvironment.dev.description),
@@ -123,7 +123,7 @@ enum DebugMenuForm {
         BooleanSwitchRow(
             id: "verboseLogging",
             title: "Verbose Logging",
-            defaultIsOn: true,
+            defaultValue: true,
             conditions: [.equals(rowId: "environment", string: DebugEnvironment.dev.description)]
         )
 

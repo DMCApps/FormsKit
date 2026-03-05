@@ -118,11 +118,10 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
     /// All available options. Defaults to `T.allCases` if not provided.
     public let options: [T]
 
-    /// The initially selected value.
-    public let defaultSelection: T?
+    private let _defaultValue: T?
 
     public var defaultValue: AnyCodableValue? {
-        defaultSelection.map { .string($0.description) }
+        _defaultValue.map { .string($0.description) }
     }
 
     // MARK: SingleValueRowRepresentable
@@ -132,7 +131,7 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
     }
 
     public var selectedDescription: String? {
-        defaultSelection?.description
+        _defaultValue?.description
     }
 
     public init(id: String,
@@ -140,7 +139,7 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
                 subtitle: String? = nil,
                 isRequired: Bool = false,
                 options: [T]? = nil,
-                defaultSelection: T? = nil,
+                defaultValue: T? = nil,
                 conditions: [FormCondition] = [],
                 validators: [FormValidator] = []) {
         self.id = id
@@ -148,7 +147,7 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
         self.subtitle = subtitle
         self.isRequired = isRequired
         self.options = options ?? Array(T.allCases)
-        self.defaultSelection = defaultSelection
+        _defaultValue = defaultValue
         self.conditions = conditions
         self.validators = validators
     }
@@ -170,13 +169,12 @@ public struct MultiValueRow<T>: FormRow, MultiValueRowRepresentable
     /// All available options.
     public let options: [T]
 
-    /// The initially selected values.
-    public let defaultSelections: Set<T>
+    private let _defaultValue: Set<T>
 
     public var defaultValue: AnyCodableValue? {
-        defaultSelections.isEmpty
+        _defaultValue.isEmpty
             ? nil
-            : .array(defaultSelections.map { .string($0.description) })
+            : .array(_defaultValue.map { .string($0.description) })
     }
 
     // MARK: MultiValueRowRepresentable
@@ -186,7 +184,7 @@ public struct MultiValueRow<T>: FormRow, MultiValueRowRepresentable
     }
 
     public var selectedDescriptions: [String] {
-        defaultSelections.map(\.description)
+        _defaultValue.map(\.description)
     }
 
     public init(id: String,
@@ -194,7 +192,7 @@ public struct MultiValueRow<T>: FormRow, MultiValueRowRepresentable
                 subtitle: String? = nil,
                 isRequired: Bool = false,
                 options: [T]? = nil,
-                defaultSelections: Set<T> = [],
+                defaultValue: Set<T> = [],
                 conditions: [FormCondition] = [],
                 validators: [FormValidator] = []) {
         self.id = id
@@ -202,7 +200,7 @@ public struct MultiValueRow<T>: FormRow, MultiValueRowRepresentable
         self.subtitle = subtitle
         self.isRequired = isRequired
         self.options = options ?? Array(T.allCases)
-        self.defaultSelections = defaultSelections
+        _defaultValue = defaultValue
         self.conditions = conditions
         self.validators = validators
     }
@@ -218,25 +216,45 @@ public struct BooleanSwitchRow: FormRow {
     public let isRequired: Bool
     public let conditions: [FormCondition]
     public let validators: [FormValidator]
-    public let defaultIsOn: Bool
 
-    public var defaultValue: AnyCodableValue? { .bool(defaultIsOn) }
+    private let _defaultValue: Bool
+
+    public var defaultValue: AnyCodableValue? { .bool(_defaultValue) }
 
     public init(id: String,
                 title: String,
                 subtitle: String? = nil,
                 isRequired: Bool = false,
-                defaultIsOn: Bool = false,
+                defaultValue: Bool = false,
                 conditions: [FormCondition] = [],
                 validators: [FormValidator] = []) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         self.isRequired = isRequired
-        self.defaultIsOn = defaultIsOn
+        _defaultValue = defaultValue
         self.conditions = conditions
         self.validators = validators
     }
+}
+
+// MARK: - FormKeyboardType
+
+/// Platform-independent keyboard type hint for TextInputRow.
+/// Mapped to `UIKeyboardType` on iOS and ignored on platforms that don't support it.
+public enum FormKeyboardType: Sendable {
+    /// The default keyboard for the current input method.
+    case `default`
+    /// A keyboard optimised for decimal number entry (includes the decimal separator).
+    case decimalPad
+    /// A numeric keypad (0–9 only, no decimal separator).
+    case numberPad
+    /// A keyboard for entering email addresses.
+    case emailAddress
+    /// A keyboard for URL entry.
+    case url
+    /// A keyboard for entering telephone numbers.
+    case phonePad
 }
 
 // MARK: - TextInputRow
@@ -250,11 +268,13 @@ public struct TextInputRow: FormRow {
     public let conditions: [FormCondition]
     public let validators: [FormValidator]
     public let placeholder: String?
-    public let defaultText: String?
     public let isSecure: Bool
+    public let keyboardType: FormKeyboardType
+
+    private let _defaultValue: String?
 
     public var defaultValue: AnyCodableValue? {
-        defaultText.map { .string($0) }
+        _defaultValue.map { .string($0) }
     }
 
     public init(id: String,
@@ -262,8 +282,9 @@ public struct TextInputRow: FormRow {
                 subtitle: String? = nil,
                 placeholder: String? = nil,
                 isRequired: Bool = false,
-                defaultText: String? = nil,
+                defaultValue: String? = nil,
                 isSecure: Bool = false,
+                keyboardType: FormKeyboardType = .default,
                 conditions: [FormCondition] = [],
                 validators: [FormValidator] = []) {
         self.id = id
@@ -271,8 +292,9 @@ public struct TextInputRow: FormRow {
         self.subtitle = subtitle
         self.placeholder = placeholder
         self.isRequired = isRequired
-        self.defaultText = defaultText
+        _defaultValue = defaultValue
         self.isSecure = isSecure
+        self.keyboardType = keyboardType
         self.conditions = conditions
         self.validators = validators
     }
@@ -302,13 +324,14 @@ public struct NumberInputRow: FormRow {
 
     public var defaultValue: AnyCodableValue? { _defaultValue }
 
+    /// Integer input row.
     public init(id: String,
                 title: String,
                 subtitle: String? = nil,
                 placeholder: String? = nil,
                 isRequired: Bool = false,
                 kind: NumberKind = .integer,
-                defaultInt: Int? = nil,
+                defaultValue: Int? = nil,
                 conditions: [FormCondition] = [],
                 validators: [FormValidator] = []) {
         self.id = id
@@ -317,17 +340,18 @@ public struct NumberInputRow: FormRow {
         self.placeholder = placeholder
         self.isRequired = isRequired
         self.kind = kind
-        _defaultValue = defaultInt.map { .int($0) }
+        _defaultValue = defaultValue.map { .int($0) }
         self.conditions = conditions
         self.validators = validators
     }
 
+    /// Decimal input row.
     public init(id: String,
                 title: String,
                 subtitle: String? = nil,
                 placeholder: String? = nil,
                 isRequired: Bool = false,
-                defaultDouble: Double?,
+                defaultValue: Double?,
                 conditions: [FormCondition] = [],
                 validators: [FormValidator] = []) {
         self.id = id
@@ -336,7 +360,7 @@ public struct NumberInputRow: FormRow {
         self.placeholder = placeholder
         self.isRequired = isRequired
         kind = .decimal
-        _defaultValue = defaultDouble.map { .double($0) }
+        _defaultValue = defaultValue.map { .double($0) }
         self.conditions = conditions
         self.validators = validators
     }
@@ -354,10 +378,11 @@ public struct EmailInputRow: FormRow {
     public let conditions: [FormCondition]
     public let validators: [FormValidator]
     public let placeholder: String?
-    public let defaultEmail: String?
+
+    private let _defaultValue: String?
 
     public var defaultValue: AnyCodableValue? {
-        defaultEmail.map { .string($0) }
+        _defaultValue.map { .string($0) }
     }
 
     public init(id: String,
@@ -365,7 +390,7 @@ public struct EmailInputRow: FormRow {
                 subtitle: String? = nil,
                 placeholder: String? = "email@example.com",
                 isRequired: Bool = false,
-                defaultEmail: String? = nil,
+                defaultValue: String? = nil,
                 conditions: [FormCondition] = [],
                 validators: [FormValidator] = []) {
         self.id = id
@@ -373,12 +398,60 @@ public struct EmailInputRow: FormRow {
         self.subtitle = subtitle
         self.placeholder = placeholder
         self.isRequired = isRequired
-        self.defaultEmail = defaultEmail
+        _defaultValue = defaultValue
         self.conditions = conditions
         // Automatically prepend email format validator (fires onSave by default).
         var allValidators: [FormValidator] = [.email()]
         allValidators.append(contentsOf: validators)
         self.validators = allValidators
+    }
+}
+
+// MARK: - ButtonRow
+
+/// A row that renders as a tappable button with a custom action.
+/// Unlike NavigationRow, this does not navigate to a sub-form — it fires
+/// an arbitrary closure when tapped. Useful for actions like "Unbind User",
+/// "Show Banner", or "Inspect".
+public struct ButtonRow: FormRow, @unchecked Sendable {
+    public let id: String
+    public let title: String
+    public let subtitle: String?
+    public let isRequired: Bool = false
+    public let conditions: [FormCondition]
+    public let validators: [FormValidator] = []
+    public let defaultValue: AnyCodableValue? = nil
+
+    /// The action to perform when the button is tapped.
+    /// Stored as a `@Sendable` closure to satisfy `Sendable` conformance.
+    public let action: @Sendable () -> Void
+
+    public init(id: String,
+                title: String,
+                subtitle: String? = nil,
+                conditions: [FormCondition] = [],
+                action: @Sendable @escaping () -> Void) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.conditions = conditions
+        self.action = action
+    }
+}
+
+public extension ButtonRow {
+    init<ID: RawRepresentable>(id: ID,
+                               title: String,
+                               subtitle: String? = nil,
+                               conditions: [FormCondition] = [],
+                               action: @Sendable @escaping () -> Void) where ID.RawValue == String {
+        self.init(
+            id: id.rawValue,
+            title: title,
+            subtitle: subtitle,
+            conditions: conditions,
+            action: action
+        )
     }
 }
 
@@ -427,7 +500,7 @@ public extension SingleValueRow {
                                subtitle: String? = nil,
                                isRequired: Bool = false,
                                options: [T]? = nil,
-                               defaultSelection: T? = nil,
+                               defaultValue: T? = nil,
                                conditions: [FormCondition] = [],
                                validators: [FormValidator] = []) where ID.RawValue == String {
         self.init(
@@ -436,7 +509,7 @@ public extension SingleValueRow {
             subtitle: subtitle,
             isRequired: isRequired,
             options: options,
-            defaultSelection: defaultSelection,
+            defaultValue: defaultValue,
             conditions: conditions,
             validators: validators
         )
@@ -449,7 +522,7 @@ public extension MultiValueRow {
                                subtitle: String? = nil,
                                isRequired: Bool = false,
                                options: [T]? = nil,
-                               defaultSelections: Set<T> = [],
+                               defaultValue: Set<T> = [],
                                conditions: [FormCondition] = [],
                                validators: [FormValidator] = []) where ID.RawValue == String {
         self.init(
@@ -458,7 +531,7 @@ public extension MultiValueRow {
             subtitle: subtitle,
             isRequired: isRequired,
             options: options,
-            defaultSelections: defaultSelections,
+            defaultValue: defaultValue,
             conditions: conditions,
             validators: validators
         )
@@ -470,7 +543,7 @@ public extension BooleanSwitchRow {
                                title: String,
                                subtitle: String? = nil,
                                isRequired: Bool = false,
-                               defaultIsOn: Bool = false,
+                               defaultValue: Bool = false,
                                conditions: [FormCondition] = [],
                                validators: [FormValidator] = []) where ID.RawValue == String {
         self.init(
@@ -478,7 +551,7 @@ public extension BooleanSwitchRow {
             title: title,
             subtitle: subtitle,
             isRequired: isRequired,
-            defaultIsOn: defaultIsOn,
+            defaultValue: defaultValue,
             conditions: conditions,
             validators: validators
         )
@@ -491,8 +564,9 @@ public extension TextInputRow {
                                subtitle: String? = nil,
                                placeholder: String? = nil,
                                isRequired: Bool = false,
-                               defaultText: String? = nil,
+                               defaultValue: String? = nil,
                                isSecure: Bool = false,
+                               keyboardType: FormKeyboardType = .default,
                                conditions: [FormCondition] = [],
                                validators: [FormValidator] = []) where ID.RawValue == String {
         self.init(
@@ -501,8 +575,9 @@ public extension TextInputRow {
             subtitle: subtitle,
             placeholder: placeholder,
             isRequired: isRequired,
-            defaultText: defaultText,
+            defaultValue: defaultValue,
             isSecure: isSecure,
+            keyboardType: keyboardType,
             conditions: conditions,
             validators: validators
         )
@@ -516,7 +591,7 @@ public extension NumberInputRow {
                                placeholder: String? = nil,
                                isRequired: Bool = false,
                                kind: NumberKind = .integer,
-                               defaultInt: Int? = nil,
+                               defaultValue: Int? = nil,
                                conditions: [FormCondition] = [],
                                validators: [FormValidator] = []) where ID.RawValue == String {
         self.init(
@@ -526,7 +601,7 @@ public extension NumberInputRow {
             placeholder: placeholder,
             isRequired: isRequired,
             kind: kind,
-            defaultInt: defaultInt,
+            defaultValue: defaultValue,
             conditions: conditions,
             validators: validators
         )
@@ -537,7 +612,7 @@ public extension NumberInputRow {
                                subtitle: String? = nil,
                                placeholder: String? = nil,
                                isRequired: Bool = false,
-                               defaultDouble: Double?,
+                               defaultValue: Double?,
                                conditions: [FormCondition] = [],
                                validators: [FormValidator] = []) where ID.RawValue == String {
         self.init(
@@ -546,7 +621,7 @@ public extension NumberInputRow {
             subtitle: subtitle,
             placeholder: placeholder,
             isRequired: isRequired,
-            defaultDouble: defaultDouble,
+            defaultValue: defaultValue,
             conditions: conditions,
             validators: validators
         )
@@ -559,7 +634,7 @@ public extension EmailInputRow {
                                subtitle: String? = nil,
                                placeholder: String? = "email@example.com",
                                isRequired: Bool = false,
-                               defaultEmail: String? = nil,
+                               defaultValue: String? = nil,
                                conditions: [FormCondition] = [],
                                validators: [FormValidator] = []) where ID.RawValue == String {
         self.init(
@@ -568,7 +643,7 @@ public extension EmailInputRow {
             subtitle: subtitle,
             placeholder: placeholder,
             isRequired: isRequired,
-            defaultEmail: defaultEmail,
+            defaultValue: defaultValue,
             conditions: conditions,
             validators: validators
         )

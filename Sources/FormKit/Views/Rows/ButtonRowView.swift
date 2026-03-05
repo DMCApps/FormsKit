@@ -1,19 +1,14 @@
 import SwiftUI
 
-// MARK: - NavigationRowView
-
-/// Renders a NavigationRow as a NavigationLink to a sub-form.
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
-struct NavigationRowView: View {
-    let row: NavigationRow
-    @Bindable var viewModel: FormViewModel
+/// Renders a `ButtonRow` as a full-width tappable button inside a Form.
+struct ButtonRowView: View {
+    let row: ButtonRow
 
     var body: some View {
-        NavigationLink {
-            DynamicFormView(formDefinition: row.destination)
-        } label: {
+        Button(action: row.action) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.title)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 if let subtitle = row.subtitle {
                     Text(subtitle)
                         .font(.caption)

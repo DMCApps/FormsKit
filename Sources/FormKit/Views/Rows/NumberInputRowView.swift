@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - NumberInputRowView
 
 /// Renders a NumberInputRow as a TextField with numeric keyboard.
+@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct NumberInputRowView: View {
     let row: NumberInputRow
     @Bindable var viewModel: FormViewModel

@@ -27,7 +27,7 @@ enum SettingsForm {
             id: "theme",
             title: "App Theme",
             subtitle: "Choose your preferred colour scheme",
-            defaultSelection: .system
+            defaultValue: .system
         )
 
         // Free text for display name with required + minLength validators.
@@ -55,7 +55,7 @@ enum SettingsForm {
         BooleanSwitchRow(
             id: "notifications",
             title: "Enable Notifications",
-            defaultIsOn: true
+            defaultValue: true
         )
 
         // Multi-value selection — only visible when notifications are enabled.
@@ -72,7 +72,7 @@ enum SettingsForm {
             title: "Font Size",
             placeholder: "16",
             kind: .integer,
-            defaultInt: 16,
+            defaultValue: 16,
             conditions: [
                 .notEquals(rowId: "theme", value: .string(AppTheme.system.description))
             ],

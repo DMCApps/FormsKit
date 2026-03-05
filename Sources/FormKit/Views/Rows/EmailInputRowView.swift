@@ -3,12 +3,15 @@ import SwiftUI
 // MARK: - EmailInputRowView
 
 /// Renders an EmailInputRow as a TextField configured for email input.
+@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct EmailInputRowView: View {
     let row: EmailInputRow
     @Bindable var viewModel: FormViewModel
 
     private var text: String {
-        viewModel.value(for: row.id) ?? row.defaultEmail ?? ""
+        if let stored: String = viewModel.value(for: row.id) { return stored }
+        if case let .string(s) = row.defaultValue { return s }
+        return ""
     }
 
     var body: some View {

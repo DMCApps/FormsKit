@@ -16,6 +16,7 @@ import Observation
 /// // Later:
 /// let name: String? = viewModel.value(for: "name")
 /// ```
+@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 @Observable
 public final class FormViewModel {
     // MARK: - Observable State
@@ -43,8 +44,12 @@ public final class FormViewModel {
 
     // MARK: - Private State
 
-    private let formDefinition: FormDefinition
+    public let formDefinition: FormDefinition
     private let persistence: (any FormPersistence)?
+
+    /// Called after a successful save with the final form values.
+    /// Use this to react to the save event without subclassing the view model.
+    public var onSave: ((FormValueStore) -> Void)?
 
     /// Cancellable debounce tasks keyed by row ID.
     private var debounceTimers: [String: Task<Void, Never>] = [:]
@@ -53,27 +58,37 @@ public final class FormViewModel {
 
     /// - Parameters:
     ///   - formDefinition: The form to manage.
-    ///   - initialValues: Optional override values merged on top of row defaults.
     ///   - persistence: Override persistence backend.
     ///     Falls back to `formDefinition.persistence` if nil.
+    ///   - onSave: Optional closure called after a successful save with the final form values.
     public init(formDefinition: FormDefinition,
-                initialValues: FormValueStore? = nil,
-                persistence: (any FormPersistence)? = nil) {
+                persistence: (any FormPersistence)? = nil,
+                onSave: ((FormValueStore) -> Void)? = nil) {
         self.formDefinition = formDefinition
-        self.persistence = persistence ?? formDefinition.persistence
+        let resolvedPersistence = persistence ?? formDefinition.persistence
+        self.persistence = resolvedPersistence
 
-        // Seed the store with row default values.
+        // Load persisted values synchronously if the backend supports it.
+        // This ensures that `value(for:)` calls made before the view appears
+        // (e.g. from ViewModel computed properties) return the stored value,
+        // not the row default.
+        let persisted: FormValueStore = if let syncPersistence = resolvedPersistence as? any FormSynchronousPersistence {
+            syncPersistence.loadSynchronously(formId: formDefinition.id)
+        } else {
+            FormValueStore()
+        }
+
+        // Seed the store with row defaults, then overlay persisted values so
+        // stored values always win over defaults.
         var store = FormValueStore()
         for row in formDefinition.rows {
             if let defaultValue = row.defaultValue {
                 store[row.id] = defaultValue
             }
         }
-        // Overlay with caller-supplied initial values.
-        if let initialValues {
-            store.merge(initialValues)
-        }
+        store.merge(persisted)
         values = store
+        self.onSave = onSave
     }
 
     // MARK: - Value Reading
@@ -100,6 +115,11 @@ public final class FormViewModel {
         runValidators(for: rowId, trigger: .onChange)
         // Schedule debounced validators.
         scheduleDebouncedValidation(for: rowId)
+        // Auto-save when the form is configured to save on every change.
+        if case .onChange = formDefinition.saveBehaviour {
+            let capturedSelf = self
+            Task { await capturedSelf.save() }
+        }
     }
 
     /// Convenience: set a `Bool` value.
@@ -192,6 +212,7 @@ public final class FormViewModel {
 
         guard let persistence else {
             isDirty = false
+            onSave?(values)
             return true
         }
 
@@ -202,6 +223,7 @@ public final class FormViewModel {
             try await persistence.save(values, formId: formDefinition.id)
             isDirty = false
             isSaving = false
+            onSave?(values)
             return true
         } catch {
             saveError = error
