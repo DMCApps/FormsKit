@@ -21,10 +21,14 @@ public enum FormSaveBehaviour: Sendable {
     /// - Parameter title: Label for the button. Defaults to `"Save"`.
     case buttonStickyBottom(title: String = "Save")
 
-    /// The title to display on the save button, or nil for `.onChange`.
+    /// No save button is shown and no automatic saving occurs. Useful for action-only forms
+    /// that contain only buttons with no persistent state.
+    case none
+
+    /// The title to display on the save button, or nil for `.onChange` and `.none`.
     var saveButtonTitle: String? {
         switch self {
-        case .onChange:
+        case .onChange, .none:
             return nil
         case let .buttonNavigationBar(title), let .buttonBottomForm(title), let .buttonStickyBottom(title):
             return title

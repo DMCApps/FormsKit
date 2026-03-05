@@ -110,7 +110,11 @@ struct FormRowContainer: View {
 
     var body: some View {
         Group {
-            if let buttonRow = row.asType(ButtonRow.self) {
+            if let section = row.asType(FormSection.self) {
+                FormSectionView(section: section, viewModel: viewModel)
+            } else if let infoRow = row.asType(InfoRow.self) {
+                InfoRowView(row: infoRow)
+            } else if let buttonRow = row.asType(ButtonRow.self) {
                 ButtonRowView(row: buttonRow)
             } else if let boolRow = row.asType(BooleanSwitchRow.self) {
                 BooleanSwitchRowView(row: boolRow, viewModel: viewModel)

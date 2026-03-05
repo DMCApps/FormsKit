@@ -573,6 +573,120 @@ public extension ButtonRow {
     }
 }
 
+// MARK: - InfoRow
+
+/// A read-only display row that shows a label with a corresponding value.
+/// Unlike other rows, `InfoRow` carries no editable value and is never persisted.
+/// Use it to surface read-only data (e.g. privacy strings, computed state) inline
+/// within a form alongside editable rows.
+///
+/// The `value` is provided as a closure so it is evaluated at render time,
+/// allowing dynamic values that update independently of the form definition.
+public struct InfoRow: FormRow, @unchecked Sendable {
+    public let id: String
+    public let title: String
+    public let subtitle: String? = nil
+    public let onChange: [FormRowAction] = []
+    public let validators: [FormValidator] = []
+    public let defaultValue: AnyCodableValue? = nil
+
+    /// Closure evaluated at render time to produce the value string shown on the trailing side.
+    public let value: () -> String
+
+    public init(id: String, title: String, value: @escaping () -> String) {
+        self.id = id
+        self.title = title
+        self.value = value
+    }
+}
+
+public extension InfoRow {
+    init<ID: RawRepresentable>(id: ID, title: String, value: @escaping () -> String) where ID.RawValue == String {
+        self.init(id: id.rawValue, title: title, value: value)
+    }
+}
+
+// MARK: - FormSection
+
+/// A container row that groups child rows under a named, identifiable section.
+///
+/// `FormSection` conforms to `FormRow` so it slots directly into the `@FormRowBuilder` DSL
+/// alongside other row types. The `id` can be targeted by `.showRow` actions on other rows
+/// to show or hide the entire section (including all its children) conditionally.
+///
+/// ```swift
+/// FormDefinition(id: "settings", title: "Settings") {
+///     BooleanSwitchRow(id: "advanced", title: "Advanced Mode")
+///
+///     FormSection(id: "advancedSettings", title: "Advanced Settings",
+///                 onChange: [.showRow(id: "advancedSettings",
+///                                    when: [.isTrue(rowId: "advanced")])]) {
+///         TextInputRow(id: "timeout", title: "Timeout")
+///         NumberInputRow(id: "retries", title: "Retries")
+///     }
+/// }
+/// ```
+public struct FormSection: FormRow, @unchecked Sendable {
+    public let id: String
+    public let title: String
+    public let subtitle: String? = nil
+    public let onChange: [FormRowAction]
+    public let validators: [FormValidator] = []
+    public let defaultValue: AnyCodableValue? = nil
+
+    /// The child rows contained in this section.
+    public let rows: [AnyFormRow]
+
+    // MARK: Initialisers
+
+    /// Create a section with a pre-built array of rows.
+    public init(id: String,
+                title: String,
+                rows: [AnyFormRow],
+                onChange: [FormRowAction] = []) {
+        self.id = id
+        self.title = title
+        self.rows = rows
+        self.onChange = onChange
+    }
+
+    /// Create a section using the `@FormRowBuilder` DSL.
+    ///
+    /// ```swift
+    /// FormSection(id: "account", title: "Account") {
+    ///     TextInputRow(id: "name", title: "Name")
+    ///     EmailInputRow(id: "email", title: "Email")
+    /// }
+    /// ```
+    public init(id: String,
+                title: String,
+                onChange: [FormRowAction] = [],
+                @FormRowBuilder rows: () -> [AnyFormRow]) {
+        self.id = id
+        self.title = title
+        self.rows = rows()
+        self.onChange = onChange
+    }
+}
+
+public extension FormSection {
+    /// Create a section with a `RawRepresentable` id and a pre-built array of rows.
+    init<ID: RawRepresentable>(id: ID,
+                               title: String,
+                               rows: [AnyFormRow],
+                               onChange: [FormRowAction] = []) where ID.RawValue == String {
+        self.init(id: id.rawValue, title: title, rows: rows, onChange: onChange)
+    }
+
+    /// Create a section with a `RawRepresentable` id using the `@FormRowBuilder` DSL.
+    init<ID: RawRepresentable>(id: ID,
+                               title: String,
+                               onChange: [FormRowAction] = [],
+                               @FormRowBuilder rows: () -> [AnyFormRow]) where ID.RawValue == String {
+        self.init(id: id.rawValue, title: title, onChange: onChange, rows: rows)
+    }
+}
+
 // MARK: - NavigationRow
 
 /// A row that navigates to a sub-form when tapped.

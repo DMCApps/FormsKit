@@ -84,7 +84,7 @@ public final class FormViewModel {
         // Seed the store with row defaults, then overlay persisted values so
         // stored values always win over defaults.
         var store = FormValueStore()
-        for row in formDefinition.rows {
+        for row in FormViewModel.allRows(in: formDefinition.rows) {
             if let defaultValue = row.defaultValue {
                 store[row.id] = defaultValue
             }
@@ -171,9 +171,19 @@ public final class FormViewModel {
     /// If no row in the form has a `.showRow` action targeting this row's ID,
     /// the row is always visible. Otherwise it is visible when at least one
     /// `.showRow` action targeting it has all its conditions satisfied.
+    ///
+    /// If the row is a child of a `FormSection`, the section's own visibility
+    /// is checked first — a hidden section hides all its children regardless
+    /// of any actions targeting those children directly.
     public func isRowVisible(_ row: AnyFormRow) -> Bool {
-        // Collect all .showRow actions across the form that target this row.
-        let showActions = formDefinition.rows.flatMap { sourceRow in
+        // If this row lives inside a section, check the section's visibility first.
+        if let parentSection = parentSection(of: row.id, in: formDefinition.rows) {
+            guard isRowVisible(parentSection) else { return false }
+        }
+
+        // Collect all .showRow actions across ALL rows (including section children)
+        // that target this row.
+        let showActions = FormViewModel.allRows(in: formDefinition.rows).flatMap { sourceRow in
             sourceRow.onChange.compactMap { action -> [FormCondition]? in
                 if case let .showRow(targetId, conditions, _) = action, targetId == row.id {
                     return conditions
@@ -204,7 +214,7 @@ public final class FormViewModel {
     public func validateAll() -> Bool {
         var newErrors: [String: [String]] = [:]
 
-        for row in formDefinition.rows where isRowVisible(row) {
+        for row in FormViewModel.allRows(in: formDefinition.rows) where isRowVisible(row) {
             var rowErrors: [String] = []
 
             // User-supplied .onSave validators.
@@ -263,7 +273,7 @@ public final class FormViewModel {
         do {
             let loaded = try await persistence.load(formId: formDefinition.id)
             var store = FormValueStore()
-            for row in formDefinition.rows {
+            for row in FormViewModel.allRows(in: formDefinition.rows) {
                 if let defaultValue = row.defaultValue {
                     store[row.id] = defaultValue
                 }
@@ -282,7 +292,7 @@ public final class FormViewModel {
     /// Reset all values to their row defaults and clear all errors.
     public func reset() {
         var store = FormValueStore()
-        for row in formDefinition.rows {
+        for row in FormViewModel.allRows(in: formDefinition.rows) {
             if let defaultValue = row.defaultValue {
                 store[row.id] = defaultValue
             }
@@ -377,7 +387,7 @@ public final class FormViewModel {
 
     /// Run all validators matching the given trigger for a specific row.
     private func runValidators(for rowId: String, trigger: ValidationTrigger) {
-        guard let row = formDefinition.rows.first(where: { $0.id == rowId }) else { return }
+        guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
         let rowErrors = row.validators
             .filter { $0.trigger == trigger }
             .compactMap { $0.validate(values[rowId]) }
@@ -387,7 +397,7 @@ public final class FormViewModel {
     /// Schedule debounced validation for a row.
     /// Uses the longest debounce interval among all debounced validators for the row.
     private func scheduleDebouncedValidation(for rowId: String) {
-        guard let row = formDefinition.rows.first(where: { $0.id == rowId }) else { return }
+        guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
 
         let debouncedValidators = row.validators.filter(\.trigger.isDebouncedInput)
         guard !debouncedValidators.isEmpty else { return }
@@ -412,7 +422,7 @@ public final class FormViewModel {
     /// Fire all debounced validators for a row (called after the debounce delay).
     @MainActor
     private func runDebouncedValidators(for rowId: String) {
-        guard let row = formDefinition.rows.first(where: { $0.id == rowId }) else { return }
+        guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
         let rowErrors = row.validators
             .filter(\.trigger.isDebouncedInput)
             .compactMap { $0.validate(values[rowId]) }
@@ -422,7 +432,7 @@ public final class FormViewModel {
     /// Dispatch all onChange actions declared on the row with the given ID.
     /// Immediate actions fire synchronously; debounced actions are scheduled via a Task.
     private func dispatchActions(for rowId: String) {
-        guard let row = formDefinition.rows.first(where: { $0.id == rowId }) else { return }
+        guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
 
         let onChangeActions = row.onChange.enumerated().filter(\.element.isOnChangeAction)
 
@@ -481,12 +491,43 @@ public final class FormViewModel {
 
     /// Fire all `.onSave` actions across every row in the form.
     private func dispatchOnSaveActions() {
-        for row in formDefinition.rows {
+        for row in FormViewModel.allRows(in: formDefinition.rows) {
             for action in row.onChange {
                 if case let .onSave(handler) = action {
                     handler(values)
                 }
             }
         }
+    }
+
+    // MARK: - Section Helpers
+
+    /// Returns a flattened array of all leaf rows, recursively expanding any `FormSection` rows.
+    /// Sections themselves are included so that their `onChange` actions can be inspected.
+    static func allRows(in rows: [AnyFormRow]) -> [AnyFormRow] {
+        rows.flatMap { row -> [AnyFormRow] in
+            if let section = row.asType(FormSection.self) {
+                // Include the section row itself (for its onChange actions) plus all its children.
+                return [row] + allRows(in: section.rows)
+            }
+            return [row]
+        }
+    }
+
+    /// Returns the `AnyFormRow` wrapping the `FormSection` that directly contains `rowId`,
+    /// or `nil` if the row is not inside any section.
+    private func parentSection(of rowId: String, in rows: [AnyFormRow]) -> AnyFormRow? {
+        for row in rows {
+            if let section = row.asType(FormSection.self) {
+                if section.rows.contains(where: { $0.id == rowId }) {
+                    return row
+                }
+                // Recurse into nested sections.
+                if let found = parentSection(of: rowId, in: section.rows) {
+                    return found
+                }
+            }
+        }
+        return nil
     }
 }
