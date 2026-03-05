@@ -346,6 +346,26 @@ struct FormViewModelTests {
         }
     }
 
+    @Test("saveBehaviour .buttonStickyBottom is stored with default title")
+    func saveBehaviourButtonStickyBottomDefault() {
+        let form = makeForm(rows: [], saveBehaviour: .buttonStickyBottom())
+        if case let .buttonStickyBottom(title) = form.saveBehaviour {
+            #expect(title == "Save")
+        } else {
+            Issue.record("Expected .buttonStickyBottom saveBehaviour")
+        }
+    }
+
+    @Test("saveBehaviour .buttonStickyBottom is stored with custom title")
+    func saveBehaviourButtonStickyBottomCustomTitle() {
+        let form = makeForm(rows: [], saveBehaviour: .buttonStickyBottom(title: "Apply"))
+        if case let .buttonStickyBottom(title) = form.saveBehaviour {
+            #expect(title == "Apply")
+        } else {
+            Issue.record("Expected .buttonStickyBottom saveBehaviour")
+        }
+    }
+
     @Test("FormSaveBehaviour saveButtonTitle returns nil for .onChange")
     func saveButtonTitleOnChange() {
         let behaviour = FormSaveBehaviour.onChange
@@ -356,8 +376,10 @@ struct FormViewModelTests {
     func saveButtonTitleForButtonCases() {
         #expect(FormSaveBehaviour.buttonNavigationBar(title: "Go").saveButtonTitle == "Go")
         #expect(FormSaveBehaviour.buttonBottomForm(title: "Done").saveButtonTitle == "Done")
+        #expect(FormSaveBehaviour.buttonStickyBottom(title: "Apply").saveButtonTitle == "Apply")
         #expect(FormSaveBehaviour.buttonNavigationBar().saveButtonTitle == "Save")
         #expect(FormSaveBehaviour.buttonBottomForm().saveButtonTitle == "Save")
+        #expect(FormSaveBehaviour.buttonStickyBottom().saveButtonTitle == "Save")
     }
 
     @Test("setValue with .onChange saveBehaviour schedules a save Task")

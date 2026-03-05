@@ -11,16 +11,22 @@ public enum FormSaveBehaviour: Sendable {
     /// - Parameter title: Label for the button. Defaults to `"Save"`.
     case buttonNavigationBar(title: String = "Save")
 
-    /// Shows a prominent Save button at the bottom of the form. Values are only saved when tapped.
+    /// Shows a prominent Save button at the bottom of the form (inside the scroll area).
+    /// Values are only saved when tapped.
     /// - Parameter title: Label for the button. Defaults to `"Save"`.
     case buttonBottomForm(title: String = "Save")
+
+    /// Shows a prominent Save button pinned to the bottom of the screen, outside the scroll area.
+    /// Values are only saved when tapped.
+    /// - Parameter title: Label for the button. Defaults to `"Save"`.
+    case buttonStickyBottom(title: String = "Save")
 
     /// The title to display on the save button, or nil for `.onChange`.
     var saveButtonTitle: String? {
         switch self {
         case .onChange:
             return nil
-        case let .buttonNavigationBar(title), let .buttonBottomForm(title):
+        case let .buttonNavigationBar(title), let .buttonBottomForm(title), let .buttonStickyBottom(title):
             return title
         }
     }

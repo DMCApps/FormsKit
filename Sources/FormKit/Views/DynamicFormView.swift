@@ -37,23 +37,35 @@ public struct DynamicFormView: View {
     // MARK: - Body
 
     public var body: some View {
-        Form {
-            ForEach(formDefinition.rows) { row in
-                if viewModel.isRowVisible(row) {
-                    FormRowContainer(row: row, viewModel: viewModel)
-                        .animation(.default, value: viewModel.isRowVisible(row))
+        VStack(spacing: 0) {
+            Form {
+                ForEach(formDefinition.rows) { row in
+                    if viewModel.isRowVisible(row) {
+                        FormRowContainer(row: row, viewModel: viewModel)
+                            .animation(.default, value: viewModel.isRowVisible(row))
+                    }
+                }
+
+                if case let .buttonBottomForm(title) = formDefinition.saveBehaviour {
+                    Section {
+                        SaveButtonView(
+                            title: title,
+                            isLoading: viewModel.isSaving,
+                            isDisabled: viewModel.isSaving
+                        ) {
+                            Task { await viewModel.save() }
+                        }
+                    }
                 }
             }
 
-            if case let .buttonBottomForm(title) = formDefinition.saveBehaviour {
-                Section {
-                    SaveButtonView(
-                        title: title,
-                        isLoading: viewModel.isSaving,
-                        isDisabled: viewModel.isSaving
-                    ) {
-                        Task { await viewModel.save() }
-                    }
+            if case let .buttonStickyBottom(title) = formDefinition.saveBehaviour {
+                StickyBottomSaveButtonView(
+                    title: title,
+                    isLoading: viewModel.isSaving,
+                    isDisabled: viewModel.isSaving
+                ) {
+                    Task { await viewModel.save() }
                 }
             }
         }
