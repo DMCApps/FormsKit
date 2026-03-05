@@ -1,0 +1,19 @@
+# Tuist-generated — regenerate with `tuist generate`
+FormKitExample/*.xcodeproj
+FormKitExample/*.xcworkspace
+
+# Swift build artifacts
+.build/
+.swiftpm/
+
+# Xcode
+*.xcuserstate
+xcuserdata/
+DerivedData/
+
+# Tuist cache
+.tuist-bin/
+Tuist/.build/
+
+# macOS
+.DS_Store
