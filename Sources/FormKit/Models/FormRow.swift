@@ -581,7 +581,7 @@ public struct NavigationRow: FormRow {
     public let title: String
     public let subtitle: String?
     public let onChange: [FormRowAction]
-    public let validators: [FormValidator]
+    public let validators: [FormValidator] = []
 
     /// The sub-form this row navigates to.
     public let destination: FormDefinition
@@ -599,7 +599,6 @@ public struct NavigationRow: FormRow {
         self.subtitle = subtitle
         self.destination = destination
         self.onChange = onChange
-        validators = []
     }
 }
 

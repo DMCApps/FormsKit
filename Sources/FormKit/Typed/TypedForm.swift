@@ -194,7 +194,7 @@ where RowID.RawValue == String {
 
     // MARK: - Validation
 
-    /// Runs all `.onSave` validators and required-field checks.
+    /// Runs all `.onSave` validators for visible rows.
     /// - Returns: `true` if no errors were found.
     @discardableResult
     public func validateAll() -> Bool {

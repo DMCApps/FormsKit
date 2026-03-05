@@ -84,8 +84,11 @@ public struct DynamicFormView: View {
             await viewModel.loadFromPersistence()
         }
         // Surface save errors as an alert.
-        .alert("Save Failed", isPresented: .constant(viewModel.saveError != nil)) {
-            Button("OK") { }
+        .alert("Save Failed", isPresented: Binding(
+            get: { viewModel.saveError != nil },
+            set: { if !$0 { viewModel.clearSaveError() } }
+        )) {
+            Button("OK") { viewModel.clearSaveError() }
         } message: {
             if let error = viewModel.saveError {
                 Text(error.localizedDescription)

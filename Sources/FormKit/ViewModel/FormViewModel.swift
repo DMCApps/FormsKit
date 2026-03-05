@@ -298,6 +298,11 @@ public final class FormViewModel {
         actionDebounceTimers = [:]
     }
 
+    /// Clears the most recent save error. Call this when dismissing a save-failure alert.
+    public func clearSaveError() {
+        saveError = nil
+    }
+
     /// Clear persisted data for this form.
     public func clearPersistence() async {
         guard let persistence else { return }
