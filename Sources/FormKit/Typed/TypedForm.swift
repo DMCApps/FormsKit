@@ -39,17 +39,20 @@ where RowID.RawValue == String {
     ///   - title: Display title shown in the navigation bar.
     ///   - persistence: Optional persistence backend.
     ///   - saveBehaviour: Controls when and how form values are saved. Defaults to `.buttonBottomForm()`.
+    ///   - onSave: Actions that fire after the form is successfully saved.
     ///   - rows: Row builder closure — use `RowID` enum cases for the `id:` parameter.
     public init(id: String,
                 title: String,
                 persistence: (any FormPersistence)? = nil,
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
+                onSave: [FormSaveAction] = [],
                 @FormRowBuilder rows: () -> [AnyFormRow]) {
         definition = FormDefinition(
             id: id,
             title: title,
             persistence: persistence,
             saveBehaviour: saveBehaviour,
+            onSave: onSave,
             rows: rows
         )
     }
@@ -62,17 +65,20 @@ where RowID.RawValue == String {
     ///   - rows: Pre-built array of rows.
     ///   - persistence: Optional persistence backend.
     ///   - saveBehaviour: Controls when and how form values are saved. Defaults to `.buttonBottomForm()`.
+    ///   - onSave: Actions that fire after the form is successfully saved.
     public init(id: String,
                 title: String,
                 rows: [AnyFormRow],
                 persistence: (any FormPersistence)? = nil,
-                saveBehaviour: FormSaveBehaviour = .buttonBottomForm()) {
+                saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
+                onSave: [FormSaveAction] = []) {
         definition = FormDefinition(
             id: id,
             title: title,
             rows: rows,
             persistence: persistence,
-            saveBehaviour: saveBehaviour
+            saveBehaviour: saveBehaviour,
+            onSave: onSave
         )
     }
 }
@@ -121,14 +127,11 @@ where RowID.RawValue == String {
     /// - Parameters:
     ///   - form: The typed form definition.
     ///   - persistence: Optional persistence backend override.
-    ///   - onSave: Optional closure called after a successful save with the final form values.
     public init(form: TypedFormDefinition<RowID>,
-                persistence: (any FormPersistence)? = nil,
-                onSave: ((FormValueStore) -> Void)? = nil) {
+                persistence: (any FormPersistence)? = nil) {
         viewModel = FormViewModel(
             formDefinition: form.definition,
-            persistence: persistence,
-            onSave: onSave
+            persistence: persistence
         )
     }
 
@@ -137,14 +140,11 @@ where RowID.RawValue == String {
     /// - Parameters:
     ///   - formDefinition: The form definition.
     ///   - persistence: Optional persistence backend override.
-    ///   - onSave: Optional closure called after a successful save with the final form values.
     public init(formDefinition: FormDefinition,
-                persistence: (any FormPersistence)? = nil,
-                onSave: ((FormValueStore) -> Void)? = nil) {
+                persistence: (any FormPersistence)? = nil) {
         viewModel = FormViewModel(
             formDefinition: formDefinition,
-            persistence: persistence,
-            onSave: onSave
+            persistence: persistence
         )
     }
 

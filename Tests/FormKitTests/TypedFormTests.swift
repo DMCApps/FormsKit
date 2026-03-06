@@ -234,15 +234,19 @@ struct TypedFormViewModelTests {
         #expect(username == "dave")
     }
 
-    // MARK: - onSave closure
+    // MARK: - FormSaveAction (form-level)
 
-    @Test("onSave closure fires after successful save")
+    @Test("FormSaveAction fires after successful save")
     func onSaveClosureFiresAfterSave() async {
-        let form = makeTypedForm()
-        var capturedValues: FormValueStore?
-        let vm = TypedFormViewModel(form: form, onSave: { values in
-            capturedValues = values
-        })
+        nonisolated(unsafe) var capturedValues: FormValueStore?
+        let form = TypedFormDefinition<SettingsRowID>(
+            id: "typed-test",
+            title: "Typed Test",
+            onSave: [FormSaveAction { values in capturedValues = values }]
+        ) {
+            TextInputRow(id: SettingsRowID.username.rawValue, title: "Username", defaultValue: "alice")
+        }
+        let vm = TypedFormViewModel(form: form)
 
         vm.setString("eve", for: .username)
         let result = await vm.save()
@@ -253,13 +257,17 @@ struct TypedFormViewModelTests {
         #expect(username == "eve")
     }
 
-    @Test("onSave closure does NOT fire when validation fails")
+    @Test("FormSaveAction does NOT fire when validation fails")
     func onSaveClosureDoesNotFireOnFailure() async {
-        let form = TypedFormDefinition<SettingsRowID>(id: "fail", title: "Fail") {
+        nonisolated(unsafe) var called = false
+        let form = TypedFormDefinition<SettingsRowID>(
+            id: "fail",
+            title: "Fail",
+            onSave: [FormSaveAction { _ in called = true }]
+        ) {
             TextInputRow(id: SettingsRowID.email.rawValue, title: "Email", validators: [.required()])
         }
-        var called = false
-        let vm = TypedFormViewModel(form: form, onSave: { _ in called = true })
+        let vm = TypedFormViewModel(form: form)
 
         let result = await vm.save()
 
@@ -267,14 +275,18 @@ struct TypedFormViewModelTests {
         #expect(called == false)
     }
 
-    @Test("onSave closure from TypedFormDefinition init is forwarded to FormViewModel")
+    @Test("FormSaveAction from formDefinition-based init fires correctly")
     func onSaveFromFormDefInitIsForwarded() async {
+        nonisolated(unsafe) var called = false
         let form = makeTypedForm()
-        var called = false
-        // Create using the formDefinition-based init.
-        let vm = TypedFormViewModel<SettingsRowID>(formDefinition: form.definition, onSave: { _ in
-            called = true
-        })
+        // Create using the formDefinition-based init — onSave lives on the definition.
+        let defWithAction = FormDefinition(
+            id: form.definition.id,
+            title: form.definition.title,
+            rows: form.definition.rows,
+            onSave: [FormSaveAction { _ in called = true }]
+        )
+        let vm = TypedFormViewModel<SettingsRowID>(formDefinition: defWithAction)
 
         vm.setString("frank", for: .username)
         await vm.save()

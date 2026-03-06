@@ -47,10 +47,6 @@ public final class FormViewModel {
     public let formDefinition: FormDefinition
     private let persistence: (any FormPersistence)?
 
-    /// Called after a successful save with the final form values.
-    /// Use this to react to the save event without subclassing the view model.
-    public var onSave: ((FormValueStore) -> Void)?
-
     /// Cancellable debounce tasks keyed by row ID (for debounced validators).
     private var debounceTimers: [String: Task<Void, Never>] = [:]
 
@@ -63,10 +59,8 @@ public final class FormViewModel {
     ///   - formDefinition: The form to manage.
     ///   - persistence: Override persistence backend.
     ///     Falls back to `formDefinition.persistence` if nil.
-    ///   - onSave: Optional closure called after a successful save with the final form values.
     public init(formDefinition: FormDefinition,
-                persistence: (any FormPersistence)? = nil,
-                onSave: ((FormValueStore) -> Void)? = nil) {
+                persistence: (any FormPersistence)? = nil) {
         self.formDefinition = formDefinition
         let resolvedPersistence = persistence ?? formDefinition.persistence
         self.persistence = resolvedPersistence
@@ -91,7 +85,6 @@ public final class FormViewModel {
         }
         store.merge(persisted)
         values = store
-        self.onSave = onSave
     }
 
     // MARK: - Value Reading
@@ -242,7 +235,6 @@ public final class FormViewModel {
 
         guard let persistence else {
             isDirty = false
-            onSave?(values)
             dispatchOnSaveActions()
             return true
         }
@@ -254,7 +246,6 @@ public final class FormViewModel {
             try await persistence.save(values, formId: formDefinition.id)
             isDirty = false
             isSaving = false
-            onSave?(values)
             dispatchOnSaveActions()
             return true
         } catch {
@@ -434,10 +425,8 @@ public final class FormViewModel {
     private func dispatchActions(for rowId: String) {
         guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
 
-        let onChangeActions = row.onChange.enumerated().filter(\.element.isOnChangeAction)
-
-        for (index, action) in onChangeActions {
-            let timing = action.timing ?? .immediate
+        for (index, action) in row.onChange.enumerated() {
+            let timing = action.timing
 
             if timing.debounce == nil {
                 // Immediate — fire now.
@@ -482,21 +471,13 @@ public final class FormViewModel {
 
         case let .custom(_, handler):
             handler(values, rowId)
-
-        case .onSave:
-            // onSave actions are dispatched from save(), not here.
-            break
         }
     }
 
-    /// Fire all `.onSave` actions across every row in the form.
+    /// Fire all form-level save actions declared on the `FormDefinition`.
     private func dispatchOnSaveActions() {
-        for row in FormViewModel.allRows(in: formDefinition.rows) {
-            for action in row.onChange {
-                if case let .onSave(handler) = action {
-                    handler(values)
-                }
-            }
+        for action in formDefinition.onSave {
+            action.handler(values)
         }
     }
 

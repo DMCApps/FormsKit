@@ -23,74 +23,63 @@ struct ActionTimingTests {
     }
 }
 
+// MARK: - FormSaveAction Tests
+
+@Suite("FormSaveAction")
+struct FormSaveActionTests {
+    @Test("FormSaveAction stores and calls handler")
+    func formSaveActionStoresHandler() {
+        nonisolated(unsafe) var called = false
+        let action = FormSaveAction { _ in called = true }
+        action.handler(FormValueStore())
+        #expect(called)
+    }
+
+    @Test("FormSaveAction handler receives the store")
+    func formSaveActionHandlerReceivesStore() {
+        nonisolated(unsafe) var receivedValue: AnyCodableValue?
+        var store = FormValueStore()
+        store["key"] = .string("hello")
+        let action = FormSaveAction { s in receivedValue = s["key"] }
+        action.handler(store)
+        if case let .string(val) = receivedValue {
+            #expect(val == "hello")
+        } else {
+            Issue.record("Expected .string value in handler")
+        }
+    }
+}
+
 // MARK: - FormRowAction Tests
 
 @Suite("FormRowAction")
 struct FormRowActionTests {
-    // MARK: - isOnChangeAction
-
-    @Test(".showRow is an onChange action")
-    func showRowIsOnChangeAction() {
-        let action = FormRowAction.showRow(id: "target")
-        #expect(action.isOnChangeAction == true)
-    }
-
-    @Test(".setValue is an onChange action")
-    func setValueIsOnChangeAction() {
-        let action = FormRowAction.setValue(on: "target") { _ in nil }
-        #expect(action.isOnChangeAction == true)
-    }
-
-    @Test(".runValidation is an onChange action")
-    func runValidationIsOnChangeAction() {
-        let action = FormRowAction.runValidation()
-        #expect(action.isOnChangeAction == true)
-    }
-
-    @Test(".custom is an onChange action")
-    func customIsOnChangeAction() {
-        let action = FormRowAction.custom { _, _ in }
-        #expect(action.isOnChangeAction == true)
-    }
-
-    @Test(".onSave is NOT an onChange action")
-    func onSaveIsNotOnChangeAction() {
-        let action = FormRowAction.onSave { _ in }
-        #expect(action.isOnChangeAction == false)
-    }
-
     // MARK: - timing
 
     @Test(".showRow returns its timing")
     func showRowReturnsTiming() {
         let immediate = FormRowAction.showRow(id: "t", timing: .immediate)
         let debounced = FormRowAction.showRow(id: "t", timing: .debounced(0.3))
-        #expect(immediate.timing?.debounce == nil)
-        #expect(debounced.timing?.debounce == 0.3)
+        #expect(immediate.timing.debounce == nil)
+        #expect(debounced.timing.debounce == 0.3)
     }
 
     @Test(".setValue returns its timing")
     func setValueReturnsTiming() {
         let action = FormRowAction.setValue(on: "t", timing: .debounced(0.2)) { _ in nil }
-        #expect(action.timing?.debounce == 0.2)
+        #expect(action.timing.debounce == 0.2)
     }
 
     @Test(".runValidation returns its timing")
     func runValidationReturnsTiming() {
         let action = FormRowAction.runValidation(timing: .debounced(0.1))
-        #expect(action.timing?.debounce == 0.1)
+        #expect(action.timing.debounce == 0.1)
     }
 
     @Test(".custom returns its timing")
     func customReturnsTiming() {
         let action = FormRowAction.custom(timing: .immediate) { _, _ in }
-        #expect(action.timing?.debounce == nil)
-    }
-
-    @Test(".onSave returns nil timing")
-    func onSaveReturnsNilTiming() {
-        let action = FormRowAction.onSave { _ in }
-        #expect(action.timing == nil)
+        #expect(action.timing.debounce == nil)
     }
 
     // MARK: - Row type storage
@@ -107,8 +96,7 @@ struct FormRowActionTests {
             ]
         )
         #expect(row.onChange.count == 2)
-        #expect(row.onChange[0].isOnChangeAction == true)
-        #expect(row.onChange[1].timing?.debounce == 0.5)
+        #expect(row.onChange[1].timing.debounce == 0.5)
     }
 
     @Test("BooleanSwitchRow stores showRow actions")

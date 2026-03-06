@@ -16,30 +16,53 @@ public struct ActionTiming: Sendable {
     }
 }
 
+// MARK: - FormSaveAction
+
+/// An action that fires when the form is successfully saved.
+///
+/// Unlike `FormRowAction` (which responds to value changes on individual rows),
+/// save actions are a form-level concern and are declared on `FormDefinition`.
+/// They only fire from `FormViewModel.save()`.
+///
+/// ```swift
+/// FormDefinition(id: "settings", title: "Settings", onSave: [
+///     FormSaveAction { store in
+///         // React to saved values
+///     }
+/// ]) { ... }
+/// ```
+public struct FormSaveAction: Sendable {
+    /// The closure to execute after a successful save.
+    public let handler: @Sendable (_ store: FormValueStore) -> Void
+
+    /// Create a save action.
+    /// - Parameter handler: Closure receiving the final form values at save time.
+    public init(handler: @Sendable @escaping (_ store: FormValueStore) -> Void) {
+        self.handler = handler
+    }
+}
+
 // MARK: - FormRowAction
 
-/// Declarative actions attached to a row. Actions fire when the row's value changes
-/// (onChange actions) or when the form is saved (onSave actions).
-///
-/// Replaces both the old `conditions` visibility system and `FormValueChangeHandler`.
+/// Declarative actions attached to a row that fire when the row's value changes.
 ///
 /// ```swift
 /// SingleValueRow<LocationsList>(
 ///     id: .spoofingLocation,
 ///     title: "Spoofing Location",
-///     actions: [
+///     onChange: [
 ///         // Show downstream rows only when simulating is enabled.
-///         .showRow(id: "latitude", when: [.isTrue(rowId: "isSimulated")], timing: .immediate),
+///         .showRow(id: "latitude", when: [.isTrue(rowId: "isSimulated")]),
 ///         // Auto-fill lat/lon when a preset is selected.
-///         .setValue(on: "latitude", timing: .immediate) { store in
+///         .setValue(on: "latitude") { store in
 ///             guard case let .string(raw) = store["spoofingLocation"],
 ///                   let loc = LocationsList(rawValue: raw)?.location else { return nil }
 ///             return .string(loc.coordinate.latitude.description)
 ///         },
 ///         // Run validators on this row whenever its value changes.
-///         .runValidation(timing: .immediate),
+///         .runValidation(),
 ///         // Custom action with access to the full form store and the changed row.
-///         .custom(timing: .immediate) { store, rowId in print("changed \(rowId)") },
+///         .custom { store, rowId in print("changed \(rowId)") },
 ///     ]
 /// )
 /// ```
@@ -80,7 +103,7 @@ public enum FormRowAction: Sendable {
     /// - Parameter timing: When to fire.
     case runValidation(timing: ActionTiming = .immediate)
 
-    // MARK: Custom (onChange)
+    // MARK: Custom
 
     /// Arbitrary closure that fires when this row's value changes.
     /// Receives the full `FormValueStore` and this row's ID.
@@ -93,37 +116,15 @@ public enum FormRowAction: Sendable {
         handler: @Sendable (_ store: FormValueStore, _ rowId: String) -> Void
     )
 
-    // MARK: Custom (onSave)
-
-    /// Arbitrary closure that fires when the form is successfully saved.
-    /// Receives the final `FormValueStore` at the time of save.
-    ///
-    /// Unlike the other action cases this does NOT respond to value changes —
-    /// it only fires from `FormViewModel.save()`.
-    ///
-    /// - Parameter handler: Closure receiving the saved store.
-    case onSave(
-        handler: @Sendable (_ store: FormValueStore) -> Void
-    )
-
     // MARK: - Internal Helpers
 
-    /// The timing for onChange actions. `nil` for onSave actions.
-    var timing: ActionTiming? {
+    /// When this action fires relative to the value change.
+    var timing: ActionTiming {
         switch self {
         case let .showRow(_, _, timing): return timing
         case let .setValue(_, timing, _): return timing
         case let .runValidation(timing): return timing
         case let .custom(timing, _): return timing
-        case .onSave: return nil
-        }
-    }
-
-    /// Whether this action fires on value changes (vs. only on save).
-    var isOnChangeAction: Bool {
-        switch self {
-        case .showRow, .setValue, .runValidation, .custom: return true
-        case .onSave: return false
         }
     }
 }

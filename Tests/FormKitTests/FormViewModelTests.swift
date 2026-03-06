@@ -11,8 +11,9 @@ private enum Env: String, CaseIterable, CustomStringConvertible, Hashable, Senda
 
 private func makeForm(rows: [AnyFormRow],
                       persistence: (any FormPersistence)? = nil,
-                      saveBehaviour: FormSaveBehaviour = .buttonBottomForm()) -> FormDefinition {
-    FormDefinition(id: "test-form", title: "Test", rows: rows, persistence: persistence, saveBehaviour: saveBehaviour)
+                      saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
+                      onSave: [FormSaveAction] = []) -> FormDefinition {
+    FormDefinition(id: "test-form", title: "Test", rows: rows, persistence: persistence, saveBehaviour: saveBehaviour, onSave: onSave)
 }
 
 // MARK: - FormViewModel Tests
@@ -283,17 +284,16 @@ struct FormViewModelTests {
         #expect(name == "Bob")
     }
 
-    // MARK: - onSave Closure
+    // MARK: - FormSaveAction (form-level)
 
-    @Test("onSave closure fires after successful save with no persistence")
+    @Test("FormSaveAction fires after successful save with no persistence")
     func onSaveFiresWithNoPersistence() async {
-        let form = makeForm(rows: [
-            AnyFormRow(TextInputRow(id: "name", title: "Name"))
-        ])
-        var capturedValues: FormValueStore?
-        let vm = FormViewModel(formDefinition: form, onSave: { values in
-            capturedValues = values
-        })
+        nonisolated(unsafe) var capturedValues: FormValueStore?
+        let form = makeForm(
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name"))],
+            onSave: [FormSaveAction { values in capturedValues = values }]
+        )
+        let vm = FormViewModel(formDefinition: form)
         vm.setString("Alice", for: "name")
 
         let result = await vm.save()
@@ -304,17 +304,16 @@ struct FormViewModelTests {
         #expect(name == "Alice")
     }
 
-    @Test("onSave closure fires after successful save with persistence")
+    @Test("FormSaveAction fires after successful save with persistence")
     func onSaveFiresWithPersistence() async {
+        nonisolated(unsafe) var capturedValues: FormValueStore?
         let persistence = FormPersistenceMemory()
-        let form = makeForm(rows: [
-            AnyFormRow(TextInputRow(id: "city", title: "City"))
-        ], persistence: persistence)
-
-        var capturedValues: FormValueStore?
-        let vm = FormViewModel(formDefinition: form, onSave: { values in
-            capturedValues = values
-        })
+        let form = makeForm(
+            rows: [AnyFormRow(TextInputRow(id: "city", title: "City"))],
+            persistence: persistence,
+            onSave: [FormSaveAction { values in capturedValues = values }]
+        )
+        let vm = FormViewModel(formDefinition: form)
         vm.setString("NYC", for: "city")
 
         let result = await vm.save()
@@ -325,36 +324,20 @@ struct FormViewModelTests {
         #expect(city == "NYC")
     }
 
-    @Test("onSave closure does NOT fire when validation fails")
+    @Test("FormSaveAction does NOT fire when validation fails")
     func onSaveDoesNotFireOnValidationFailure() async {
-        let form = makeForm(rows: [
-            AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))
-        ])
-        var onSaveCalled = false
-        let vm = FormViewModel(formDefinition: form, onSave: { _ in
-            onSaveCalled = true
-        })
+        nonisolated(unsafe) var onSaveCalled = false
+        let form = makeForm(
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))],
+            onSave: [FormSaveAction { _ in onSaveCalled = true }]
+        )
         // name is required but not set — validation will fail.
+        let vm = FormViewModel(formDefinition: form)
 
         let result = await vm.save()
 
         #expect(result == false)
         #expect(onSaveCalled == false)
-    }
-
-    @Test("onSave can be assigned after init")
-    func onSaveAssignedAfterInit() async {
-        let form = makeForm(rows: [
-            AnyFormRow(TextInputRow(id: "val", title: "Val"))
-        ])
-        let vm = FormViewModel(formDefinition: form)
-        var called = false
-        vm.onSave = { _ in called = true }
-        vm.setString("hello", for: "val")
-
-        await vm.save()
-
-        #expect(called == true)
     }
 
     // MARK: - FormSaveBehaviour
@@ -698,17 +681,14 @@ struct FormViewModelTests {
         #expect(vm.errorsForRow("text").isEmpty == true)
     }
 
-    @Test(".onSave action fires after successful save")
+    @Test("FormSaveAction fires after successful save")
     func onSaveActionFiresOnSave() async {
         nonisolated(unsafe) var savedStore: FormValueStore?
-        let row = TextInputRow(
-            id: "city",
-            title: "City",
-            onChange: [
-                .onSave { store in savedStore = store }
-            ]
+        let row = TextInputRow(id: "city", title: "City")
+        let form = makeForm(
+            rows: [AnyFormRow(row)],
+            onSave: [FormSaveAction { store in savedStore = store }]
         )
-        let form = makeForm(rows: [AnyFormRow(row)])
         let vm = FormViewModel(formDefinition: form)
         vm.setString("NYC", for: "city")
 
@@ -720,15 +700,14 @@ struct FormViewModelTests {
         #expect(city == "NYC")
     }
 
-    @Test(".onSave action does NOT fire on onChange")
+    @Test("FormSaveAction does NOT fire on onChange")
     func onSaveActionDoesNotFireOnChange() {
         nonisolated(unsafe) var callCount = 0
-        let row = TextInputRow(
-            id: "text",
-            title: "Text",
-            onChange: [.onSave { _ in callCount += 1 }]
+        let row = TextInputRow(id: "text", title: "Text")
+        let form = makeForm(
+            rows: [AnyFormRow(row)],
+            onSave: [FormSaveAction { _ in callCount += 1 }]
         )
-        let form = makeForm(rows: [AnyFormRow(row)])
         let vm = FormViewModel(formDefinition: form)
 
         vm.setString("hello", for: "text")

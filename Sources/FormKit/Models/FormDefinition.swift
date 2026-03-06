@@ -56,18 +56,24 @@ public struct FormDefinition: Sendable, Identifiable {
     /// Controls when and how form values are saved.
     public let saveBehaviour: FormSaveBehaviour
 
+    /// Actions that fire after the form is successfully saved.
+    /// These are form-level concerns; use `FormRowAction` on individual rows for onChange behaviour.
+    public let onSave: [FormSaveAction]
+
     // MARK: Initialiser — Array of AnyFormRow
 
     public init(id: String,
                 title: String,
                 rows: [AnyFormRow],
                 persistence: (any FormPersistence)? = nil,
-                saveBehaviour: FormSaveBehaviour = .buttonBottomForm()) {
+                saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
+                onSave: [FormSaveAction] = []) {
         self.id = id
         self.title = title
         self.rows = rows
         self.persistence = persistence
         self.saveBehaviour = saveBehaviour
+        self.onSave = onSave
     }
 
     // MARK: Initialiser — Result Builder DSL
@@ -84,12 +90,14 @@ public struct FormDefinition: Sendable, Identifiable {
                 title: String,
                 persistence: (any FormPersistence)? = nil,
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
+                onSave: [FormSaveAction] = [],
                 @FormRowBuilder rows: () -> [AnyFormRow]) {
         self.id = id
         self.title = title
         self.rows = rows()
         self.persistence = persistence
         self.saveBehaviour = saveBehaviour
+        self.onSave = onSave
     }
 }
 
