@@ -53,6 +53,11 @@ public final class FormViewModel {
     /// Cancellable debounce tasks for row actions, keyed by a composite key of rowId + actionIndex.
     private var actionDebounceTimers: [String: Task<Void, Never>] = [:]
 
+    /// Row IDs currently being processed by `dispatchActions`. Used to prevent re-entrant
+    /// dispatch on the same row (e.g. a `.custom` action that calls `setValue` back on the
+    /// same row, which would otherwise cause unbounded recursion).
+    private var dispatchingRows: Set<String> = []
+
     // MARK: - Initialisation
 
     /// - Parameters:
@@ -423,7 +428,14 @@ public final class FormViewModel {
     /// Dispatch all onChange actions declared on the row with the given ID.
     /// Immediate actions fire synchronously; debounced actions are scheduled via a Task.
     private func dispatchActions(for rowId: String) {
+        // Re-entrancy guard: if a .custom action writes back to the same row and triggers
+        // another dispatchActions call for the same rowId, we bail out immediately to
+        // prevent unbounded recursion.
+        guard !dispatchingRows.contains(rowId) else { return }
         guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
+
+        dispatchingRows.insert(rowId)
+        defer { dispatchingRows.remove(rowId) }
 
         for (index, action) in row.onChange.enumerated() {
             let timing = action.timing
@@ -459,7 +471,9 @@ public final class FormViewModel {
         case let .setValue(targetRowId, _, valueFactory):
             // Derive the new value from the current store and apply it if non-nil.
             // Use the internal setter to avoid triggering a full action dispatch cycle on the target.
-            if let newValue = valueFactory(values) {
+            // Skip the write if the value hasn't changed — prevents oscillation loops where
+            // two rows' setValue actions reference each other and never reach a fixed point.
+            if let newValue = valueFactory(values), newValue != values[targetRowId] {
                 values[targetRowId] = newValue
                 isDirty = true
                 errors[targetRowId] = []

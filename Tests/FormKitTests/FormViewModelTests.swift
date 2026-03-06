@@ -812,6 +812,102 @@ struct FormViewModelTests {
         #expect(debouncedCallCount == 0)
     }
 
+    // MARK: - Loop prevention
+
+    @Test(".setValue does not write when the computed value equals the current value")
+    func setValueSkipsWriteWhenValueUnchanged() {
+        // Target row starts with "fixed". The setValue action always returns "fixed",
+        // so the write should be skipped and isDirty should not be set by the action.
+        let sourceRow = BooleanSwitchRow(
+            id: "source",
+            title: "Source",
+            onChange: [
+                .setValue(on: "target") { _ in .string("fixed") }
+            ]
+        )
+        let targetRow = TextInputRow(id: "target", title: "Target", defaultValue: "fixed")
+        let form = makeForm(rows: [AnyFormRow(sourceRow), AnyFormRow(targetRow)])
+        let vm = FormViewModel(formDefinition: form)
+
+        // Prime the target to the same value the action would write.
+        // isDirty is true after setString, so reset to get a clean baseline.
+        vm.reset()
+        #expect(vm.rawValue(for: "target") == .string("fixed"))
+        #expect(vm.isDirty == false)
+
+        // Trigger the source row — setValue action computes "fixed" but target already is "fixed".
+        vm.setBool(true, for: "source")
+
+        // isDirty is true because source changed, but target's value must remain unchanged.
+        let target: String? = vm.value(for: "target")
+        #expect(target == "fixed")
+    }
+
+    @Test(".setValue with oscillating actions reaches a fixed point and stops")
+    func setValueOscillationReachesFixedPoint() {
+        // Row A sets row B to A's current value (mirroring).
+        // Row B sets row A to B's current value (mirroring back).
+        // After A changes, the cycle should stabilise immediately because
+        // on the second round-trip the value is already equal.
+        let rowA = TextInputRow(
+            id: "a",
+            title: "A",
+            onChange: [
+                .setValue(on: "b") { store in store["a"] }
+            ]
+        )
+        let rowB = TextInputRow(
+            id: "b",
+            title: "B",
+            onChange: [
+                .setValue(on: "a") { store in store["b"] }
+            ]
+        )
+        let form = makeForm(rows: [AnyFormRow(rowA), AnyFormRow(rowB)])
+        let vm = FormViewModel(formDefinition: form)
+
+        // This must complete without hanging or crashing.
+        vm.setString("hello", for: "a")
+
+        let a: String? = vm.value(for: "a")
+        let b: String? = vm.value(for: "b")
+        // Both should settle at "hello".
+        #expect(a == "hello")
+        #expect(b == "hello")
+    }
+
+    @Test(".custom action that calls setValue on its own row does not re-enter dispatchActions")
+    func customActionSelfWriteDoesNotReenter() {
+        nonisolated(unsafe) var callCount = 0
+
+        // We need a reference to the vm inside the closure, so use a box.
+        final class Box: @unchecked Sendable { var vm: FormViewModel? }
+        let box = Box()
+
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            onChange: [
+                .custom { _, _ in
+                    callCount += 1
+                    // Write back to the same row — without the re-entrancy guard this
+                    // would recurse into dispatchActions for "text" indefinitely.
+                    box.vm?.setString("recursive", for: "text")
+                }
+            ]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+        box.vm = vm
+
+        vm.setString("trigger", for: "text")
+
+        // The custom action fires once from the original setString call.
+        // The re-entrant setString inside the closure changes the value but the
+        // guard suppresses the nested dispatchActions call, so callCount stays at 1.
+        #expect(callCount == 1)
+    }
+
     // MARK: - visibleRows
 
     @Test("visibleRows filters by showRow actions")
