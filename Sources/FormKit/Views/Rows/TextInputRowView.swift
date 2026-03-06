@@ -29,11 +29,12 @@ struct TextInputRowView: View {
     @Bindable var viewModel: FormViewModel
 
     private var text: String {
-        if let mask = row.mask, mask.isDateMask {
-            // For date masks the store holds a typed Date — convert back to raw slot chars.
-            if let date: Date = viewModel.value(for: row.id) {
-                return mask.rawChars(from: date)
-            }
+        if let mask = row.mask,
+           let fromStorable = mask.fromStorable,
+           let stored = viewModel.values[row.id],
+           let chars = fromStorable(stored) {
+            // Mask has a fromStorable converter — use it to recover raw slot chars.
+            return chars
         } else if let stored: String = viewModel.value(for: row.id) {
             return stored
         }
@@ -70,18 +71,20 @@ struct TextInputRowView: View {
     @ViewBuilder
     private var inputField: some View {
         if let mask = row.mask {
-            // Masked input: display string has literals inserted. For date masks the stored
-            // value is a typed Date; for all other masks it is the raw slot chars as a String.
+            // Masked input: display string has literals inserted. Masks with a `toStorable`
+            // closure store a typed value; all others store the raw slot chars as `.string`.
             let binding = Binding(
                 get: { mask.apply(to: text) },
                 set: { newFormatted in
                     let raw = mask.strip(from: newFormatted)
                     let clamped = String(raw.prefix(mask.maxInputLength))
-                    if mask.isDateMask, let date = mask.date(from: clamped) {
-                        // Complete, valid date — commit a typed Date to the store.
-                        viewModel.setValue(.date(date), for: row.id)
+                    if let toStorable = mask.toStorable,
+                       clamped.count == mask.maxInputLength,
+                       let typed = toStorable(clamped) {
+                        // Mask has a toStorable converter and the input is complete — store typed value.
+                        viewModel.setValue(typed, for: row.id)
                     } else {
-                        // Incomplete / non-date mask — store raw chars as a string.
+                        // No converter, or input is incomplete — store raw chars as a string.
                         viewModel.setString(clamped, for: row.id)
                     }
                 }

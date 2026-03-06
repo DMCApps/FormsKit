@@ -404,9 +404,9 @@ public enum FormKeyboardType: Sendable {
 /// | other     | Literal — auto-inserted |
 ///
 /// The stored value contains **only the characters the user typed** (no literals).
-/// When used with `TextInputRow` and the `.date` preset, the view commits an
-/// `AnyCodableValue.date(Date)` to the store rather than a raw string, so the
-/// value is fully typed and calendar-independent.
+/// By default the raw chars are stored as `.string`. Supply a `toStorable` closure
+/// to convert the raw chars to a typed `AnyCodableValue` (e.g. `.date(Date)`), and
+/// a matching `fromStorable` closure to recover the raw chars from that stored value.
 ///
 /// ```swift
 /// // Phone number: displays "(415) 555-1234", stores "4155551234" as .string
@@ -414,26 +414,48 @@ public enum FormKeyboardType: Sendable {
 ///
 /// // Date: displays "12/25/2026", stores a typed Date as .date(Date)
 /// TextInputRow(id: "dob", title: "Date of Birth", mask: .date)
+///
+/// // Custom: stores a typed value of your own choosing
+/// TextInputRow(id: "ref", title: "Reference", mask: FormInputMask("##-##-####",
+///     toStorable: { rawChars in .string(rawChars.uppercased()) },
+///     fromStorable: { stored in stored.typed(String.self) }))
 /// ```
-public struct FormInputMask: Sendable, Equatable {
+public struct FormInputMask: Sendable {
     /// The mask pattern string.
     public let pattern: String
 
-    /// When `true`, the view commits an `AnyCodableValue.date(Date)` to the store
-    /// instead of a raw string. The mask pattern controls only the display format.
-    public let isDateMask: Bool
+    /// Converts the completed raw slot characters to the value that gets written to the
+    /// store. Return `nil` to fall back to storing the raw chars as `.string`.
+    /// Only called when the input is complete (length == `maxInputLength`).
+    let toStorable: (@Sendable (_ rawChars: String) -> AnyCodableValue?)?
 
-    /// The `DateFormatter` format string for the raw slot characters of a date mask.
-    /// Only meaningful when `isDateMask` is `true`.
-    let dateInputFormat: String?
+    /// Recovers the raw slot characters from a stored `AnyCodableValue` so the field
+    /// can be pre-populated. Return `nil` to fall back to reading the value as `.string`.
+    let fromStorable: (@Sendable (_ stored: AnyCodableValue) -> String?)?
 
-    /// Creates a plain-text mask with no date conversion.
+    /// Creates a plain-text mask with no typed-value conversion.
     /// - Parameter pattern: Format string using `#` (digit), `A` (letter),
     ///   `*` (any char), and literal characters.
     public init(_ pattern: String) {
         self.pattern = pattern
-        isDateMask = false
-        dateInputFormat = nil
+        toStorable = nil
+        fromStorable = nil
+    }
+
+    /// Creates a mask with custom typed-value conversion.
+    /// - Parameters:
+    ///   - pattern: Format string using `#` (digit), `A` (letter), `*` (any char),
+    ///     and literal characters.
+    ///   - toStorable: Converts completed raw slot characters to a typed
+    ///     `AnyCodableValue`. Return `nil` to store as `.string` instead.
+    ///   - fromStorable: Recovers raw slot characters from a stored value for display.
+    ///     Return `nil` to read as `.string` instead.
+    public init(_ pattern: String,
+                toStorable: (@Sendable (_ rawChars: String) -> AnyCodableValue?)?,
+                fromStorable: (@Sendable (_ stored: AnyCodableValue) -> String?)?) {
+        self.pattern = pattern
+        self.toStorable = toStorable
+        self.fromStorable = fromStorable
     }
 
     // MARK: - Common Presets
@@ -445,17 +467,25 @@ public struct FormInputMask: Sendable, Equatable {
     /// Date: `##/##/####` (MM/DD/YYYY display).
     /// Stored as a typed `Date` (`.date(Date)`).
     public static let date: FormInputMask = {
-        var m = FormInputMask("##/##/####")
-        return FormInputMask(_pattern: "##/##/####", dateInputFormat: "MMddyyyy")
+        let fmt = "MMddyyyy"
+        return FormInputMask(
+            "##/##/####",
+            toStorable: { rawChars in
+                guard !rawChars.isEmpty else { return nil }
+                let parser = DateFormatter()
+                parser.dateFormat = fmt
+                parser.isLenient = false
+                guard let date = parser.date(from: rawChars) else { return nil }
+                return .date(date)
+            },
+            fromStorable: { stored in
+                guard case let .date(date) = stored else { return nil }
+                let writer = DateFormatter()
+                writer.dateFormat = fmt
+                return writer.string(from: date)
+            }
+        )
     }()
-
-    // MARK: - Internal
-
-    init(_pattern: String, dateInputFormat: String) {
-        pattern = _pattern
-        isDateMask = true
-        self.dateInputFormat = dateInputFormat
-    }
 
     /// Characters in the pattern that act as user-input slots.
     static let slotCharacters: Set<Character> = ["#", "A", "*"]
@@ -472,7 +502,7 @@ public struct FormInputMask: Sendable, Equatable {
 
     /// Applies `inputChars` (raw user input, no literals) into the mask pattern,
     /// returning the formatted display string.
-    public func apply(to inputChars: String) -> String {
+    func apply(to inputChars: String) -> String {
         var result = ""
         var inputIndex = inputChars.startIndex
 
@@ -497,7 +527,7 @@ public struct FormInputMask: Sendable, Equatable {
 
     /// Strips all literal characters from a formatted string, returning only
     /// the raw input characters.
-    public func strip(from formatted: String) -> String {
+    func strip(from formatted: String) -> String {
         var raw = ""
         var patternIndex = pattern.startIndex
 
@@ -516,29 +546,18 @@ public struct FormInputMask: Sendable, Equatable {
     }
 
     /// The maximum number of raw (non-literal) characters the mask accepts.
-    public var maxInputLength: Int {
+    var maxInputLength: Int {
         pattern.filter { Self.slotCharacters.contains($0) }.count
     }
+}
 
-    // MARK: - Date Conversion
+// MARK: - FormInputMask + Equatable
 
-    /// Converts raw slot characters (e.g. `"12252026"`) to a `Date`.
-    /// Returns `nil` when `isDateMask` is `false` or the string is not a complete,
-    /// valid date (e.g. mid-typing).
-    func date(from rawChars: String) -> Date? {
-        guard isDateMask, let fmt = dateInputFormat, !rawChars.isEmpty else { return nil }
-        let parser = DateFormatter()
-        parser.dateFormat = fmt
-        parser.isLenient = false
-        return parser.date(from: rawChars)
-    }
-
-    /// Converts a stored `Date` back to the raw slot characters used for display.
-    func rawChars(from date: Date) -> String {
-        guard let fmt = dateInputFormat else { return "" }
-        let writer = DateFormatter()
-        writer.dateFormat = fmt
-        return writer.string(from: date)
+extension FormInputMask: Equatable {
+    /// Two masks are equal when they share the same `pattern`.
+    /// Closure identity is not considered — use the pattern as the stable identity.
+    public static func == (lhs: FormInputMask, rhs: FormInputMask) -> Bool {
+        lhs.pattern == rhs.pattern
     }
 }
 

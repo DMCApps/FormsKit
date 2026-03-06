@@ -956,55 +956,81 @@ struct FormInputMaskTests {
         #expect(FormInputMask.usPhone != FormInputMask.date)
     }
 
-    @Test("date preset and plain same-pattern mask are not equal")
-    func dateMaskAndPlainMaskNotEqual() {
+    @Test("date preset and plain same-pattern mask are equal (equality is pattern-only)")
+    func dateMaskAndPlainMaskEqualOnPattern() {
+        // Equality is based on pattern alone — closures are not compared.
         let plain = FormInputMask("##/##/####")
-        #expect(plain != FormInputMask.date)
+        #expect(plain == FormInputMask.date)
     }
 
-    // MARK: - isDateMask
+    // MARK: - toStorable / fromStorable
 
-    @Test("usPhone isDateMask is false")
-    func usPhoneIsNotDateMask() {
-        #expect(FormInputMask.usPhone.isDateMask == false)
+    @Test("plain mask has no toStorable or fromStorable")
+    func plainMaskHasNoClosures() {
+        let mask = FormInputMask("(###) ###-####")
+        #expect(mask.toStorable == nil)
+        #expect(mask.fromStorable == nil)
     }
 
-    @Test("date preset isDateMask is true")
-    func dateMaskIsDateMask() {
-        #expect(FormInputMask.date.isDateMask == true)
+    @Test("date preset has toStorable and fromStorable")
+    func dateMaskHasClosures() {
+        #expect(FormInputMask.date.toStorable != nil)
+        #expect(FormInputMask.date.fromStorable != nil)
     }
 
-    // MARK: - date(from:) / rawChars(from:)
-
-    @Test("date(from:) returns a Date for a complete valid raw input")
-    func dateFromRawCharsReturnsDate() {
-        let date = FormInputMask.date.date(from: "12252026")
-        #expect(date != nil)
+    @Test("toStorable returns .date for a complete valid raw input")
+    func toStorableReturnsDate() {
+        let result = FormInputMask.date.toStorable?("12252026")
+        if case .date = result {
+            // pass
+        } else {
+            Issue.record("Expected .date, got \(String(describing: result))")
+        }
     }
 
-    @Test("date(from:) returns nil for incomplete input")
-    func dateFromRawCharsNilForIncomplete() {
-        #expect(FormInputMask.date.date(from: "1225") == nil)
+    @Test("toStorable returns nil for incomplete input")
+    func toStorableNilForIncomplete() {
+        #expect(FormInputMask.date.toStorable?("1225") == nil)
     }
 
-    @Test("date(from:) returns nil for empty input")
-    func dateFromRawCharsNilForEmpty() {
-        #expect(FormInputMask.date.date(from: "") == nil)
+    @Test("toStorable returns nil for empty input")
+    func toStorableNilForEmpty() {
+        #expect(FormInputMask.date.toStorable?("") == nil)
     }
 
-    @Test("date(from:) returns nil for non-date mask")
-    func dateFromRawCharsNilForNonDateMask() {
-        #expect(FormInputMask.usPhone.date(from: "4155551234") == nil)
-    }
-
-    @Test("rawChars(from:) round-trips with date(from:) for a full date")
-    func rawCharsRoundTrip() {
+    @Test("fromStorable round-trips with toStorable for a full date")
+    func fromStorableRoundTrip() {
         let raw = "12252026"
-        guard let date = FormInputMask.date.date(from: raw) else {
-            Issue.record("date(from:) returned nil for \(raw)")
+        guard let stored = FormInputMask.date.toStorable?(raw) else {
+            Issue.record("toStorable returned nil for \(raw)")
             return
         }
-        #expect(FormInputMask.date.rawChars(from: date) == raw)
+        #expect(FormInputMask.date.fromStorable?(stored) == raw)
+    }
+
+    @Test("fromStorable returns nil for a non-date stored value")
+    func fromStorableNilForNonDate() {
+        #expect(FormInputMask.date.fromStorable?(.string("12252026")) == nil)
+    }
+
+    @Test("custom mask toStorable is called with raw chars")
+    func customMaskToStorable() {
+        let mask = FormInputMask(
+            "####",
+            toStorable: { .string($0.uppercased()) },
+            fromStorable: { $0.typed(String.self) }
+        )
+        #expect(mask.toStorable?("abcd") == .string("ABCD"))
+    }
+
+    @Test("custom mask fromStorable is called with stored value")
+    func customMaskFromStorable() {
+        let mask = FormInputMask(
+            "####",
+            toStorable: { .string($0.uppercased()) },
+            fromStorable: { $0.typed(String.self) }
+        )
+        #expect(mask.fromStorable?(.string("ABCD")) == "ABCD")
     }
 }
 
