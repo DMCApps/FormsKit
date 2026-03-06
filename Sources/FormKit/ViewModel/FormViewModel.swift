@@ -134,6 +134,10 @@ public final class FormViewModel {
     /// same row, which would otherwise cause unbounded recursion).
     private var dispatchingRows: Set<String> = []
 
+    /// Prevents concurrent or duplicate calls to `loadFromPersistence` from
+    /// each racing through the status check before either has claimed the load.
+    private var isLoadingInProgress: Bool = false
+
     // MARK: - Initialisation
 
     /// - Parameters:
@@ -160,8 +164,11 @@ public final class FormViewModel {
 
         // Kick off the async load. `status` transitions from `.loading`
         // to `.ready` once the load completes (or immediately if there is no
-        // persistence backend).
-        Task { [weak self] in await self?.loadFromPersistence() }
+        // persistence backend). The load is dispatched on the MainActor so
+        // that the `.loading → .ready` status mutation is always performed on
+        // the main thread, ensuring SwiftUI's `@Observable` callbacks fire
+        // correctly regardless of which thread created the FormViewModel.
+        Task { @MainActor [weak self] in await self?.loadFromPersistence() }
     }
 
     // MARK: - Value Reading
@@ -376,33 +383,54 @@ public final class FormViewModel {
     /// Load persisted values, merging over row defaults.
     /// Transitions `status` to `.ready` when complete regardless of
     /// whether a persistence backend is configured.
+    /// The persistence I/O runs on whatever executor the backend requires
+    /// (e.g. a background thread for network calls). All state mutations
+    /// are then dispatched back to the `@MainActor` so SwiftUI's
+    /// `@Observable` callbacks fire correctly on the main thread.
     public func loadFromPersistence() async {
+        // Atomically claim the load on the MainActor. Because MainActor.run
+        // is serialised, only the first concurrent caller can set
+        // isLoadingInProgress = true and proceed; any racing caller sees it
+        // already set and returns immediately without clobbering in-flight work.
+        let shouldLoad: Bool = await MainActor.run {
+            guard !isLoadingInProgress else { return false }
+            isLoadingInProgress = true
+            return true
+        }
+        guard shouldLoad else { return }
+
         guard let persistence else {
-            status = .ready
+            await MainActor.run { status = .ready }
             return
         }
         do {
+            // I/O runs off the main thread — safe for network-backed backends.
             let loaded = try await persistence.load(formId: formDefinition.id)
-            // Cancel pending timers before replacing values so stale tasks
-            // don't overwrite errors or trigger actions on the freshly loaded state.
-            debounceTimers.values.forEach { $0.cancel() }
-            debounceTimers = [:]
-            actionDebounceTimers.values.forEach { $0.cancel() }
-            actionDebounceTimers = [:]
-            var store = FormValueStore()
-            for row in FormViewModel.allRows(in: formDefinition.rows) {
-                if let defaultValue = row.defaultValue {
-                    store[row.id] = defaultValue
+            // All state mutations back on the main thread.
+            await MainActor.run {
+                // Cancel pending timers before replacing values so stale tasks
+                // don't overwrite errors or trigger actions on the freshly loaded state.
+                debounceTimers.values.forEach { $0.cancel() }
+                debounceTimers = [:]
+                actionDebounceTimers.values.forEach { $0.cancel() }
+                actionDebounceTimers = [:]
+                var store = FormValueStore()
+                for row in FormViewModel.allRows(in: formDefinition.rows) {
+                    if let defaultValue = row.defaultValue {
+                        store[row.id] = defaultValue
+                    }
                 }
+                store.merge(loaded)
+                values = store
+                isDirty = false
+                errors = [:]
+                status = .ready
             }
-            store.merge(loaded)
-            values = store
-            isDirty = false
-            errors = [:]
-            status = .ready
         } catch {
-            saveError = error
-            status = .ready
+            await MainActor.run {
+                saveError = error
+                status = .ready
+            }
         }
     }
 
