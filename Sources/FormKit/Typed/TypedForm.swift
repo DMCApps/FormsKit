@@ -40,12 +40,14 @@ where RowID.RawValue == String {
     ///   - persistence: Optional persistence backend.
     ///   - saveBehaviour: Controls when and how form values are saved. Defaults to `.buttonBottomForm()`.
     ///   - onSave: Actions that fire after the form is successfully saved.
+    ///   - loadingStyle: Controls what is displayed while values are loading. Defaults to `.activityIndicator`.
     ///   - rows: Row builder closure — use `RowID` enum cases for the `id:` parameter.
     public init(id: String,
                 title: String,
                 persistence: (any FormPersistence)? = nil,
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                 onSave: [FormSaveAction] = [],
+                loadingStyle: FormLoadingStyle = .activityIndicator,
                 @FormRowBuilder rows: () -> [AnyFormRow]) {
         definition = FormDefinition(
             id: id,
@@ -53,6 +55,7 @@ where RowID.RawValue == String {
             persistence: persistence,
             saveBehaviour: saveBehaviour,
             onSave: onSave,
+            loadingStyle: loadingStyle,
             rows: rows
         )
     }
@@ -66,19 +69,22 @@ where RowID.RawValue == String {
     ///   - persistence: Optional persistence backend.
     ///   - saveBehaviour: Controls when and how form values are saved. Defaults to `.buttonBottomForm()`.
     ///   - onSave: Actions that fire after the form is successfully saved.
+    ///   - loadingStyle: Controls what is displayed while values are loading. Defaults to `.activityIndicator`.
     public init(id: String,
                 title: String,
                 rows: [AnyFormRow],
                 persistence: (any FormPersistence)? = nil,
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
-                onSave: [FormSaveAction] = []) {
+                onSave: [FormSaveAction] = [],
+                loadingStyle: FormLoadingStyle = .activityIndicator) {
         definition = FormDefinition(
             id: id,
             title: title,
             rows: rows,
             persistence: persistence,
             saveBehaviour: saveBehaviour,
-            onSave: onSave
+            onSave: onSave,
+            loadingStyle: loadingStyle
         )
     }
 }
@@ -210,6 +216,15 @@ where RowID.RawValue == String {
     public func rowHasError(_ rowId: RowID) -> Bool {
         viewModel.rowHasError(rowId.rawValue)
     }
+
+    /// Error messages that should be displayed at the top of the form, above all rows.
+    public var formTopErrors: [String] { viewModel.formTopErrors }
+
+    /// Error messages that should be displayed at the bottom of the form, above the save button.
+    public var formBottomErrors: [String] { viewModel.formBottomErrors }
+
+    /// Error messages that should be surfaced in a dismissible alert dialog.
+    public var alertErrors: [String] { viewModel.alertErrors }
 
     // MARK: - Persistence
 

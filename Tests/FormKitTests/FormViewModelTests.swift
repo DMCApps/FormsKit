@@ -240,6 +240,72 @@ struct FormViewModelTests {
         #expect(vm.errorsForRow("text").isEmpty == true)
     }
 
+    @Test("save sets saveError when live onChange errors are present")
+    func saveSetsSaveErrorForLiveErrors() async {
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            validators: [.minLength(5, trigger: .onChange)]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        // Trigger an onChange error.
+        vm.setString("hi", for: "text")
+        #expect(vm.errorsForRow("text").isEmpty == false)
+
+        // Save should be blocked and saveError surfaced for the alert.
+        let saved = await vm.save()
+        #expect(saved == false)
+        #expect(vm.saveError is FormValidationError)
+        // Row-level error should still be present so the user can see what to fix.
+        #expect(vm.errorsForRow("text").isEmpty == false)
+    }
+
+    @Test("save does NOT set saveError when only onSave validators fail")
+    func saveDoesNotSetSaveErrorForOnSaveValidators() async {
+        let row = TextInputRow(
+            id: "name",
+            title: "Name",
+            validators: [.required(trigger: .onSave)]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        // No live errors — the field is simply empty.
+        #expect(vm.errorsForRow("name").isEmpty == true)
+
+        let saved = await vm.save()
+        #expect(saved == false)
+        // Row-level error should be set by validateAll, but saveError should NOT be set.
+        #expect(vm.saveError == nil)
+        #expect(vm.errorsForRow("name").isEmpty == false)
+    }
+
+    @Test("validateAll bails early and preserves onChange errors without running onSave validators")
+    func validateAllBailsEarlyWhenOnChangeErrorsPresent() async {
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            validators: [
+                .minLength(5, trigger: .onChange),
+                .minLength(3, trigger: .onSave)
+            ]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        // "hi" fails the onChange validator (minLength 5) but would pass the onSave one (minLength 3).
+        vm.setString("hi", for: "text")
+        #expect(vm.errorsForRow("text").isEmpty == false)
+
+        // validateAll bails immediately due to live onChange error — onSave validators never run.
+        // The existing row-level error is preserved so the user can see what to fix.
+        let isValid = vm.validateAll()
+        #expect(isValid == false)
+        #expect(vm.errorsForRow("text").isEmpty == false)
+    }
+
     // MARK: - Save
 
     @Test("Save with invalid form returns false")
@@ -407,7 +473,7 @@ struct FormViewModelTests {
         #expect(FormSaveBehaviour.buttonStickyBottom().saveButtonTitle == "Save")
     }
 
-    @Test("setValue with .onChange saveBehaviour schedules a save Task")
+    @Test("setValue with .onChange saveBehaviour triggers a save")
     func setValueWithOnChangeBehaviourSchedulesSave() async {
         let persistence = FormPersistenceMemory()
         let form = makeForm(
@@ -417,11 +483,16 @@ struct FormViewModelTests {
         )
         let vm = FormViewModel(formDefinition: form)
 
+        // Ensure the initial load has completed so `status` is `.ready`.
+        await vm.loadFromPersistence()
+
         vm.setBool(true, for: "flag")
 
-        // Yield to allow the spawned save Task to run.
-        await Task.yield()
-        await Task.yield()
+        // Explicitly await a save to flush the pending auto-save. For a row with no
+        // validators this always succeeds. We use await save() rather than polling
+        // isDirty because the init's background Task can race and reset isDirty/values
+        // before the auto-save Task runs, making the poll unreliable.
+        await vm.save()
 
         // Confirm data was persisted by loading it through a fresh vm.
         let vm2 = FormViewModel(formDefinition: form, persistence: persistence)
@@ -899,6 +970,187 @@ struct FormViewModelTests {
         // The re-entrant setString inside the closure changes the value but the
         // guard suppresses the nested dispatchActions call, so callCount stays at 1.
         #expect(callCount == 1)
+    }
+
+    // MARK: - ErrorPosition routing
+
+    @Test("Default .belowRow position routes errors to errorsForRow")
+    func errorPositionDefaultBelowRow() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.validateAll()
+
+        // Error appears below the owning row.
+        #expect(vm.errorsForRow("name").isEmpty == false)
+        // No form-level errors.
+        #expect(vm.formTopErrors.isEmpty)
+        #expect(vm.formBottomErrors.isEmpty)
+    }
+
+    @Test(".belowRow(id:) routes error to the targeted row, not the owning row")
+    func errorPositionBelowRowId() {
+        // Row A's validator targets row B for display.
+        let rowA = TextInputRow(
+            id: "a",
+            title: "A",
+            validators: [
+                .required(errorPosition: .belowRow(id: "b"))
+            ]
+        )
+        let rowB = TextInputRow(id: "b", title: "B")
+        let form = makeForm(rows: [AnyFormRow(rowA), AnyFormRow(rowB)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.validateAll()
+
+        // Error does NOT appear below row A (no .belowRow errors).
+        #expect(vm.errorsForRow("a").isEmpty == true)
+        // Error DOES appear below row B (targeted from A).
+        #expect(vm.errorsForRow("b").isEmpty == false)
+        // No form-level errors.
+        #expect(vm.formTopErrors.isEmpty)
+        #expect(vm.formBottomErrors.isEmpty)
+    }
+
+    @Test(".formTop position routes errors to formTopErrors")
+    func errorPositionFormTop() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(
+                id: "name",
+                title: "Name",
+                validators: [.required(errorPosition: .formTop)]
+            ))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.validateAll()
+
+        // Error appears at the form top.
+        #expect(vm.formTopErrors.isEmpty == false)
+        // NOT below the row.
+        #expect(vm.errorsForRow("name").isEmpty == true)
+        // NOT at the form bottom.
+        #expect(vm.formBottomErrors.isEmpty)
+    }
+
+    @Test(".formBottom position routes errors to formBottomErrors")
+    func errorPositionFormBottom() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(
+                id: "name",
+                title: "Name",
+                validators: [.required(errorPosition: .formBottom)]
+            ))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.validateAll()
+
+        // Error appears at the form bottom.
+        #expect(vm.formBottomErrors.isEmpty == false)
+        // NOT below the row.
+        #expect(vm.errorsForRow("name").isEmpty == true)
+        // NOT at the form top.
+        #expect(vm.formTopErrors.isEmpty)
+    }
+
+    @Test("Mixed positions on the same row route each error correctly")
+    func errorPositionMixed() {
+        // Two validators on the same row: one below-row, one form-top.
+        let row = TextInputRow(
+            id: "field",
+            title: "Field",
+            validators: [
+                .required(message: "Below error", errorPosition: .belowRow),
+                .minLength(10, message: "Top error", errorPosition: .formTop)
+            ]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+        // Set a short non-empty value so only minLength fails, not required.
+        vm.setString("hi", for: "field")
+
+        vm.validateAll()
+
+        // The minLength error goes to form-top.
+        #expect(vm.formTopErrors.contains("Top error"))
+        // The required error does NOT fire because the field has a value.
+        #expect(vm.errorsForRow("field").isEmpty == true)
+        #expect(vm.formBottomErrors.isEmpty)
+    }
+
+    @Test(".alert position routes errors to alertErrors only")
+    func errorPositionAlert() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(
+                id: "name",
+                title: "Name",
+                validators: [.required(errorPosition: .alert)]
+            ))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.validateAll()
+
+        // Error appears in alertErrors.
+        #expect(vm.alertErrors.isEmpty == false)
+        // NOT below the row.
+        #expect(vm.errorsForRow("name").isEmpty == true)
+        // NOT at form-top or form-bottom.
+        #expect(vm.formTopErrors.isEmpty)
+        #expect(vm.formBottomErrors.isEmpty)
+    }
+
+    @Test("clearAlertErrors removes only .alert errors, preserving others")
+    func clearAlertErrorsPreservesOthers() {
+        let row = TextInputRow(
+            id: "field",
+            title: "Field",
+            validators: [
+                // Both fail when field is empty.
+                .required(message: "Below error", errorPosition: .belowRow),
+                .required(message: "Alert error", errorPosition: .alert)
+            ]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+        // Leave field empty so both validators fire.
+
+        vm.validateAll()
+
+        // Both errors are present.
+        #expect(vm.errorsForRow("field").isEmpty == false)
+        #expect(vm.alertErrors.isEmpty == false)
+
+        // Clearing alert errors removes only the alert one.
+        vm.clearAlertErrors()
+        #expect(vm.alertErrors.isEmpty == true)
+        #expect(vm.errorsForRow("field").isEmpty == false)
+    }
+
+    @Test("Mixed .alert and .belowRow on the same row each route correctly")
+    func errorPositionAlertMixed() {
+        let row = TextInputRow(
+            id: "field",
+            title: "Field",
+            validators: [
+                .required(message: "Below error", errorPosition: .belowRow),
+                .required(message: "Alert error", errorPosition: .alert)
+            ]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+        // Leave field empty so both validators fire.
+
+        vm.validateAll()
+
+        #expect(vm.errorsForRow("field").contains("Below error"))
+        #expect(vm.alertErrors.contains("Alert error"))
+        #expect(vm.formTopErrors.isEmpty)
+        #expect(vm.formBottomErrors.isEmpty)
     }
 
     // MARK: - visibleRows

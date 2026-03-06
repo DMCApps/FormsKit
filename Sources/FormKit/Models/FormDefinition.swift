@@ -60,6 +60,10 @@ public struct FormDefinition: Sendable, Identifiable {
     /// These are form-level concerns; use `FormRowAction` on individual rows for onChange behaviour.
     public let onSave: [FormSaveAction]
 
+    /// Controls what is displayed while values are loading from persistence.
+    /// Defaults to `.activityIndicator` (a centered spinner).
+    public let loadingStyle: FormLoadingStyle
+
     // MARK: Initialiser — Array of AnyFormRow
 
     public init(id: String,
@@ -67,13 +71,15 @@ public struct FormDefinition: Sendable, Identifiable {
                 rows: [AnyFormRow],
                 persistence: (any FormPersistence)? = nil,
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
-                onSave: [FormSaveAction] = []) {
+                onSave: [FormSaveAction] = [],
+                loadingStyle: FormLoadingStyle = .activityIndicator) {
         self.id = id
         self.title = title
         self.rows = rows
         self.persistence = persistence
         self.saveBehaviour = saveBehaviour
         self.onSave = onSave
+        self.loadingStyle = loadingStyle
     }
 
     // MARK: Initialiser — Result Builder DSL
@@ -91,6 +97,7 @@ public struct FormDefinition: Sendable, Identifiable {
                 persistence: (any FormPersistence)? = nil,
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                 onSave: [FormSaveAction] = [],
+                loadingStyle: FormLoadingStyle = .activityIndicator,
                 @FormRowBuilder rows: () -> [AnyFormRow]) {
         self.id = id
         self.title = title
@@ -98,6 +105,7 @@ public struct FormDefinition: Sendable, Identifiable {
         self.persistence = persistence
         self.saveBehaviour = saveBehaviour
         self.onSave = onSave
+        self.loadingStyle = loadingStyle
     }
 }
 

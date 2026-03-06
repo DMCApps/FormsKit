@@ -1,4 +1,5 @@
 @testable import FormKit
+import SwiftUI
 import Testing
 
 // MARK: - ButtonRow Tests
@@ -1249,5 +1250,69 @@ struct NumberInputRowTests {
         let vm = FormViewModel(formDefinition: form)
         let value: Double? = vm.value(for: "rate")
         #expect(value == 1.5)
+    }
+}
+
+// MARK: - FormLoadingStyle Tests
+
+@Suite("FormLoadingStyle")
+struct FormLoadingStyleTests {
+    @Test("FormDefinition defaults to .activityIndicator")
+    func defaultIsActivityIndicator() {
+        let form = FormDefinition(id: "f", title: "F", rows: [], saveBehaviour: .none)
+        if case .activityIndicator = form.loadingStyle {
+            // pass
+        } else {
+            Issue.record("Expected .activityIndicator loadingStyle")
+        }
+    }
+
+    @Test("FormDefinition stores .skeleton when specified")
+    func storesSkeleton() {
+        let form = FormDefinition(
+            id: "f",
+            title: "F",
+            rows: [],
+            saveBehaviour: .none,
+            loadingStyle: .skeleton
+        )
+        if case .skeleton = form.loadingStyle {
+            // pass
+        } else {
+            Issue.record("Expected .skeleton loadingStyle")
+        }
+    }
+
+    @Test("FormDefinition stores .custom when specified")
+    func storesCustom() {
+        let form = FormDefinition(
+            id: "f",
+            title: "F",
+            rows: [],
+            saveBehaviour: .none,
+            loadingStyle: .custom { AnyView(EmptyView()) }
+        )
+        if case .custom = form.loadingStyle {
+            // pass
+        } else {
+            Issue.record("Expected .custom loadingStyle")
+        }
+    }
+
+    @Test("FormDefinition builder DSL respects loadingStyle")
+    func builderDSLRespectsLoadingStyle() {
+        let form = FormDefinition(
+            id: "f",
+            title: "F",
+            saveBehaviour: .none,
+            loadingStyle: .skeleton
+        ) {
+            BooleanSwitchRow(id: "toggle", title: "Toggle")
+        }
+        if case .skeleton = form.loadingStyle {
+            // pass
+        } else {
+            Issue.record("Expected .skeleton loadingStyle")
+        }
     }
 }

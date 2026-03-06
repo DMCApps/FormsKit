@@ -40,14 +40,27 @@ public struct DynamicFormView: View {
         let isSaving = viewModel.status == .saving
         VStack(spacing: 0) {
             if viewModel.status == .loading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                loadingView
             } else {
                 Form {
+                    // Form-top errors: displayed above all rows.
+                    if !viewModel.formTopErrors.isEmpty {
+                        Section {
+                            ValidationErrorView(errors: viewModel.formTopErrors)
+                        }
+                    }
+
                     ForEach(formDefinition.rows) { row in
                         if viewModel.isRowVisible(row) {
                             FormRowContainer(row: row, viewModel: viewModel)
                                 .animation(.default, value: viewModel.isRowVisible(row))
+                        }
+                    }
+
+                    // Form-bottom errors: displayed below all rows, above the save button.
+                    if !viewModel.formBottomErrors.isEmpty {
+                        Section {
+                            ValidationErrorView(errors: viewModel.formBottomErrors)
                         }
                     }
 
@@ -96,6 +109,30 @@ public struct DynamicFormView: View {
             if let error = viewModel.saveError {
                 Text(error.localizedDescription)
             }
+        }
+        // Surface .alert-positioned validator errors as a dismissible alert.
+        .alert("Validation Error", isPresented: Binding(
+            get: { !viewModel.alertErrors.isEmpty },
+            set: { if !$0 { viewModel.clearAlertErrors() } }
+        )) {
+            Button("OK") { viewModel.clearAlertErrors() }
+        } message: {
+            Text(viewModel.alertErrors.joined(separator: "\n"))
+        }
+    }
+
+    // MARK: - Loading View
+
+    @ViewBuilder
+    private var loadingView: some View {
+        switch formDefinition.loadingStyle {
+        case .activityIndicator:
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .skeleton:
+            FormSkeletonView(formDefinition: formDefinition)
+        case let .custom(builder):
+            builder()
         }
     }
 }

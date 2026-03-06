@@ -22,6 +22,38 @@ public enum FormStatus: Equatable, Sendable {
     case saving
 }
 
+// MARK: - FormValidationError
+
+/// Errors that can be surfaced by `FormViewModel` during a save attempt.
+public enum FormValidationError: LocalizedError {
+    /// The form has live validation errors that must be fixed before saving.
+    case hasLiveErrors
+
+    public var errorDescription: String? {
+        switch self {
+        case .hasLiveErrors:
+            return "Please fix the form errors before saving."
+        }
+    }
+}
+
+// MARK: - FormError
+
+/// A single validation error produced by a `FormValidator`, capturing both the
+/// error message and the position in the form UI where it should be displayed.
+public struct FormError: Sendable, Equatable {
+    /// The human-readable error message.
+    public let message: String
+
+    /// Where in the form UI this error should be displayed.
+    public let position: ErrorPosition
+
+    public init(message: String, position: ErrorPosition) {
+        self.message = message
+        self.position = position
+    }
+}
+
 // MARK: - FormViewModel
 
 /// The observable view model that drives all form state.
@@ -46,12 +78,34 @@ public final class FormViewModel {
     public private(set) var values: FormValueStore
 
     /// Validation errors keyed by row ID.
+    /// Each entry is a `FormError` capturing the message and its display position.
     /// An empty array means the row has no current errors.
-    public private(set) var errors: [String: [String]] = [:]
+    public private(set) var errors: [String: [FormError]] = [:]
 
     /// True when there are no validation errors across all visible rows.
     public var isValid: Bool {
         errors.values.allSatisfy(\.isEmpty)
+    }
+
+    /// Error messages that should be displayed at the top of the form, above all rows.
+    public var formTopErrors: [String] {
+        errors.values.flatMap { $0 }
+            .filter { $0.position == .formTop }
+            .map(\.message)
+    }
+
+    /// Error messages that should be displayed at the bottom of the form, above the save button.
+    public var formBottomErrors: [String] {
+        errors.values.flatMap { $0 }
+            .filter { $0.position == .formBottom }
+            .map(\.message)
+    }
+
+    /// Error messages that should be surfaced in a dismissible alert dialog.
+    public var alertErrors: [String] {
+        errors.values.flatMap { $0 }
+            .filter { $0.position == .alert }
+            .map(\.message)
     }
 
     /// The current lifecycle state of the form.
@@ -228,23 +282,43 @@ public final class FormViewModel {
 
     // MARK: - Validation
 
-    /// Runs all `.onSave` validators for visible rows and checks required fields.
+    /// Validates the form before saving.
+    ///
+    /// First checks whether any live `.onChange` / debounced errors are already
+    /// present for visible rows. If so, returns `false` immediately — the row-level
+    /// error UI already tells the user what to fix, so running `.onSave` validators
+    /// on top would be redundant.
+    ///
+    /// If there are no live errors, runs all `.onSave` validators for visible rows
+    /// and updates `errors`.
+    ///
     /// - Returns: `true` if no errors were found; `false` otherwise.
     @discardableResult
     public func validateAll() -> Bool {
-        var newErrors: [String: [String]] = [:]
+        let visibleRowIds = Set(
+            FormViewModel.allRows(in: formDefinition.rows)
+                .filter { isRowVisible($0) }
+                .map(\.id)
+        )
+
+        // If any visible row already has live errors, bail out immediately.
+        // The existing error UI tells the user what to fix without needing to pile on.
+        let hasLiveErrors = errors.contains { visibleRowIds.contains($0.key) && !$0.value.isEmpty }
+        if hasLiveErrors { return false }
+
+        // No live errors — run .onSave validators.
+        var newErrors: [String: [FormError]] = [:]
 
         for row in FormViewModel.allRows(in: formDefinition.rows) where isRowVisible(row) {
-            var rowErrors: [String] = []
-
-            // User-supplied .onSave validators.
             let validatorErrors = row.validators
                 .filter { $0.trigger == .onSave }
-                .compactMap { $0.validate(values[row.id]) }
-            rowErrors.append(contentsOf: validatorErrors)
+                .compactMap { validator -> FormError? in
+                    guard let message = validator.validate(values[row.id]) else { return nil }
+                    return FormError(message: message, position: validator.errorPosition)
+                }
 
-            if !rowErrors.isEmpty {
-                newErrors[row.id] = rowErrors
+            if !validatorErrors.isEmpty {
+                newErrors[row.id] = validatorErrors
             }
         }
 
@@ -259,6 +333,20 @@ public final class FormViewModel {
     @discardableResult
     public func save() async -> Bool {
         guard status != .saving else { return false }
+
+        // If there are already live errors visible to the user, surface an alert
+        // prompting them to fix those before saving rather than silently failing.
+        let visibleRowIds = Set(
+            FormViewModel.allRows(in: formDefinition.rows)
+                .filter { isRowVisible($0) }
+                .map(\.id)
+        )
+        let hasLiveErrors = errors.contains { visibleRowIds.contains($0.key) && !$0.value.isEmpty }
+        if hasLiveErrors {
+            saveError = FormValidationError.hasLiveErrors
+            return false
+        }
+
         guard validateAll() else { return false }
 
         guard let persistence else {
@@ -345,6 +433,13 @@ public final class FormViewModel {
         saveError = nil
     }
 
+    /// Removes all `.alert`-positioned errors. Call this when dismissing the validation alert.
+    public func clearAlertErrors() {
+        for key in errors.keys {
+            errors[key] = errors[key]?.filter { $0.position != .alert }
+        }
+    }
+
     /// Clear persisted data for this form.
     public func clearPersistence() async {
         guard let persistence else { return }
@@ -353,14 +448,33 @@ public final class FormViewModel {
 
     // MARK: - Error Helpers
 
-    /// Returns the validation errors for a specific row.
+    /// Returns error messages to display below the given row.
+    ///
+    /// Includes:
+    /// - Errors from the row's own validators with position `.belowRow` (no associated id).
+    /// - Errors from any other row's validators with position `.belowRow(id: rowId)`.
     public func errorsForRow(_ rowId: String) -> [String] {
-        errors[rowId] ?? []
+        // Own-row errors positioned directly below this row (id == nil means owning row).
+        let ownErrors = (errors[rowId] ?? [])
+            .filter {
+                if case let .belowRow(id) = $0.position { return id == nil }
+                return false
+            }
+            .map(\.message)
+
+        // Errors from other rows that are targeted to display below this row.
+        let targeted = errors
+            .filter { $0.key != rowId }
+            .flatMap(\.value)
+            .filter { $0.position == .belowRow(id: rowId) }
+            .map(\.message)
+
+        return ownErrors + targeted
     }
 
-    /// True if the row currently has validation errors.
+    /// True if the row currently has validation errors that display below it.
     public func rowHasError(_ rowId: String) -> Bool {
-        !(errors[rowId]?.isEmpty ?? true)
+        !errorsForRow(rowId).isEmpty
     }
 
     // MARK: - RawRepresentable Row ID Overloads
@@ -427,7 +541,10 @@ public final class FormViewModel {
         guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
         let rowErrors = row.validators
             .filter { $0.trigger == trigger }
-            .compactMap { $0.validate(values[rowId]) }
+            .compactMap { validator -> FormError? in
+                guard let message = validator.validate(values[rowId]) else { return nil }
+                return FormError(message: message, position: validator.errorPosition)
+            }
         errors[rowId] = rowErrors
     }
 
@@ -461,7 +578,10 @@ public final class FormViewModel {
         guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
         let rowErrors = row.validators
             .filter(\.trigger.isDebouncedInput)
-            .compactMap { $0.validate(values[rowId]) }
+            .compactMap { validator -> FormError? in
+                guard let message = validator.validate(values[rowId]) else { return nil }
+                return FormError(message: message, position: validator.errorPosition)
+            }
         errors[rowId] = rowErrors
     }
 

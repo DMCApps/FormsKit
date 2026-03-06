@@ -1,5 +1,34 @@
 import Foundation
 
+// MARK: - ErrorPosition
+
+/// Controls where a validator's error message is displayed in the form UI.
+public enum ErrorPosition: Sendable, Equatable {
+    /// Display the error below the row that owns the validator (default).
+    /// Pass `nil` for `id` (or use the `.belowRow` static property) for the owning row.
+    /// Pass a non-nil `id` to display the error below a different row.
+    case belowRow(id: String? = nil)
+
+    /// Display the error at the top of the form, above all rows.
+    case formTop
+
+    /// Display the error at the bottom of the form, above the save button.
+    case formBottom
+
+    /// Display the error in a dismissible alert dialog.
+    case alert
+}
+
+public extension ErrorPosition {
+    /// Convenience static property for the default "below the owning row" position.
+    static var belowRow: ErrorPosition { .belowRow(id: nil) }
+
+    /// Convenience factory accepting a `RawRepresentable` row ID (e.g. an enum case).
+    static func belowRow<ID: RawRepresentable>(id: ID) -> ErrorPosition where ID.RawValue == String {
+        .belowRow(id: id.rawValue)
+    }
+}
+
 // MARK: - ValidationTrigger
 
 /// Controls when a validator fires.
@@ -49,12 +78,17 @@ public struct FormValidator: Sendable {
     /// When this validator fires.
     public let trigger: ValidationTrigger
 
+    /// Where the error message is displayed in the form UI. Defaults to `.belowRow`.
+    public let errorPosition: ErrorPosition
+
     /// The validation closure. Returns `nil` if valid, or an error message string if invalid.
     public let validate: @Sendable (AnyCodableValue?) -> String?
 
     public init(trigger: ValidationTrigger = .onSave,
+                errorPosition: ErrorPosition = .belowRow,
                 validate: @escaping @Sendable (AnyCodableValue?) -> String?) {
         self.trigger = trigger
+        self.errorPosition = errorPosition
         self.validate = validate
     }
 }
@@ -66,8 +100,9 @@ public extension FormValidator {
 
     /// The row must have a non-null, non-empty value.
     static func required(message: String = "This field is required",
-                         trigger: ValidationTrigger = .onSave) -> FormValidator {
-        FormValidator(trigger: trigger) { value in
+                         trigger: ValidationTrigger = .onSave,
+                         errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             guard let value else { return message }
             switch value {
             case .null:
@@ -87,8 +122,9 @@ public extension FormValidator {
     /// The row value must be a syntactically valid email address.
     /// Does not enforce that the row is non-empty — combine with `.required()` for that.
     static func email(message: String = "Please enter a valid email address",
-                      trigger: ValidationTrigger = .onSave) -> FormValidator {
-        FormValidator(trigger: trigger) { value in
+                      trigger: ValidationTrigger = .onSave,
+                      errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             guard let value, case let .string(s) = value, !s.isEmpty else {
                 return nil
             }
@@ -105,9 +141,10 @@ public extension FormValidator {
     /// The string value must have at least `min` characters.
     static func minLength(_ min: Int,
                           message: String? = nil,
-                          trigger: ValidationTrigger = .onSave) -> FormValidator {
+                          trigger: ValidationTrigger = .onSave,
+                          errorPosition: ErrorPosition = .belowRow) -> FormValidator {
         let errorMessage = message ?? "Must be at least \(min) character\(min == 1 ? "" : "s")"
-        return FormValidator(trigger: trigger) { value in
+        return FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             guard let value, case let .string(s) = value else { return nil }
             return s.count < min ? errorMessage : nil
         }
@@ -116,9 +153,10 @@ public extension FormValidator {
     /// The string value must have at most `max` characters.
     static func maxLength(_ max: Int,
                           message: String? = nil,
-                          trigger: ValidationTrigger = .onSave) -> FormValidator {
+                          trigger: ValidationTrigger = .onSave,
+                          errorPosition: ErrorPosition = .belowRow) -> FormValidator {
         let errorMessage = message ?? "Must be at most \(max) character\(max == 1 ? "" : "s")"
-        return FormValidator(trigger: trigger) { value in
+        return FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             guard let value, case let .string(s) = value else { return nil }
             return s.count > max ? errorMessage : nil
         }
@@ -129,9 +167,10 @@ public extension FormValidator {
     /// The numeric value must be within the given closed range.
     static func range(_ range: ClosedRange<Double>,
                       message: String? = nil,
-                      trigger: ValidationTrigger = .onSave) -> FormValidator {
+                      trigger: ValidationTrigger = .onSave,
+                      errorPosition: ErrorPosition = .belowRow) -> FormValidator {
         let errorMessage = message ?? "Must be between \(range.lowerBound) and \(range.upperBound)"
-        return FormValidator(trigger: trigger) { value in
+        return FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             guard let value else { return nil }
             let numericValue: Double? = switch value {
             case let .int(v): Double(v)
@@ -146,9 +185,10 @@ public extension FormValidator {
     /// The integer value must be within the given closed range.
     static func range(_ range: ClosedRange<Int>,
                       message: String? = nil,
-                      trigger: ValidationTrigger = .onSave) -> FormValidator {
+                      trigger: ValidationTrigger = .onSave,
+                      errorPosition: ErrorPosition = .belowRow) -> FormValidator {
         let errorMessage = message ?? "Must be between \(range.lowerBound) and \(range.upperBound)"
-        return FormValidator(trigger: trigger) { value in
+        return FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             guard let value, case let .int(v) = value else { return nil }
             return range.contains(v) ? nil : errorMessage
         }
@@ -159,8 +199,9 @@ public extension FormValidator {
     /// The string value must match the given regular expression pattern.
     static func regex(_ pattern: String,
                       message: String = "Invalid format",
-                      trigger: ValidationTrigger = .onSave) -> FormValidator {
-        FormValidator(trigger: trigger) { value in
+                      trigger: ValidationTrigger = .onSave,
+                      errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             guard let value, case let .string(s) = value, !s.isEmpty else { return nil }
             guard s.range(of: pattern, options: .regularExpression) != nil else {
                 return message
@@ -174,8 +215,9 @@ public extension FormValidator {
     /// The string value must parse as a valid Double (e.g. "37.7833" or "-122.4167").
     /// Passes when the field is empty — combine with `.required()` to enforce a value.
     static func double(message: String = "Must be a valid decimal number",
-                       trigger: ValidationTrigger = .onSave) -> FormValidator {
-        FormValidator(trigger: trigger) { value in
+                       trigger: ValidationTrigger = .onSave,
+                       errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             guard case let .string(s) = value, !s.isEmpty else { return nil }
             return Swift.Double(s) != nil ? nil : message
         }
@@ -186,8 +228,9 @@ public extension FormValidator {
     /// The string value must be a valid IPv4 address (e.g. "192.168.1.1").
     /// Each octet must be 0–255. Passes when the field is empty.
     static func ipv4(message: String = "Must be a valid IPv4 address (e.g. 192.168.1.1)",
-                     trigger: ValidationTrigger = .onSave) -> FormValidator {
-        FormValidator(trigger: trigger) { value in
+                     trigger: ValidationTrigger = .onSave,
+                     errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             guard case let .string(s) = value, !s.isEmpty else { return nil }
             let pattern = #"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$"#
             guard s.range(of: pattern, options: .regularExpression) != nil else { return message }
@@ -223,8 +266,9 @@ public extension FormValidator {
     ///   - trigger: When to fire the validator.
     static func date(format: String? = nil,
                      message: String = "Please enter a valid date",
-                     trigger: ValidationTrigger = .onSave) -> FormValidator {
-        FormValidator(trigger: trigger) { value in
+                     trigger: ValidationTrigger = .onSave,
+                     errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             switch value {
             case .date:
                 // Already a typed Date — always valid.
@@ -247,8 +291,9 @@ public extension FormValidator {
     /// The predicate should return `true` when the value is VALID.
     static func custom(message: String,
                        trigger: ValidationTrigger = .onSave,
+                       errorPosition: ErrorPosition = .belowRow,
                        isValid: @escaping @Sendable (AnyCodableValue?) -> Bool) -> FormValidator {
-        FormValidator(trigger: trigger) { value in
+        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
             isValid(value) ? nil : message
         }
     }
@@ -257,7 +302,8 @@ public extension FormValidator {
 
     /// Alias for `.required()` with clearer intent for non-text fields.
     static func notEmpty(message: String = "A selection is required",
-                         trigger: ValidationTrigger = .onSave) -> FormValidator {
-        required(message: message, trigger: trigger)
+                         trigger: ValidationTrigger = .onSave,
+                         errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        required(message: message, trigger: trigger, errorPosition: errorPosition)
     }
 }
