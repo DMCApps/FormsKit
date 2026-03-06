@@ -39,8 +39,10 @@ public struct DynamicFormView: View {
     public var body: some View {
         let isSaving = viewModel.status == .saving
         VStack(spacing: 0) {
-            if viewModel.status == .loading {
+            if viewModel.status == .needsLoad || viewModel.status == .loading {
                 loadingView
+            } else if case let .loadFailed(error) = viewModel.status {
+                loadFailedView(error: error)
             } else {
                 Form {
                     // Form-top errors: displayed above all rows.
@@ -89,6 +91,12 @@ public struct DynamicFormView: View {
             }
         }
         .navigationTitle(formDefinition.title)
+        // Automatically load from persistence whenever status transitions to .needsLoad.
+        // This covers: initial appearance, post-reset(), and re-navigation to the view.
+        .task(id: viewModel.status == .needsLoad) {
+            guard viewModel.status == .needsLoad else { return }
+            await viewModel.loadFromPersistence()
+        }
         .toolbar {
             if case let .buttonNavigationBar(title) = formDefinition.saveBehaviour {
                 ToolbarItem(placement: .confirmationAction) {
@@ -134,6 +142,25 @@ public struct DynamicFormView: View {
         case let .custom(builder):
             builder()
         }
+    }
+
+    // MARK: - Load Failed View
+
+    @ViewBuilder
+    private func loadFailedView(error: Error) -> some View {
+        VStack(spacing: 16) {
+            Text("Failed to Load")
+                .font(.headline)
+            Text(error.localizedDescription)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Retry") {
+                Task { await viewModel.loadFromPersistence() }
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

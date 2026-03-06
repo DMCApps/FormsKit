@@ -213,6 +213,7 @@ struct TypedFormViewModelTests {
     func saveReturnsTrueNoPersistence() async {
         let form = makeTypedForm()
         let vm = TypedFormViewModel(form: form)
+        await vm.loadFromPersistence()
         let result = await vm.save()
         #expect(result == true)
     }
@@ -222,6 +223,7 @@ struct TypedFormViewModelTests {
         let persistence = FormPersistenceMemory()
         let form = makeTypedForm(persistence: persistence)
         let vm = TypedFormViewModel(form: form)
+        await vm.loadFromPersistence()
 
         vm.setString("dave", for: .username)
         let saved = await vm.save()
@@ -247,6 +249,7 @@ struct TypedFormViewModelTests {
             TextInputRow(id: SettingsRowID.username.rawValue, title: "Username", defaultValue: "alice")
         }
         let vm = TypedFormViewModel(form: form)
+        await vm.loadFromPersistence()
 
         vm.setString("eve", for: .username)
         let result = await vm.save()
@@ -268,6 +271,7 @@ struct TypedFormViewModelTests {
             TextInputRow(id: SettingsRowID.email.rawValue, title: "Email", validators: [.required()])
         }
         let vm = TypedFormViewModel(form: form)
+        await vm.loadFromPersistence()
 
         let result = await vm.save()
 
@@ -287,6 +291,7 @@ struct TypedFormViewModelTests {
             onSave: [FormSaveAction { _ in called = true }]
         )
         let vm = TypedFormViewModel<SettingsRowID>(formDefinition: defWithAction)
+        await vm.loadFromPersistence()
 
         vm.setString("frank", for: .username)
         await vm.save()
@@ -350,6 +355,7 @@ struct TypedFormViewModelTests {
         let persistence = FormPersistenceMemory()
         let form = makeTypedForm(persistence: persistence)
         let vm = TypedFormViewModel(form: form)
+        await vm.loadFromPersistence()
 
         vm.setString("grace", for: .username)
         await vm.save()

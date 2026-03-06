@@ -248,6 +248,10 @@ where RowID.RawValue == String {
     // MARK: - Reset
 
     /// Reset all values to their row defaults and clear all errors.
+    ///
+    /// Any unsaved changes are discarded. If a persistence backend is configured,
+    /// a reload from storage is kicked off immediately and `save()` is blocked
+    /// until it completes.
     public func reset() {
         viewModel.reset()
     }

@@ -8,18 +8,43 @@ import Observation
 /// Use this to drive loading indicators and button disabled states in your UI:
 /// ```swift
 /// switch viewModel.status {
-/// case .loading: ProgressView()
-/// case .ready:   FormContentView()
-/// case .saving:  FormContentView().disabled(true)
+/// case .needsLoad, .loading: ProgressView()
+/// case .ready:               FormContentView()
+/// case .saving:              FormContentView().disabled(true)
+/// case .loadFailed(let err): ErrorView(error: err)
 /// }
 /// ```
 public enum FormStatus: Equatable, Sendable {
-    /// The initial async load from persistence is in flight.
+    /// The form has been initialised but the async load from persistence has not yet started.
+    /// Transitions to `.loading` once `loadFromPersistence()` is called.
+    case needsLoad
+    /// The async load from persistence is in flight.
     case loading
     /// Values are loaded and the form is ready for interaction.
     case ready
     /// A save operation is currently in progress.
     case saving
+    /// The load from persistence failed. The form is showing default values only.
+    /// The associated error describes what went wrong.
+    /// Call `loadFromPersistence()` again to retry.
+    case loadFailed(Error)
+
+    /// True when the status is `.loadFailed`, regardless of the associated error.
+    public var isLoadFailed: Bool {
+        if case .loadFailed = self { return true }
+        return false
+    }
+
+    public static func == (lhs: FormStatus, rhs: FormStatus) -> Bool {
+        switch (lhs, rhs) {
+        case (.needsLoad, .needsLoad): return true
+        case (.loading, .loading): return true
+        case (.ready, .ready): return true
+        case (.saving, .saving): return true
+        case (.loadFailed, .loadFailed): return true
+        default: return false
+        }
+    }
 }
 
 // MARK: - FormValidationError
@@ -110,7 +135,7 @@ public final class FormViewModel {
 
     /// The current lifecycle state of the form.
     /// Use this to drive loading indicators and disable the save button during saves.
-    public private(set) var status: FormStatus = .loading
+    public private(set) var status: FormStatus = .needsLoad
 
     /// The most recent save error, if any.
     public private(set) var saveError: Error?
@@ -133,10 +158,6 @@ public final class FormViewModel {
     /// dispatch on the same row (e.g. a `.custom` action that calls `setValue` back on the
     /// same row, which would otherwise cause unbounded recursion).
     private var dispatchingRows: Set<String> = []
-
-    /// Prevents concurrent or duplicate calls to `loadFromPersistence` from
-    /// each racing through the status check before either has claimed the load.
-    private var isLoadingInProgress: Bool = false
 
     // MARK: - Initialisation
 
@@ -162,13 +183,11 @@ public final class FormViewModel {
         }
         values = store
 
-        // Kick off the async load. `status` transitions from `.loading`
-        // to `.ready` once the load completes (or immediately if there is no
-        // persistence backend). The load is dispatched on the MainActor so
-        // that the `.loading → .ready` status mutation is always performed on
-        // the main thread, ensuring SwiftUI's `@Observable` callbacks fire
-        // correctly regardless of which thread created the FormViewModel.
-        Task { @MainActor [weak self] in await self?.loadFromPersistence() }
+        // Kick off the async load. `status` starts as `.needsLoad` and transitions
+        // to `.loading` → `.ready` (or `.loadFailed`) once the load completes.
+        // `loadFromPersistence()` dispatches its own state mutations onto the
+        // MainActor internally, so the Task itself doesn't need to run there.
+        Task { [weak self] in await self?.loadFromPersistence() }
     }
 
     // MARK: - Value Reading
@@ -339,7 +358,7 @@ public final class FormViewModel {
     /// - Returns: `true` if validation passed and persistence succeeded (or no persistence).
     @discardableResult
     public func save() async -> Bool {
-        guard status != .saving else { return false }
+        guard status == .ready else { return false }
 
         // If there are already live errors visible to the user, surface an alert
         // prompting them to fix those before saving rather than silently failing.
@@ -381,20 +400,25 @@ public final class FormViewModel {
     // MARK: - Load
 
     /// Load persisted values, merging over row defaults.
-    /// Transitions `status` to `.ready` when complete regardless of
-    /// whether a persistence backend is configured.
+    /// Transitions `status` from `.needsLoad` → `.loading` → `.ready` (or `.loadFailed`).
+    ///
+    /// Concurrent calls are safely deduplicated: only the caller that observes
+    /// `status == .needsLoad` proceeds; any racing caller bails out because the
+    /// transition to `.loading` happens atomically inside `MainActor.run`.
+    ///
     /// The persistence I/O runs on whatever executor the backend requires
     /// (e.g. a background thread for network calls). All state mutations
     /// are then dispatched back to the `@MainActor` so SwiftUI's
     /// `@Observable` callbacks fire correctly on the main thread.
     public func loadFromPersistence() async {
         // Atomically claim the load on the MainActor. Because MainActor.run
-        // is serialised, only the first concurrent caller can set
-        // isLoadingInProgress = true and proceed; any racing caller sees it
-        // already set and returns immediately without clobbering in-flight work.
+        // is serialised, only the first concurrent caller that observes
+        // `.needsLoad` or `.loadFailed` can transition to `.loading`;
+        // any racing caller already sees `.loading` and bails out,
+        // preventing a double-load race.
         let shouldLoad: Bool = await MainActor.run {
-            guard !isLoadingInProgress else { return false }
-            isLoadingInProgress = true
+            guard status == .needsLoad || status.isLoadFailed else { return false }
+            status = .loading
             return true
         }
         guard shouldLoad else { return }
@@ -428,8 +452,7 @@ public final class FormViewModel {
             }
         } catch {
             await MainActor.run {
-                saveError = error
-                status = .ready
+                status = .loadFailed(error)
             }
         }
     }
@@ -437,6 +460,11 @@ public final class FormViewModel {
     // MARK: - Reset
 
     /// Reset all values to their row defaults and clear all errors.
+    ///
+    /// Any unsaved changes are discarded. If a persistence backend is configured,
+    /// a reload from storage is kicked off immediately — the form will transition
+    /// through `.needsLoad` → `.loading` → `.ready` (or `.loadFailed`) just as it
+    /// did on first load. Any call to `save()` is blocked until the reload completes.
     public func reset() {
         var store = FormValueStore()
         for row in FormViewModel.allRows(in: formDefinition.rows) {
@@ -454,6 +482,12 @@ public final class FormViewModel {
         actionDebounceTimers.values.forEach { $0.cancel() }
         actionDebounceTimers = [:]
         dispatchingRows = []
+        // If persistence is configured, reload from storage immediately.
+        // Mirrors the same pattern used in init().
+        if persistence != nil {
+            status = .needsLoad
+            Task { [weak self] in await self?.loadFromPersistence() }
+        }
     }
 
     /// Clears the most recent save error. Call this when dismissing a save-failure alert.
