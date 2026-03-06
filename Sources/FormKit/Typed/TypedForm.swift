@@ -15,7 +15,7 @@ import Foundation
 ///
 /// let form = TypedFormDefinition<SettingsRowID>(id: "settings", title: "Settings") {
 ///     TextInputRow(id: .username, title: "Username")
-///     EmailInputRow(id: .email, title: "Email")
+///     TextInputRow(id: .email, title: "Email")
 ///     BooleanSwitchRow(id: .notifications, title: "Enable Notifications")
 /// }
 ///

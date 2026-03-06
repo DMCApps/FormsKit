@@ -17,7 +17,7 @@ struct NumberInputRowView: View {
             rowHeader
             TextField(row.placeholder ?? "", text: $textBuffer)
 #if os(iOS)
-                .keyboardType(row.kind == .decimal ? .decimalPad : .numberPad)
+                .keyboardType(row.isDecimal ? .decimalPad : .numberPad)
 #endif
                 .onChange(of: textBuffer) { _, newValue in
                     commitText(newValue)
@@ -52,15 +52,15 @@ struct NumberInputRowView: View {
     }
 
     private func commitText(_ text: String) {
-        if row.kind == .integer {
-            if let int = Int(text) {
-                viewModel.setInt(int, for: row.id)
+        if row.isDecimal {
+            if let double = Double(text) {
+                viewModel.setDouble(double, for: row.id)
             } else if text.isEmpty {
                 viewModel.setValue(nil, for: row.id)
             }
         } else {
-            if let double = Double(text) {
-                viewModel.setDouble(double, for: row.id)
+            if let int = Int(text) {
+                viewModel.setInt(int, for: row.id)
             } else if text.isEmpty {
                 viewModel.setValue(nil, for: row.id)
             }

@@ -28,7 +28,7 @@ struct FormSectionConstructionTests {
     func formSectionBuilderDSL() {
         let section = FormSection(id: "account", title: "Account") {
             TextInputRow(id: "name", title: "Name")
-            EmailInputRow(id: "email", title: "Email")
+            TextInputRow(id: "email", title: "Email")
         }
         #expect(section.rows.count == 2)
         #expect(section.rows[0].id == "name")
@@ -129,7 +129,7 @@ struct FormSectionInFormDefinitionTests {
             BooleanSwitchRow(id: "top", title: "Top Level")
             FormSection(id: "details", title: "Details") {
                 TextInputRow(id: "name", title: "Name")
-                EmailInputRow(id: "email", title: "Email")
+                TextInputRow(id: "email", title: "Email")
             }
         }
         #expect(form.rows.count == 2)

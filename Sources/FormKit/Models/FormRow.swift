@@ -430,10 +430,22 @@ public struct TextInputRow: FormRow {
 
 // MARK: - NumberKind
 
-/// Whether a NumberInputRow accepts integers or decimals.
+/// Declares the numeric kind (integer vs decimal) and an optional default value for a
+/// `NumberInputRow` in a single, unified parameter.
+///
+/// Using one parameter for both eliminates the ambiguity of pairing a separate `kind`
+/// with a `defaultValue` that might not match.
+///
+/// ```swift
+/// NumberInputRow(id: "retries", title: "Retries", kind: .int(defaultValue: 3))
+/// NumberInputRow(id: "rate",    title: "Rate",    kind: .decimal(defaultValue: 1.5))
+/// NumberInputRow(id: "count",   title: "Count")   // defaults to .int(defaultValue: nil)
+/// ```
 public enum NumberKind: Sendable {
-    case integer
-    case decimal
+    /// An integer field with an optional integer default value.
+    case int(defaultValue: Int?)
+    /// A decimal field with an optional double default value.
+    case decimal(defaultValue: Double?)
 }
 
 // MARK: - NumberInputRow
@@ -446,83 +458,38 @@ public struct NumberInputRow: FormRow {
     public let onChange: [FormRowAction]
     public let validators: [FormValidator]
     public let placeholder: String?
-    public let kind: NumberKind
-    private let _defaultValue: AnyCodableValue?
 
-    public var defaultValue: AnyCodableValue? { _defaultValue }
+    private let _kind: NumberKind
 
-    /// Integer input row.
-    public init(id: String,
-                title: String,
-                subtitle: String? = nil,
-                placeholder: String? = nil,
-                kind: NumberKind = .integer,
-                defaultValue: Int? = nil,
-                validators: [FormValidator] = [],
-                onChange: [FormRowAction] = []) {
-        self.id = id
-        self.title = title
-        self.subtitle = subtitle
-        self.placeholder = placeholder
-        self.kind = kind
-        _defaultValue = defaultValue.map { .int($0) }
-        self.validators = validators
-        self.onChange = onChange
+    /// The numeric kind and default value for this row.
+    public var kind: NumberKind { _kind }
+
+    /// `true` when this row is configured as a decimal field.
+    public var isDecimal: Bool {
+        if case .decimal = _kind { return true }
+        return false
     }
-
-    /// Decimal input row.
-    public init(id: String,
-                title: String,
-                subtitle: String? = nil,
-                placeholder: String? = nil,
-                defaultValue: Double?,
-                validators: [FormValidator] = [],
-                onChange: [FormRowAction] = []) {
-        self.id = id
-        self.title = title
-        self.subtitle = subtitle
-        self.placeholder = placeholder
-        kind = .decimal
-        _defaultValue = defaultValue.map { .double($0) }
-        self.validators = validators
-        self.onChange = onChange
-    }
-}
-
-// MARK: - EmailInputRow
-
-/// An email-specific input row.
-/// Automatically prepends an email format validator.
-public struct EmailInputRow: FormRow {
-    public let id: String
-    public let title: String
-    public let subtitle: String?
-    public let onChange: [FormRowAction]
-    public let validators: [FormValidator]
-    public let placeholder: String?
-
-    private let _defaultValue: String?
 
     public var defaultValue: AnyCodableValue? {
-        _defaultValue.map { .string($0) }
+        switch _kind {
+        case let .int(value): return value.map { .int($0) }
+        case let .decimal(value): return value.map { .double($0) }
+        }
     }
 
     public init(id: String,
                 title: String,
                 subtitle: String? = nil,
-                placeholder: String? = "email@example.com",
-                defaultValue: String? = nil,
+                placeholder: String? = nil,
+                kind: NumberKind = .int(defaultValue: nil),
                 validators: [FormValidator] = [],
                 onChange: [FormRowAction] = []) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         self.placeholder = placeholder
-        _defaultValue = defaultValue
-        // Automatically prepend email format validator (fires onSave by default).
-        var allValidators: [FormValidator] = [.email()]
-        allValidators.append(contentsOf: validators)
-        self.validators = allValidators
+        _kind = kind
+        self.validators = validators
         self.onChange = onChange
     }
 }
@@ -655,7 +622,7 @@ public struct FormSection: FormRow, @unchecked Sendable {
     /// ```swift
     /// FormSection(id: "account", title: "Account") {
     ///     TextInputRow(id: "name", title: "Name")
-    ///     EmailInputRow(id: "email", title: "Email")
+    ///     TextInputRow(id: "email", title: "Email")
     /// }
     /// ```
     public init(id: String,
@@ -810,8 +777,7 @@ public extension NumberInputRow {
                                title: String,
                                subtitle: String? = nil,
                                placeholder: String? = nil,
-                               kind: NumberKind = .integer,
-                               defaultValue: Int? = nil,
+                               kind: NumberKind = .int(defaultValue: nil),
                                validators: [FormValidator] = [],
                                onChange: [FormRowAction] = []) where ID.RawValue == String {
         self.init(
@@ -820,45 +786,6 @@ public extension NumberInputRow {
             subtitle: subtitle,
             placeholder: placeholder,
             kind: kind,
-            defaultValue: defaultValue,
-            validators: validators,
-            onChange: onChange
-        )
-    }
-
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               subtitle: String? = nil,
-                               placeholder: String? = nil,
-                               defaultValue: Double?,
-                               validators: [FormValidator] = [],
-                               onChange: [FormRowAction] = []) where ID.RawValue == String {
-        self.init(
-            id: id.rawValue,
-            title: title,
-            subtitle: subtitle,
-            placeholder: placeholder,
-            defaultValue: defaultValue,
-            validators: validators,
-            onChange: onChange
-        )
-    }
-}
-
-public extension EmailInputRow {
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               subtitle: String? = nil,
-                               placeholder: String? = "email@example.com",
-                               defaultValue: String? = nil,
-                               validators: [FormValidator] = [],
-                               onChange: [FormRowAction] = []) where ID.RawValue == String {
-        self.init(
-            id: id.rawValue,
-            title: title,
-            subtitle: subtitle,
-            placeholder: placeholder,
-            defaultValue: defaultValue,
             validators: validators,
             onChange: onChange
         )

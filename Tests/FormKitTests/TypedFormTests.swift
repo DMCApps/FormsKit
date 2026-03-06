@@ -115,8 +115,8 @@ struct TypedFormViewModelTests {
         ) {
             TextInputRow(id: SettingsRowID.username.rawValue, title: "Username", defaultValue: "alice")
             BooleanSwitchRow(id: SettingsRowID.notifications.rawValue, title: "Notifications", defaultValue: true)
-            NumberInputRow(id: SettingsRowID.count.rawValue, title: "Count", kind: .integer)
-            NumberInputRow(id: SettingsRowID.score.rawValue, title: "Score", defaultValue: nil)
+            NumberInputRow(id: SettingsRowID.count.rawValue, title: "Count", kind: .int(defaultValue: nil))
+            NumberInputRow(id: SettingsRowID.score.rawValue, title: "Score", kind: .decimal(defaultValue: nil))
         }
     }
 

@@ -48,8 +48,8 @@ struct FormViewModelTests {
     func typedValueSetters() {
         let form = makeForm(rows: [
             AnyFormRow(TextInputRow(id: "text", title: "Text")),
-            AnyFormRow(NumberInputRow(id: "int", title: "Int", kind: .integer)),
-            AnyFormRow(NumberInputRow(id: "dbl", title: "Dbl", defaultValue: nil)),
+            AnyFormRow(NumberInputRow(id: "int", title: "Int", kind: .int(defaultValue: nil))),
+            AnyFormRow(NumberInputRow(id: "dbl", title: "Dbl", kind: .decimal(defaultValue: nil))),
             AnyFormRow(BooleanSwitchRow(id: "bool", title: "Bool"))
         ])
         let vm = FormViewModel(formDefinition: form)
@@ -212,7 +212,7 @@ struct FormViewModelTests {
     @Test("User-supplied onSave validators fire on validateAll")
     func onSaveValidatorsFire() {
         let form = makeForm(rows: [
-            AnyFormRow(EmailInputRow(id: "email", title: "Email"))
+            AnyFormRow(TextInputRow(id: "email", title: "Email", validators: [.email()]))
         ])
         let vm = FormViewModel(formDefinition: form)
         vm.setString("notanemail", for: "email")

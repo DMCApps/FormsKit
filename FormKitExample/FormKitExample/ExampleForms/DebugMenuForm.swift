@@ -38,8 +38,7 @@ enum DebugMenuForm {
             id: "timeout",
             title: "Request Timeout (seconds)",
             placeholder: "30",
-            kind: .integer,
-            defaultValue: 30,
+            kind: .int(defaultValue: 30),
             validators: [.range(1 ... 300)]
         )
 
@@ -85,8 +84,7 @@ enum DebugMenuForm {
             id: "mockDelay",
             title: "Mock API Delay (ms)",
             placeholder: "200",
-            kind: .integer,
-            defaultValue: 200,
+            kind: .int(defaultValue: 200),
             conditions: [.isTrue(rowId: "mockAPI")],
             validators: [.range(0 ... 5000)]
         )

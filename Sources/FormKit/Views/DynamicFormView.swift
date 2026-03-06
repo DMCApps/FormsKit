@@ -120,8 +120,6 @@ struct FormRowContainer: View {
                 BooleanSwitchRowView(row: boolRow, viewModel: viewModel)
             } else if let textRow = row.asType(TextInputRow.self) {
                 TextInputRowView(row: textRow, viewModel: viewModel)
-            } else if let emailRow = row.asType(EmailInputRow.self) {
-                EmailInputRowView(row: emailRow, viewModel: viewModel)
             } else if let numberRow = row.asType(NumberInputRow.self) {
                 NumberInputRowView(row: numberRow, viewModel: viewModel)
             } else if let navRow = row.asType(NavigationRow.self) {

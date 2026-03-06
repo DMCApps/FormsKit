@@ -42,10 +42,12 @@ enum SettingsForm {
             ]
         )
 
-        // Email input (auto email-format validator is injected by EmailInputRow).
-        EmailInputRow(
+        // Email input with explicit email-format validator.
+        TextInputRow(
             id: "contactEmail",
             title: "Contact Email",
+            placeholder: "email@example.com",
+            keyboardType: .emailAddress,
             validators: [.email(trigger: .onDebouncedInput(seconds: 0.8))]
         )
 
@@ -69,8 +71,7 @@ enum SettingsForm {
             id: "fontSize",
             title: "Font Size",
             placeholder: "16",
-            kind: .integer,
-            defaultValue: 16,
+            kind: .int(defaultValue: 16),
             conditions: [
                 .notEquals(rowId: "theme", value: .string(AppTheme.system.description))
             ],
