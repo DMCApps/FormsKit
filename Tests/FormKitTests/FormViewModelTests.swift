@@ -1280,6 +1280,95 @@ struct FormViewModelTests {
         #expect(vm.formBottomErrors.isEmpty)
     }
 
+    @Test("isValid ignores errors on hidden rows")
+    func isValidIgnoresHiddenRowErrors() {
+        // "show" starts false; "secret" is hidden and has a required validator.
+        // Even after validateAll() fires the error on "secret", isValid should be
+        // true because "secret" is not visible.
+        let form = makeForm(rows: [
+            AnyFormRow(BooleanSwitchRow(
+                id: "show",
+                title: "Show",
+                defaultValue: false,
+                onChange: [.showRow(id: "secret", when: [.isTrue(rowId: "show")])]
+            )),
+            AnyFormRow(TextInputRow(id: "secret", title: "Secret", validators: [.required()]))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+
+        // Make "secret" visible and run validateAll to store a required-field error for it.
+        vm.setBool(true, for: "show") // make "secret" visible
+        // "secret" has no value set, so required() will fail.
+        vm.validateAll()
+        #expect(vm.isValid == false) // sanity: visible and errored
+
+        vm.setBool(false, for: "show") // hide "secret" again
+
+        // "secret" is hidden → its stored error must not affect isValid.
+        #expect(vm.isValid == true)
+
+        // Show the row again — the error comes back into scope.
+        vm.setBool(true, for: "show")
+        #expect(vm.isValid == false)
+    }
+
+    @Test("reset with persistence eventually reloads to .ready")
+    func resetWithPersistenceReloadsToReady() async {
+        let persistence = FormPersistenceMemory()
+        let form = makeForm(rows: [], persistence: persistence)
+        let vm = FormViewModel(formDefinition: form)
+
+        await vm.loadFromPersistence()
+        #expect(vm.status == .ready)
+
+        vm.reset()
+        // reset() immediately sets .needsLoad and fires a background Task to reload.
+        #expect(vm.status == .needsLoad)
+
+        // Await until the background reload completes.
+        await vm.loadFromPersistence()
+        #expect(vm.status == .ready)
+    }
+
+    @Test("Debounced validator fires after onChange clears, does not stomp onChange error")
+    func debouncedValidatorDoesNotStompOnChangeError() async {
+        // Row has both an onChange validator (minLength 5) and a debounced validator (minLength 10).
+        // Setting "hi" fires onChange immediately (fails minLength 5).
+        // The debounced validator then fires and also fails (minLength 10).
+        // We want to confirm both run independently and the last write wins per validator type,
+        // i.e. the debounced write replaces the onChange write in the errors dict for the row.
+        let row = TextInputRow(
+            id: "text",
+            title: "Text",
+            validators: [
+                .minLength(5, trigger: .onChange),
+                .minLength(10, trigger: .onDebouncedInput(seconds: 0.05))
+            ]
+        )
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setString("hi", for: "text") // 2 chars — fails both validators
+
+        // onChange error is present immediately.
+        #expect(vm.errorsForRow("text").isEmpty == false)
+
+        // Wait for the debounced validator to run.
+        try? await Task.sleep(for: .milliseconds(150))
+
+        // Error should still be present (debounced validator also fails on "hi").
+        #expect(vm.errorsForRow("text").isEmpty == false)
+
+        // Now fix the value — exceeds both thresholds.
+        vm.setString("hello world!", for: "text")
+        // onChange fires immediately → no error.
+        #expect(vm.errorsForRow("text").isEmpty == true)
+
+        // After debounce, still no error.
+        try? await Task.sleep(for: .milliseconds(150))
+        #expect(vm.errorsForRow("text").isEmpty == true)
+    }
+
     // MARK: - visibleRows
 
     @Test("visibleRows filters by showRow actions")

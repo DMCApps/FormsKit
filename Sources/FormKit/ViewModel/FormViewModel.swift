@@ -108,8 +108,12 @@ public final class FormViewModel {
     public private(set) var errors: [String: [FormError]] = [:]
 
     /// True when there are no validation errors across all visible rows.
+    /// Hidden rows are excluded — their errors do not count against form validity.
     public var isValid: Bool {
-        errors.values.allSatisfy(\.isEmpty)
+        let visibleRowIds = Set(allRows.filter { isRowVisible($0) }.map(\.id))
+        return errors.allSatisfy { key, rowErrors in
+            !visibleRowIds.contains(key) || rowErrors.isEmpty
+        }
     }
 
     /// Error messages that should be displayed at the top of the form, above all rows.
@@ -159,6 +163,10 @@ public final class FormViewModel {
     /// same row, which would otherwise cause unbounded recursion).
     private var dispatchingRows: Set<String> = []
 
+    /// All leaf rows in the form, flattened from nested sections. Immutable for the
+    /// lifetime of the view model — safe because `FormDefinition.rows` is a `let`.
+    private let allRows: [AnyFormRow]
+
     // MARK: - Initialisation
 
     /// - Parameters:
@@ -171,12 +179,15 @@ public final class FormViewModel {
         let resolvedPersistence = persistence ?? formDefinition.persistence
         self.persistence = resolvedPersistence
 
+        // Flatten once here — used to seed defaults and then stored as `allRows`.
+        let flatRows = FormViewModel.allRows(in: formDefinition.rows)
+        allRows = flatRows
+
         // Seed the store with row defaults. Persisted values are loaded
         // asynchronously below so that all persistence backends (sync or async)
-        // are handled uniformly, and callers never need to manage a separate
-        // load call.
+        // are handled uniformly, and callers never need to manage a separate load call.
         var store = FormValueStore()
-        for row in FormViewModel.allRows(in: formDefinition.rows) {
+        for row in flatRows {
             if let defaultValue = row.defaultValue {
                 store[row.id] = defaultValue
             }
@@ -283,7 +294,7 @@ public final class FormViewModel {
 
         // Collect all .showRow actions across ALL rows (including section children)
         // that target this row.
-        let showActions = FormViewModel.allRows(in: formDefinition.rows).flatMap { sourceRow in
+        let showActions = allRows.flatMap { sourceRow in
             sourceRow.onChange.compactMap { action -> [FormCondition]? in
                 if case let .showRow(targetId, conditions, _) = action, targetId == row.id {
                     return conditions
@@ -322,7 +333,7 @@ public final class FormViewModel {
     @discardableResult
     public func validateAll() -> Bool {
         let visibleRowIds = Set(
-            FormViewModel.allRows(in: formDefinition.rows)
+            allRows
                 .filter { isRowVisible($0) }
                 .map(\.id)
         )
@@ -335,7 +346,7 @@ public final class FormViewModel {
         // No live errors — run .onSave validators.
         var newErrors: [String: [FormError]] = [:]
 
-        for row in FormViewModel.allRows(in: formDefinition.rows) where isRowVisible(row) {
+        for row in allRows where isRowVisible(row) {
             let validatorErrors = row.validators
                 .filter { $0.trigger == .onSave }
                 .compactMap { validator -> FormError? in
@@ -363,7 +374,7 @@ public final class FormViewModel {
         // If there are already live errors visible to the user, surface an alert
         // prompting them to fix those before saving rather than silently failing.
         let visibleRowIds = Set(
-            FormViewModel.allRows(in: formDefinition.rows)
+            allRows
                 .filter { isRowVisible($0) }
                 .map(\.id)
         )
@@ -439,7 +450,7 @@ public final class FormViewModel {
                 actionDebounceTimers.values.forEach { $0.cancel() }
                 actionDebounceTimers = [:]
                 var store = FormValueStore()
-                for row in FormViewModel.allRows(in: formDefinition.rows) {
+                for row in allRows {
                     if let defaultValue = row.defaultValue {
                         store[row.id] = defaultValue
                     }
@@ -467,7 +478,7 @@ public final class FormViewModel {
     /// did on first load. Any call to `save()` is blocked until the reload completes.
     public func reset() {
         var store = FormValueStore()
-        for row in FormViewModel.allRows(in: formDefinition.rows) {
+        for row in allRows {
             if let defaultValue = row.defaultValue {
                 store[row.id] = defaultValue
             }
@@ -600,7 +611,7 @@ public final class FormViewModel {
 
     /// Run all validators matching the given trigger for a specific row.
     private func runValidators(for rowId: String, trigger: ValidationTrigger) {
-        guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
+        guard let row = allRows.first(where: { $0.id == rowId }) else { return }
         let rowErrors = row.validators
             .filter { $0.trigger == trigger }
             .compactMap { validator -> FormError? in
@@ -613,7 +624,7 @@ public final class FormViewModel {
     /// Schedule debounced validation for a row.
     /// Uses the longest debounce interval among all debounced validators for the row.
     private func scheduleDebouncedValidation(for rowId: String) {
-        guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
+        guard let row = allRows.first(where: { $0.id == rowId }) else { return }
 
         let debouncedValidators = row.validators.filter(\.trigger.isDebouncedInput)
         guard !debouncedValidators.isEmpty else { return }
@@ -637,7 +648,7 @@ public final class FormViewModel {
     /// Fire all debounced validators for a row (called after the debounce delay).
     @MainActor
     private func runDebouncedValidators(for rowId: String) {
-        guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
+        guard let row = allRows.first(where: { $0.id == rowId }) else { return }
         let rowErrors = row.validators
             .filter(\.trigger.isDebouncedInput)
             .compactMap { validator -> FormError? in
@@ -654,7 +665,7 @@ public final class FormViewModel {
         // another dispatchActions call for the same rowId, we bail out immediately to
         // prevent unbounded recursion.
         guard !dispatchingRows.contains(rowId) else { return }
-        guard let row = FormViewModel.allRows(in: formDefinition.rows).first(where: { $0.id == rowId }) else { return }
+        guard let row = allRows.first(where: { $0.id == rowId }) else { return }
 
         dispatchingRows.insert(rowId)
         defer { dispatchingRows.remove(rowId) }

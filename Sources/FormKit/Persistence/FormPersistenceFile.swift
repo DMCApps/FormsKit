@@ -4,15 +4,12 @@ import Foundation
 
 /// File-based JSON persistence. Each form's data is saved as a separate `.json` file
 /// in the specified directory.
-public final class FormPersistenceFile: FormPersistence, @unchecked Sendable {
+public actor FormPersistenceFile: FormPersistence {
     /// The directory where form JSON files are written.
     public let directory: URL
 
     /// Optional prefix added to all form file names to namespace this instance.
     public let keyPrefix: String
-
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
 
     /// - Parameters:
     ///   - directory: Directory to write files to.
@@ -41,7 +38,7 @@ public final class FormPersistenceFile: FormPersistence, @unchecked Sendable {
 
     public func save(_ values: FormValueStore, formId: String) async throws {
         do {
-            let data = try encoder.encode(values)
+            let data = try JSONEncoder().encode(values)
             try data.write(to: fileURL(for: formId), options: .atomic)
         } catch let error as EncodingError {
             throw FormPersistenceError.encodingFailed(underlying: error)
@@ -57,7 +54,7 @@ public final class FormPersistenceFile: FormPersistence, @unchecked Sendable {
         }
         do {
             let data = try Data(contentsOf: url)
-            return try decoder.decode(FormValueStore.self, from: data)
+            return try JSONDecoder().decode(FormValueStore.self, from: data)
         } catch let error as DecodingError {
             throw FormPersistenceError.decodingFailed(underlying: error)
         } catch {

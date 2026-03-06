@@ -4,14 +4,11 @@ import Foundation
 
 /// UserDefaults-backed persistence. Form values are encoded as JSON and stored
 /// under a namespaced key in the given `UserDefaults` suite.
-public final class FormPersistenceUserDefaults: FormPersistence, @unchecked Sendable {
+public actor FormPersistenceUserDefaults: FormPersistence {
     private let defaults: UserDefaults
 
     /// Prefix prepended to all storage keys. Defaults to "FormKit".
     public let keyPrefix: String
-
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
 
     /// - Parameters:
     ///   - defaults: The `UserDefaults` suite to use. Defaults to `.standard`.
@@ -27,7 +24,7 @@ public final class FormPersistenceUserDefaults: FormPersistence, @unchecked Send
 
     public func save(_ values: FormValueStore, formId: String) async throws {
         do {
-            let data = try encoder.encode(values)
+            let data = try JSONEncoder().encode(values)
             defaults.set(data, forKey: storageKey(for: formId))
         } catch {
             throw FormPersistenceError.encodingFailed(underlying: error)
@@ -39,7 +36,7 @@ public final class FormPersistenceUserDefaults: FormPersistence, @unchecked Send
             return FormValueStore()
         }
         do {
-            return try decoder.decode(FormValueStore.self, from: data)
+            return try JSONDecoder().decode(FormValueStore.self, from: data)
         } catch {
             throw FormPersistenceError.decodingFailed(underlying: error)
         }
