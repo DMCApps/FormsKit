@@ -1,6 +1,27 @@
 import Foundation
 import Observation
 
+// MARK: - FormStatus
+
+/// Represents the mutually exclusive lifecycle states of a `FormViewModel`.
+///
+/// Use this to drive loading indicators and button disabled states in your UI:
+/// ```swift
+/// switch viewModel.status {
+/// case .loading: ProgressView()
+/// case .ready:   FormContentView()
+/// case .saving:  FormContentView().disabled(true)
+/// }
+/// ```
+public enum FormStatus: Equatable, Sendable {
+    /// The initial async load from persistence is in flight.
+    case loading
+    /// Values are loaded and the form is ready for interaction.
+    case ready
+    /// A save operation is currently in progress.
+    case saving
+}
+
 // MARK: - FormViewModel
 
 /// The observable view model that drives all form state.
@@ -33,8 +54,9 @@ public final class FormViewModel {
         errors.values.allSatisfy(\.isEmpty)
     }
 
-    /// True while an async save is in progress.
-    public private(set) var isSaving: Bool = false
+    /// The current lifecycle state of the form.
+    /// Use this to drive loading indicators and disable the save button during saves.
+    public private(set) var status: FormStatus = .loading
 
     /// The most recent save error, if any.
     public private(set) var saveError: Error?
@@ -70,26 +92,22 @@ public final class FormViewModel {
         let resolvedPersistence = persistence ?? formDefinition.persistence
         self.persistence = resolvedPersistence
 
-        // Load persisted values synchronously if the backend supports it.
-        // This ensures that `value(for:)` calls made before the view appears
-        // (e.g. from ViewModel computed properties) return the stored value,
-        // not the row default.
-        let persisted: FormValueStore = if let syncPersistence = resolvedPersistence as? any FormSynchronousPersistence {
-            syncPersistence.loadSynchronously(formId: formDefinition.id)
-        } else {
-            FormValueStore()
-        }
-
-        // Seed the store with row defaults, then overlay persisted values so
-        // stored values always win over defaults.
+        // Seed the store with row defaults. Persisted values are loaded
+        // asynchronously below so that all persistence backends (sync or async)
+        // are handled uniformly, and callers never need to manage a separate
+        // load call.
         var store = FormValueStore()
         for row in FormViewModel.allRows(in: formDefinition.rows) {
             if let defaultValue = row.defaultValue {
                 store[row.id] = defaultValue
             }
         }
-        store.merge(persisted)
         values = store
+
+        // Kick off the async load. `status` transitions from `.loading`
+        // to `.ready` once the load completes (or immediately if there is no
+        // persistence backend).
+        Task { [weak self] in await self?.loadFromPersistence() }
     }
 
     // MARK: - Value Reading
@@ -120,8 +138,7 @@ public final class FormViewModel {
         dispatchActions(for: rowId)
         // Auto-save when the form is configured to save on every change.
         if case .onChange = formDefinition.saveBehaviour {
-            let capturedSelf = self
-            Task { await capturedSelf.save() }
+            Task { [weak self] in await self?.save() }
         }
     }
 
@@ -236,6 +253,7 @@ public final class FormViewModel {
     /// - Returns: `true` if validation passed and persistence succeeded (or no persistence).
     @discardableResult
     public func save() async -> Bool {
+        guard status != .saving else { return false }
         guard validateAll() else { return false }
 
         guard let persistence else {
@@ -244,18 +262,18 @@ public final class FormViewModel {
             return true
         }
 
-        isSaving = true
+        status = .saving
         saveError = nil
 
         do {
             try await persistence.save(values, formId: formDefinition.id)
             isDirty = false
-            isSaving = false
+            status = .ready
             dispatchOnSaveActions()
             return true
         } catch {
             saveError = error
-            isSaving = false
+            status = .ready
             return false
         }
     }
@@ -263,11 +281,21 @@ public final class FormViewModel {
     // MARK: - Load
 
     /// Load persisted values, merging over row defaults.
-    /// No-op if no persistence backend is configured.
+    /// Transitions `status` to `.ready` when complete regardless of
+    /// whether a persistence backend is configured.
     public func loadFromPersistence() async {
-        guard let persistence else { return }
+        guard let persistence else {
+            status = .ready
+            return
+        }
         do {
             let loaded = try await persistence.load(formId: formDefinition.id)
+            // Cancel pending timers before replacing values so stale tasks
+            // don't overwrite errors or trigger actions on the freshly loaded state.
+            debounceTimers.values.forEach { $0.cancel() }
+            debounceTimers = [:]
+            actionDebounceTimers.values.forEach { $0.cancel() }
+            actionDebounceTimers = [:]
             var store = FormValueStore()
             for row in FormViewModel.allRows(in: formDefinition.rows) {
                 if let defaultValue = row.defaultValue {
@@ -278,8 +306,10 @@ public final class FormViewModel {
             values = store
             isDirty = false
             errors = [:]
+            status = .ready
         } catch {
             saveError = error
+            status = .ready
         }
     }
 
@@ -302,6 +332,7 @@ public final class FormViewModel {
         debounceTimers = [:]
         actionDebounceTimers.values.forEach { $0.cancel() }
         actionDebounceTimers = [:]
+        dispatchingRows = []
     }
 
     /// Clears the most recent save error. Call this when dismissing a save-failure alert.
@@ -405,12 +436,11 @@ public final class FormViewModel {
         // Cancel any existing timer for this row.
         debounceTimers[rowId]?.cancel()
 
-        let capturedSelf = self
-        debounceTimers[rowId] = Task {
+        debounceTimers[rowId] = Task { [weak self] in
             try? await Task.sleep(for: .seconds(maxDelay))
             guard !Task.isCancelled else { return }
-            await MainActor.run {
-                capturedSelf.runDebouncedValidators(for: rowId)
+            await MainActor.run { [weak self] in
+                self?.runDebouncedValidators(for: rowId)
             }
         }
     }
@@ -449,12 +479,11 @@ public final class FormViewModel {
                 actionDebounceTimers[timerKey]?.cancel()
 
                 let delay = timing.debounce ?? 0.5
-                let capturedSelf = self
-                actionDebounceTimers[timerKey] = Task {
+                actionDebounceTimers[timerKey] = Task { [weak self] in
                     try? await Task.sleep(for: .seconds(delay))
                     guard !Task.isCancelled else { return }
-                    await MainActor.run {
-                        capturedSelf.executeAction(action, rowId: rowId)
+                    await MainActor.run { [weak self] in
+                        self?.executeAction(action, rowId: rowId)
                     }
                 }
             }

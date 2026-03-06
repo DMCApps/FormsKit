@@ -451,75 +451,68 @@ struct FormViewModelTests {
         #expect(loaded?.isEmpty ?? true)
     }
 
-    // MARK: - Synchronous Persistence Load at Init
+    // MARK: - Async Persistence Load
 
-    @Test("Persisted values win over row defaults at init (UserDefaults)")
-    func persistedValuesWinOverDefaultsAtInit() async throws {
-        let suiteName = "FormKitTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let persistence = FormPersistenceUserDefaults(defaults: defaults)
+    @Test("Persisted values win over row defaults after load completes")
+    func persistedValuesWinOverDefaultsAfterLoad() async throws {
+        let persistence = FormPersistenceMemory()
 
         // Save a value to persistence before the VM is created.
         var store = FormValueStore()
         store["toggle"] = .bool(false) // row default is true, persisted is false
         try await persistence.save(store, formId: "test-form")
 
-        // Create the VM — it should synchronously load from UserDefaults.
         let form = makeForm(
             rows: [AnyFormRow(BooleanSwitchRow(id: "toggle", title: "T", defaultValue: true))],
             persistence: persistence
         )
         let vm = FormViewModel(formDefinition: form)
 
-        // The persisted false should win over the row default of true.
-        let toggle: Bool? = vm.value(for: "toggle")
-        #expect(toggle == false)
+        // Before load completes, the row default is in place and state is .loading.
+        #expect(vm.status == .loading)
+        let toggleBeforeLoad: Bool? = vm.value(for: "toggle")
+        #expect(toggleBeforeLoad == true)
+
+        // After explicit load the persisted false wins over the row default of true.
+        await vm.loadFromPersistence()
+        #expect(vm.status == .ready)
+        let toggleAfterLoad: Bool? = vm.value(for: "toggle")
+        #expect(toggleAfterLoad == false)
     }
 
-    @Test("Row defaults are used when no persisted data exists (UserDefaults)")
-    func rowDefaultsUsedWhenNoPersistedData() {
-        let suiteName = "FormKitTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let persistence = FormPersistenceUserDefaults(defaults: defaults)
+    @Test("Row defaults are used when no persisted data exists")
+    func rowDefaultsUsedWhenNoPersistedData() async {
+        let persistence = FormPersistenceMemory()
         let form = makeForm(
             rows: [AnyFormRow(BooleanSwitchRow(id: "toggle", title: "T", defaultValue: true))],
             persistence: persistence
         )
         let vm = FormViewModel(formDefinition: form)
+        await vm.loadFromPersistence()
 
-        // No persisted data — row default should apply.
+        // No persisted data — row default should apply after load.
         let toggle: Bool? = vm.value(for: "toggle")
         #expect(toggle == true)
     }
 
-    @Test("Non-synchronous persistence does NOT pre-load at init (Memory)")
-    func nonSyncPersistenceDoesNotPreLoadAtInit() async {
+    @Test("status transitions from .loading to .ready after load")
+    func statusTransitionsAfterLoad() async {
         let persistence = FormPersistenceMemory()
-
-        // Save a value.
-        var store = FormValueStore()
-        store["name"] = .string("Stored")
-        try? await persistence.save(store, formId: "test-form")
-
-        let form = makeForm(
-            rows: [AnyFormRow(TextInputRow(id: "name", title: "N", defaultValue: "Default"))],
-            persistence: persistence
-        )
-        // Memory persistence is not FormSynchronousPersistence, so init does not load.
+        let form = makeForm(rows: [], persistence: persistence)
         let vm = FormViewModel(formDefinition: form)
 
-        // Should see the row default, not the stored value.
-        let name: String? = vm.value(for: "name")
-        #expect(name == "Default")
-
-        // After explicit async load, stored value should appear.
+        #expect(vm.status == .loading)
         await vm.loadFromPersistence()
-        let nameAfterLoad: String? = vm.value(for: "name")
-        #expect(nameAfterLoad == "Stored")
+        #expect(vm.status == .ready)
+    }
+
+    @Test("status is .ready immediately when no persistence backend is set")
+    func statusIsReadyWithNoPersistence() async {
+        let form = makeForm(rows: [], persistence: nil)
+        let vm = FormViewModel(formDefinition: form)
+
+        await vm.loadFromPersistence()
+        #expect(vm.status == .ready)
     }
 
     // MARK: - Reset

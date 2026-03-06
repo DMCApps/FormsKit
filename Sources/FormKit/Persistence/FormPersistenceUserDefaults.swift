@@ -4,7 +4,7 @@ import Foundation
 
 /// UserDefaults-backed persistence. Form values are encoded as JSON and stored
 /// under a namespaced key in the given `UserDefaults` suite.
-public final class FormPersistenceUserDefaults: FormSynchronousPersistence, @unchecked Sendable {
+public final class FormPersistenceUserDefaults: FormPersistence, @unchecked Sendable {
     private let defaults: UserDefaults
 
     /// Prefix prepended to all storage keys. Defaults to "FormKit".
@@ -47,15 +47,6 @@ public final class FormPersistenceUserDefaults: FormSynchronousPersistence, @unc
 
     public func clear(formId: String) async throws {
         defaults.removeObject(forKey: storageKey(for: formId))
-    }
-
-    // MARK: FormSynchronousPersistence
-
-    public func loadSynchronously(formId: String) -> FormValueStore {
-        guard let data = defaults.data(forKey: storageKey(for: formId)) else {
-            return FormValueStore()
-        }
-        return (try? decoder.decode(FormValueStore.self, from: data)) ?? FormValueStore()
     }
 
     // MARK: Helpers

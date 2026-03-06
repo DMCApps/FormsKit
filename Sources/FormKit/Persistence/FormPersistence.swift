@@ -17,17 +17,6 @@ public protocol FormPersistence: Sendable {
     func clear(formId: String) async throws
 }
 
-// MARK: - FormSynchronousPersistence
-
-/// Optional refinement for persistence backends whose underlying storage is
-/// synchronous (e.g. `UserDefaults`). Conforming types can be loaded at init
-/// time without requiring an async context.
-public protocol FormSynchronousPersistence: FormPersistence {
-    /// Synchronously load previously persisted values for a form.
-    /// Returns an empty store if nothing has been saved yet.
-    func loadSynchronously(formId: String) -> FormValueStore
-}
-
 // MARK: - FormPersistenceError
 
 /// Errors thrown by FormPersistence implementations.

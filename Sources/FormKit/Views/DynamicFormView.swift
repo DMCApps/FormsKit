@@ -37,35 +37,41 @@ public struct DynamicFormView: View {
     // MARK: - Body
 
     public var body: some View {
+        let isSaving = viewModel.status == .saving
         VStack(spacing: 0) {
-            Form {
-                ForEach(formDefinition.rows) { row in
-                    if viewModel.isRowVisible(row) {
-                        FormRowContainer(row: row, viewModel: viewModel)
-                            .animation(.default, value: viewModel.isRowVisible(row))
+            if viewModel.status == .loading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                Form {
+                    ForEach(formDefinition.rows) { row in
+                        if viewModel.isRowVisible(row) {
+                            FormRowContainer(row: row, viewModel: viewModel)
+                                .animation(.default, value: viewModel.isRowVisible(row))
+                        }
                     }
-                }
 
-                if case let .buttonBottomForm(title) = formDefinition.saveBehaviour {
-                    Section {
-                        SaveButtonView(
-                            title: title,
-                            isLoading: viewModel.isSaving,
-                            isDisabled: viewModel.isSaving
-                        ) {
-                            Task { await viewModel.save() }
+                    if case let .buttonBottomForm(title) = formDefinition.saveBehaviour {
+                        Section {
+                            SaveButtonView(
+                                title: title,
+                                isLoading: isSaving,
+                                isDisabled: isSaving
+                            ) {
+                                Task { await viewModel.save() }
+                            }
                         }
                     }
                 }
-            }
 
-            if case let .buttonStickyBottom(title) = formDefinition.saveBehaviour {
-                StickyBottomSaveButtonView(
-                    title: title,
-                    isLoading: viewModel.isSaving,
-                    isDisabled: viewModel.isSaving
-                ) {
-                    Task { await viewModel.save() }
+                if case let .buttonStickyBottom(title) = formDefinition.saveBehaviour {
+                    StickyBottomSaveButtonView(
+                        title: title,
+                        isLoading: isSaving,
+                        isDisabled: isSaving
+                    ) {
+                        Task { await viewModel.save() }
+                    }
                 }
             }
         }
@@ -76,12 +82,9 @@ public struct DynamicFormView: View {
                     Button(title) {
                         Task { await viewModel.save() }
                     }
-                    .disabled(viewModel.isSaving)
+                    .disabled(isSaving)
                 }
             }
-        }
-        .task {
-            await viewModel.loadFromPersistence()
         }
         // Surface save errors as an alert.
         .alert("Save Failed", isPresented: Binding(
