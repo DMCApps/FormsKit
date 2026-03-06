@@ -2,6 +2,8 @@
 import Foundation
 import Testing
 
+private let referenceDate = Date(timeIntervalSinceReferenceDate: 800_000_000)
+
 // MARK: - AnyCodableValue Tests
 
 @Suite("AnyCodableValue")
@@ -17,6 +19,7 @@ struct AnyCodableValueTests {
             .int(42),
             .double(3.14),
             .string("hello"),
+            .date(referenceDate),
             .array([.int(1), .string("two"), .bool(false)]),
             .null
         ]
@@ -28,6 +31,25 @@ struct AnyCodableValueTests {
         }
     }
 
+    @Test("date is encoded as tagged object, not a plain double")
+    func dateEncodedAsTaggedObject() throws {
+        let encoded = try JSONEncoder().encode(AnyCodableValue.date(referenceDate))
+        let json = try JSONSerialization.jsonObject(with: encoded) as? [String: Double]
+        #expect(json?["__date"] == referenceDate.timeIntervalSinceReferenceDate)
+    }
+
+    @Test("date round-trip preserves TimeInterval exactly")
+    func dateRoundTrip() throws {
+        let original = AnyCodableValue.date(referenceDate)
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(AnyCodableValue.self, from: data)
+        if case let .date(d) = decoded {
+            #expect(d.timeIntervalSinceReferenceDate == referenceDate.timeIntervalSinceReferenceDate)
+        } else {
+            Issue.record("Expected .date, got \(decoded)")
+        }
+    }
+
     @Test("Comparable ordering")
     func comparable() {
         #expect(AnyCodableValue.int(1) < .int(2))
@@ -35,8 +57,12 @@ struct AnyCodableValueTests {
         #expect(AnyCodableValue.int(1) < .double(1.5))
         #expect(AnyCodableValue.double(0.9) < .int(1))
         #expect(AnyCodableValue.string("apple") < .string("banana"))
+        let earlier = Date(timeIntervalSinceReferenceDate: 0)
+        let later = Date(timeIntervalSinceReferenceDate: 1000)
+        #expect(AnyCodableValue.date(earlier) < .date(later))
         // Incompatible types return false for <
         #expect((AnyCodableValue.bool(true) < .int(1)) == false)
+        #expect((AnyCodableValue.date(earlier) < .int(1)) == false)
     }
 
     @Test("Typed extraction")
@@ -45,6 +71,7 @@ struct AnyCodableValueTests {
         #expect(AnyCodableValue.int(7).typed(Int.self) == 7)
         #expect(AnyCodableValue.double(2.5).typed(Double.self) == 2.5)
         #expect(AnyCodableValue.string("hi").typed(String.self) == "hi")
+        #expect(AnyCodableValue.date(referenceDate).typed(Date.self) == referenceDate)
         // Int can also be extracted as Double
         #expect(AnyCodableValue.int(3).typed(Double.self) == 3.0)
     }
@@ -55,6 +82,7 @@ struct AnyCodableValueTests {
         #expect(AnyCodableValue.from(42) == .int(42))
         #expect(AnyCodableValue.from(3.14) == .double(3.14))
         #expect(AnyCodableValue.from("hello") == .string("hello"))
+        #expect(AnyCodableValue.from(referenceDate) == .date(referenceDate))
     }
 
     @Test("displayString output")
@@ -63,6 +91,10 @@ struct AnyCodableValueTests {
         #expect(AnyCodableValue.int(5).displayString == "5")
         #expect(AnyCodableValue.string("abc").displayString == "abc")
         #expect(AnyCodableValue.null.displayString == "")
+        // .date displayString is a non-empty ISO 8601 string
+        let s = AnyCodableValue.date(referenceDate).displayString
+        #expect(!s.isEmpty)
+        #expect(s.contains("-")) // ISO 8601 contains hyphens
     }
 }
 

@@ -10,6 +10,9 @@ public enum AnyCodableValue: Sendable, Equatable, Hashable {
     case int(Int)
     case double(Double)
     case string(String)
+    /// A calendar-independent point in time, stored as a `TimeInterval`
+    /// (seconds since 1 Jan 2001 00:00:00 UTC — i.e. `Date.timeIntervalSinceReferenceDate`).
+    case date(Date)
     case array([AnyCodableValue])
     case null
 }
@@ -17,7 +20,16 @@ public enum AnyCodableValue: Sendable, Equatable, Hashable {
 // MARK: - AnyCodableValue + Codable
 
 extension AnyCodableValue: Codable {
+    /// The JSON key used to tag date values, distinguishing them from plain doubles.
+    private enum DateCodingKeys: String, CodingKey { case __date }
+
     public init(from decoder: Decoder) throws {
+        // Check for the tagged date object first: {"__date": <TimeInterval>}
+        if let keyed = try? decoder.container(keyedBy: DateCodingKeys.self),
+           let interval = try? keyed.decode(Double.self, forKey: .__date) {
+            self = .date(Date(timeIntervalSinceReferenceDate: interval))
+            return
+        }
         let container = try decoder.singleValueContainer()
         if container.decodeNil() {
             self = .null
@@ -43,14 +55,22 @@ extension AnyCodableValue: Codable {
     }
 
     public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
         switch self {
-        case let .bool(value): try container.encode(value)
-        case let .int(value): try container.encode(value)
-        case let .double(value): try container.encode(value)
-        case let .string(value): try container.encode(value)
-        case let .array(value): try container.encode(value)
-        case .null: try container.encodeNil()
+        case let .date(value):
+            // Encode as {"__date": <TimeInterval>} so it round-trips unambiguously.
+            var keyed = encoder.container(keyedBy: DateCodingKeys.self)
+            try keyed.encode(value.timeIntervalSinceReferenceDate, forKey: .__date)
+        default:
+            var container = encoder.singleValueContainer()
+            switch self {
+            case let .bool(value): try container.encode(value)
+            case let .int(value): try container.encode(value)
+            case let .double(value): try container.encode(value)
+            case let .string(value): try container.encode(value)
+            case let .array(value): try container.encode(value)
+            case .null: try container.encodeNil()
+            case .date: break // handled above
+            }
         }
     }
 }
@@ -65,6 +85,7 @@ extension AnyCodableValue: Comparable {
         case let (.int(a), .double(b)): return Double(a) < b
         case let (.double(a), .int(b)): return a < Double(b)
         case let (.string(a), .string(b)): return a < b
+        case let (.date(a), .date(b)): return a < b
         default: return false
         }
     }
@@ -81,6 +102,7 @@ public extension AnyCodableValue {
         if let v = value as? Double { return .double(v) }
         if let v = value as? Float { return .double(Double(v)) }
         if let v = value as? String { return .string(v) }
+        if let v = value as? Date { return .date(v) }
         // For CaseIterable / CustomStringConvertible enums, use their description.
         return .string(String(describing: value))
     }
@@ -92,6 +114,7 @@ public extension AnyCodableValue {
         case let .int(v): return (v as? T) ?? (Double(v) as? T)
         case let .double(v): return (v as? T) ?? (Int(v) as? T)
         case let .string(v): return v as? T
+        case let .date(v): return v as? T
         case let .array(v): return v as? T
         case .null: return nil
         }
@@ -104,6 +127,7 @@ public extension AnyCodableValue {
         case let .int(v): return "\(v)"
         case let .double(v): return "\(v)"
         case let .string(v): return v
+        case let .date(v): return ISO8601DateFormatter().string(from: v)
         case let .array(v): return v.map(\.displayString).joined(separator: ", ")
         case .null: return ""
         }

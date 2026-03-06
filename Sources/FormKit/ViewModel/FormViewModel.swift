@@ -162,6 +162,11 @@ public final class FormViewModel {
         setValue(.double(value), for: rowId)
     }
 
+    /// Convenience: set a `Date` value.
+    public func setDate(_ value: Date, for rowId: String) {
+        setValue(.date(value), for: rowId)
+    }
+
     /// Toggle an element in a multi-value array row.
     /// Adds the element if absent, removes it if present.
     public func toggleArrayValue(_ value: AnyCodableValue, for rowId: String) {
@@ -393,6 +398,11 @@ public final class FormViewModel {
     /// Convenience: set a `Double` value (enum case overload).
     public func setDouble(_ value: Double, for rowId: some RawRepresentable<String>) {
         setDouble(value, for: rowId.rawValue)
+    }
+
+    /// Convenience: set a `Date` value (enum case overload).
+    public func setDate(_ value: Date, for rowId: some RawRepresentable<String>) {
+        setDate(value, for: rowId.rawValue)
     }
 
     /// Toggle an element in a multi-value array row (enum case overload).

@@ -1,4 +1,5 @@
 @testable import FormKit
+import Foundation
 import Testing
 
 @Suite("FormValidator")
@@ -236,6 +237,84 @@ struct FormValidatorTests {
     func ipv4CustomMessage() {
         let v = FormValidator.ipv4(message: "Bad IP")
         #expect(v.validate(.string("notanip")) == "Bad IP")
+    }
+
+    // MARK: - date
+
+    @Test("date — valid date string passes (raw mask format MMddyyyy)")
+    func dateRawMaskFormatPasses() {
+        let v = FormValidator.date(format: "MMddyyyy")
+        #expect(v.validate(.string("12252026")) == nil)
+        #expect(v.validate(.string("01012000")) == nil)
+    }
+
+    @Test("date — valid date string passes (pre-formatted MM/dd/yyyy)")
+    func datePreformattedPasses() {
+        let v = FormValidator.date(format: "MM/dd/yyyy")
+        #expect(v.validate(.string("12/25/2026")) == nil)
+        #expect(v.validate(.string("01/01/2000")) == nil)
+    }
+
+    @Test("date — invalid date fails (month 13)")
+    func dateInvalidMonthFails() {
+        let v = FormValidator.date(format: "MMddyyyy")
+        #expect(v.validate(.string("13012026")) != nil)
+    }
+
+    @Test("date — invalid date fails (day 32)")
+    func dateInvalidDayFails() {
+        let v = FormValidator.date(format: "MMddyyyy")
+        #expect(v.validate(.string("01322026")) != nil)
+    }
+
+    @Test("date — non-calendar date fails (Feb 30)")
+    func dateNonCalendarDateFails() {
+        let v = FormValidator.date(format: "MMddyyyy")
+        #expect(v.validate(.string("02302026")) != nil)
+    }
+
+    @Test("date — non-numeric string fails")
+    func dateNonNumericFails() {
+        let v = FormValidator.date(format: "MMddyyyy")
+        #expect(v.validate(.string("abcdefgh")) != nil)
+    }
+
+    @Test("date — empty string passes (not responsible for required)")
+    func dateEmptyStringPasses() {
+        let v = FormValidator.date(format: "MMddyyyy")
+        #expect(v.validate(.string("")) == nil)
+        #expect(v.validate(nil) == nil)
+    }
+
+    @Test("date — non-string values pass through")
+    func dateNonStringPasses() {
+        let v = FormValidator.date(format: "MMddyyyy")
+        #expect(v.validate(.int(12252026)) == nil)
+        #expect(v.validate(.bool(true)) == nil)
+    }
+
+    @Test("date — .date(Date) is always valid (typed date needs no parsing)")
+    func dateCaseAlwaysPasses() {
+        let v = FormValidator.date()
+        #expect(v.validate(.date(Date())) == nil)
+    }
+
+    @Test("date — no format and string value passes through (not responsible for parsing)")
+    func dateNoFormatStringPassesThrough() {
+        let v = FormValidator.date()
+        #expect(v.validate(.string("anything")) == nil)
+    }
+
+    @Test("date — custom message returned on failure")
+    func dateCustomMessage() {
+        let v = FormValidator.date(format: "MMddyyyy", message: "Enter a real date")
+        #expect(v.validate(.string("99999999")) == "Enter a real date")
+    }
+
+    @Test("date — trigger is preserved")
+    func dateTriggerPreserved() {
+        let v = FormValidator.date(format: "MMddyyyy", trigger: .onChange)
+        #expect(v.trigger == .onChange)
     }
 
     // MARK: - Custom error messages

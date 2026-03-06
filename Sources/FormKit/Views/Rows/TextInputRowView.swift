@@ -29,7 +29,14 @@ struct TextInputRowView: View {
     @Bindable var viewModel: FormViewModel
 
     private var text: String {
-        if let stored: String = viewModel.value(for: row.id) { return stored }
+        if let mask = row.mask, mask.isDateMask {
+            // For date masks the store holds a typed Date — convert back to raw slot chars.
+            if let date: Date = viewModel.value(for: row.id) {
+                return mask.rawChars(from: date)
+            }
+        } else if let stored: String = viewModel.value(for: row.id) {
+            return stored
+        }
         if case let .string(s) = row.defaultValue { return s }
         return ""
     }
@@ -62,21 +69,46 @@ struct TextInputRowView: View {
 
     @ViewBuilder
     private var inputField: some View {
-        let binding = Binding(
-            get: { text },
-            set: { viewModel.setString($0, for: row.id) }
-        )
-
-        if row.isSecure {
-            SecureField(row.placeholder ?? "", text: binding)
-        } else {
-            TextField(row.placeholder ?? "", text: binding)
+        if let mask = row.mask {
+            // Masked input: display string has literals inserted. For date masks the stored
+            // value is a typed Date; for all other masks it is the raw slot chars as a String.
+            let binding = Binding(
+                get: { mask.apply(to: text) },
+                set: { newFormatted in
+                    let raw = mask.strip(from: newFormatted)
+                    let clamped = String(raw.prefix(mask.maxInputLength))
+                    if mask.isDateMask, let date = mask.date(from: clamped) {
+                        // Complete, valid date — commit a typed Date to the store.
+                        viewModel.setValue(.date(date), for: row.id)
+                    } else {
+                        // Incomplete / non-date mask — store raw chars as a string.
+                        viewModel.setString(clamped, for: row.id)
+                    }
+                }
+            )
+            TextField(mask.pattern, text: binding)
                 .textContentType(.none)
                 .autocorrectionDisabled()
 #if os(iOS)
                 .keyboardType(row.keyboardType.uiKeyboardType)
                 .textInputAutocapitalization(.never)
 #endif
+        } else {
+            let binding = Binding(
+                get: { text },
+                set: { viewModel.setString($0, for: row.id) }
+            )
+            if row.isSecure {
+                SecureField(row.placeholder ?? "", text: binding)
+            } else {
+                TextField(row.placeholder ?? "", text: binding)
+                    .textContentType(.none)
+                    .autocorrectionDisabled()
+#if os(iOS)
+                    .keyboardType(row.keyboardType.uiKeyboardType)
+                    .textInputAutocapitalization(.never)
+#endif
+            }
         }
     }
 }

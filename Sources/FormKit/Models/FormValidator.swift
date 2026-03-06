@@ -196,6 +196,51 @@ public extension FormValidator {
         }
     }
 
+    // MARK: Date
+
+    /// The value must represent a valid calendar date.
+    ///
+    /// Accepts both a typed `AnyCodableValue.date(Date)` (stored by the `.date` mask)
+    /// and a formatted string. When used with the built-in `.date` mask no `format`
+    /// parameter is needed — the mask commits a typed `Date` directly.
+    ///
+    /// ```swift
+    /// // With the built-in .date mask (stores a typed Date)
+    /// TextInputRow(id: "dob", title: "Date of Birth",
+    ///              mask: .date,
+    ///              validators: [.date()])
+    ///
+    /// // With a pre-formatted string (e.g. "12/25/2026")
+    /// TextInputRow(id: "dob", title: "Date of Birth",
+    ///              validators: [.date(format: "MM/dd/yyyy")])
+    /// ```
+    ///
+    /// Passes when the field is empty — combine with `.required()` to enforce a value.
+    /// - Parameters:
+    ///   - format: The `DateFormatter` format string the string input must satisfy.
+    ///     Optional when using the `.date` mask (which stores a typed `Date`).
+    ///   - message: Error message shown when the date is invalid.
+    ///   - trigger: When to fire the validator.
+    static func date(format: String? = nil,
+                     message: String = "Please enter a valid date",
+                     trigger: ValidationTrigger = .onSave) -> FormValidator {
+        FormValidator(trigger: trigger) { value in
+            switch value {
+            case .date:
+                // Already a typed Date — always valid.
+                return nil
+            case let .string(s) where !s.isEmpty:
+                guard let fmt = format else { return nil }
+                let formatter = DateFormatter()
+                formatter.dateFormat = fmt
+                formatter.isLenient = false
+                return formatter.date(from: s) != nil ? nil : message
+            default:
+                return nil
+            }
+        }
+    }
+
     // MARK: Custom
 
     /// A custom validator with a user-provided predicate.

@@ -389,18 +389,177 @@ public enum FormKeyboardType: Sendable {
     case phonePad
 }
 
+// MARK: - FormInputMask
+
+/// Describes a fixed-format input mask for a `TextInputRow`.
+///
+/// The mask pattern uses special placeholder characters to define where
+/// the user may type, and literal characters that are inserted automatically:
+///
+/// | Character | Accepts              |
+/// |-----------|----------------------|
+/// | `#`       | Any digit (0–9)      |
+/// | `A`       | Any letter (a–z A–Z) |
+/// | `*`       | Any character        |
+/// | other     | Literal — auto-inserted |
+///
+/// The stored value contains **only the characters the user typed** (no literals).
+/// When used with `TextInputRow` and the `.date` preset, the view commits an
+/// `AnyCodableValue.date(Date)` to the store rather than a raw string, so the
+/// value is fully typed and calendar-independent.
+///
+/// ```swift
+/// // Phone number: displays "(415) 555-1234", stores "4155551234" as .string
+/// TextInputRow(id: "phone", title: "Phone", mask: .usPhone)
+///
+/// // Date: displays "12/25/2026", stores a typed Date as .date(Date)
+/// TextInputRow(id: "dob", title: "Date of Birth", mask: .date)
+/// ```
+public struct FormInputMask: Sendable, Equatable {
+    /// The mask pattern string.
+    public let pattern: String
+
+    /// When `true`, the view commits an `AnyCodableValue.date(Date)` to the store
+    /// instead of a raw string. The mask pattern controls only the display format.
+    public let isDateMask: Bool
+
+    /// The `DateFormatter` format string for the raw slot characters of a date mask.
+    /// Only meaningful when `isDateMask` is `true`.
+    let dateInputFormat: String?
+
+    /// Creates a plain-text mask with no date conversion.
+    /// - Parameter pattern: Format string using `#` (digit), `A` (letter),
+    ///   `*` (any char), and literal characters.
+    public init(_ pattern: String) {
+        self.pattern = pattern
+        isDateMask = false
+        dateInputFormat = nil
+    }
+
+    // MARK: - Common Presets
+
+    /// US phone number: `(###) ###-####`
+    /// Stored as raw digits, e.g. `"4155551234"` (`.string`).
+    public static let usPhone = FormInputMask("(###) ###-####")
+
+    /// Date: `##/##/####` (MM/DD/YYYY display).
+    /// Stored as a typed `Date` (`.date(Date)`).
+    public static let date: FormInputMask = {
+        var m = FormInputMask("##/##/####")
+        return FormInputMask(_pattern: "##/##/####", dateInputFormat: "MMddyyyy")
+    }()
+
+    // MARK: - Internal
+
+    init(_pattern: String, dateInputFormat: String) {
+        pattern = _pattern
+        isDateMask = true
+        self.dateInputFormat = dateInputFormat
+    }
+
+    /// Characters in the pattern that act as user-input slots.
+    static let slotCharacters: Set<Character> = ["#", "A", "*"]
+
+    /// Returns true if a character satisfies the given mask slot character.
+    static func character(_ char: Character, satisfies slot: Character) -> Bool {
+        switch slot {
+        case "#": return char.isNumber
+        case "A": return char.isLetter
+        case "*": return true
+        default: return false
+        }
+    }
+
+    /// Applies `inputChars` (raw user input, no literals) into the mask pattern,
+    /// returning the formatted display string.
+    public func apply(to inputChars: String) -> String {
+        var result = ""
+        var inputIndex = inputChars.startIndex
+
+        for maskChar in pattern {
+            guard inputIndex < inputChars.endIndex else { break }
+            if Self.slotCharacters.contains(maskChar) {
+                let inputChar = inputChars[inputIndex]
+                if Self.character(inputChar, satisfies: maskChar) {
+                    result.append(inputChar)
+                    inputIndex = inputChars.index(after: inputIndex)
+                } else {
+                    // Invalid character for this slot — stop formatting.
+                    break
+                }
+            } else {
+                // Literal — auto-insert it.
+                result.append(maskChar)
+            }
+        }
+        return result
+    }
+
+    /// Strips all literal characters from a formatted string, returning only
+    /// the raw input characters.
+    public func strip(from formatted: String) -> String {
+        var raw = ""
+        var patternIndex = pattern.startIndex
+
+        for char in formatted {
+            guard patternIndex < pattern.endIndex else { break }
+            let maskChar = pattern[patternIndex]
+            if Self.slotCharacters.contains(maskChar) {
+                raw.append(char)
+                patternIndex = pattern.index(after: patternIndex)
+            } else {
+                // Skip literals in formatted string and advance pattern.
+                patternIndex = pattern.index(after: patternIndex)
+            }
+        }
+        return raw
+    }
+
+    /// The maximum number of raw (non-literal) characters the mask accepts.
+    public var maxInputLength: Int {
+        pattern.filter { Self.slotCharacters.contains($0) }.count
+    }
+
+    // MARK: - Date Conversion
+
+    /// Converts raw slot characters (e.g. `"12252026"`) to a `Date`.
+    /// Returns `nil` when `isDateMask` is `false` or the string is not a complete,
+    /// valid date (e.g. mid-typing).
+    func date(from rawChars: String) -> Date? {
+        guard isDateMask, let fmt = dateInputFormat, !rawChars.isEmpty else { return nil }
+        let parser = DateFormatter()
+        parser.dateFormat = fmt
+        parser.isLenient = false
+        return parser.date(from: rawChars)
+    }
+
+    /// Converts a stored `Date` back to the raw slot characters used for display.
+    func rawChars(from date: Date) -> String {
+        guard let fmt = dateInputFormat else { return "" }
+        let writer = DateFormatter()
+        writer.dateFormat = fmt
+        return writer.string(from: date)
+    }
+}
+
 // MARK: - TextInputRow
 
-/// A free-text input row. Supports secure (password) input.
+/// A free-text input row. Supports secure (password) input and optional input masks.
 public struct TextInputRow: FormRow {
     public let id: String
     public let title: String
     public let subtitle: String?
     public let onChange: [FormRowAction]
     public let validators: [FormValidator]
-    public let placeholder: String?
     public let isSecure: Bool
     public let keyboardType: FormKeyboardType
+    /// Hint text shown when the field is empty. Ignored when `mask` is set.
+    public let placeholder: String?
+    /// Optional input mask. When set, user input is constrained to the mask pattern,
+    /// the formatted value (with literals) is shown in the field, and the mask pattern
+    /// is used as the placeholder — `placeholder` is ignored when a mask is present.
+    /// The stored value contains only the raw typed characters (no literals).
+    public let mask: FormInputMask?
 
     private let _defaultValue: String?
 
@@ -411,10 +570,11 @@ public struct TextInputRow: FormRow {
     public init(id: String,
                 title: String,
                 subtitle: String? = nil,
-                placeholder: String? = nil,
                 defaultValue: String? = nil,
                 isSecure: Bool = false,
                 keyboardType: FormKeyboardType = .default,
+                placeholder: String? = nil,
+                mask: FormInputMask? = nil,
                 validators: [FormValidator] = [],
                 onChange: [FormRowAction] = []) {
         self.id = id
@@ -424,6 +584,7 @@ public struct TextInputRow: FormRow {
         _defaultValue = defaultValue
         self.isSecure = isSecure
         self.keyboardType = keyboardType
+        self.mask = mask
         self.validators = validators
         self.onChange = onChange
     }
@@ -753,20 +914,22 @@ public extension TextInputRow {
     init<ID: RawRepresentable>(id: ID,
                                title: String,
                                subtitle: String? = nil,
-                               placeholder: String? = nil,
                                defaultValue: String? = nil,
                                isSecure: Bool = false,
                                keyboardType: FormKeyboardType = .default,
+                               placeholder: String? = nil,
+                               mask: FormInputMask? = nil,
                                validators: [FormValidator] = [],
                                onChange: [FormRowAction] = []) where ID.RawValue == String {
         self.init(
             id: id.rawValue,
             title: title,
             subtitle: subtitle,
-            placeholder: placeholder,
             defaultValue: defaultValue,
             isSecure: isSecure,
             keyboardType: keyboardType,
+            placeholder: placeholder,
+            mask: mask,
             validators: validators,
             onChange: onChange
         )

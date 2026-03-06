@@ -668,6 +668,25 @@ struct TextInputRowTests {
         #expect(row.isSecure == true)
     }
 
+    @Test("TextInputRow mask is nil by default")
+    func textInputRowMaskNilByDefault() {
+        let row = TextInputRow(id: "text", title: "Text")
+        #expect(row.mask == nil)
+    }
+
+    @Test("TextInputRow stores mask when provided")
+    func textInputRowStoresMask() {
+        let row = TextInputRow(id: "phone", title: "Phone", mask: .usPhone)
+        #expect(row.mask == .usPhone)
+    }
+
+    @Test("TextInputRow stores custom mask pattern")
+    func textInputRowStoresCustomMask() {
+        let mask = FormInputMask("##-##-####")
+        let row = TextInputRow(id: "ref", title: "Reference", mask: mask)
+        #expect(row.mask?.pattern == "##-##-####")
+    }
+
     @Test("TextInputRow stores validators")
     func textInputRowStoresValidators() {
         let v = FormValidator { _ in nil }
@@ -698,9 +717,8 @@ struct TextInputRowTests {
         let row = TextInputRow(
             id: RowID.password,
             title: "Password",
-            placeholder: "••••••••",
-            defaultValue: nil,
-            isSecure: true
+            isSecure: true,
+            placeholder: "••••••••"
         )
         #expect(row.id == "auth_password")
         #expect(row.isSecure == true)
@@ -742,6 +760,251 @@ struct TextInputRowTests {
         let vm = FormViewModel(formDefinition: form)
         let value: String? = vm.value(for: "name")
         #expect(value == "Alice")
+    }
+}
+
+// MARK: - FormInputMask Tests
+
+@Suite("FormInputMask")
+struct FormInputMaskTests {
+    // MARK: - Presets
+
+    @Test("usPhone preset has correct pattern")
+    func usPhonePresetPattern() {
+        #expect(FormInputMask.usPhone.pattern == "(###) ###-####")
+    }
+
+    @Test("date preset has correct pattern")
+    func datePresetPattern() {
+        #expect(FormInputMask.date.pattern == "##/##/####")
+    }
+
+    @Test("usPhone maxInputLength is 10")
+    func usPhoneMaxInputLength() {
+        #expect(FormInputMask.usPhone.maxInputLength == 10)
+    }
+
+    @Test("date maxInputLength is 8")
+    func dateMaxInputLength() {
+        #expect(FormInputMask.date.maxInputLength == 8)
+    }
+
+    // MARK: - apply(to:) — usPhone
+
+    @Test("apply usPhone with full 10-digit input formats correctly")
+    func applyUsPhoneFullInput() {
+        #expect(FormInputMask.usPhone.apply(to: "4155551234") == "(415) 555-1234")
+    }
+
+    @Test("apply usPhone with partial 3-digit input shows digits inside open paren only")
+    func applyUsPhonePartialAreaCode() {
+        // Literals are only inserted when there is remaining input to consume.
+        // After "415" fills the 3 # slots, the trailing ")" literal has no more input
+        // following it, so the loop breaks before appending it.
+        #expect(FormInputMask.usPhone.apply(to: "415") == "(415")
+    }
+
+    @Test("apply usPhone with partial 6-digit input")
+    func applyUsPhonePartialSixDigits() {
+        #expect(FormInputMask.usPhone.apply(to: "415555") == "(415) 555")
+    }
+
+    @Test("apply usPhone with empty input returns empty string")
+    func applyUsPhoneEmptyInput() {
+        #expect(FormInputMask.usPhone.apply(to: "") == "")
+    }
+
+    @Test("apply usPhone stops at first non-digit character")
+    func applyUsPhoneStopsAtNonDigit() {
+        // Letters are not valid for # slots. After filling "(415", the ")" and " "
+        // literals are appended as the loop continues, then "X" fails the next # slot.
+        #expect(FormInputMask.usPhone.apply(to: "415X551234") == "(415) ")
+    }
+
+    // MARK: - apply(to:) — date
+
+    @Test("apply date with full 8-digit input formats correctly")
+    func applyDateFullInput() {
+        #expect(FormInputMask.date.apply(to: "12252026") == "12/25/2026")
+    }
+
+    @Test("apply date with partial 2-digit input")
+    func applyDatePartialMonth() {
+        #expect(FormInputMask.date.apply(to: "12") == "12")
+    }
+
+    @Test("apply date with partial 4-digit input")
+    func applyDatePartialMonthDay() {
+        #expect(FormInputMask.date.apply(to: "1225") == "12/25")
+    }
+
+    @Test("apply date with empty input returns empty string")
+    func applyDateEmptyInput() {
+        #expect(FormInputMask.date.apply(to: "") == "")
+    }
+
+    // MARK: - apply(to:) — slot characters
+
+    @Test("# slot accepts only digits")
+    func hashSlotAcceptsOnlyDigits() {
+        let mask = FormInputMask("#")
+        #expect(mask.apply(to: "5") == "5")
+        #expect(mask.apply(to: "a") == "")
+    }
+
+    @Test("A slot accepts only letters")
+    func letterSlotAcceptsOnlyLetters() {
+        let mask = FormInputMask("A")
+        #expect(mask.apply(to: "a") == "a")
+        #expect(mask.apply(to: "Z") == "Z")
+        #expect(mask.apply(to: "3") == "")
+    }
+
+    @Test("* slot accepts any character")
+    func wildcardSlotAcceptsAny() {
+        let mask = FormInputMask("*")
+        #expect(mask.apply(to: "a") == "a")
+        #expect(mask.apply(to: "3") == "3")
+        #expect(mask.apply(to: "!") == "!")
+    }
+
+    @Test("literals are auto-inserted between slots")
+    func literalsAutoInserted() {
+        let mask = FormInputMask("##-##")
+        #expect(mask.apply(to: "1234") == "12-34")
+    }
+
+    @Test("apply does not exceed input length — extra pattern slots produce no output")
+    func applyDoesNotPadBeyondInput() {
+        // Pattern has 4 slots but input has 2 digits — should not pad
+        let mask = FormInputMask("####")
+        #expect(mask.apply(to: "12") == "12")
+    }
+
+    // MARK: - strip(from:)
+
+    @Test("strip usPhone removes all literals")
+    func stripUsPhoneRemovesLiterals() {
+        #expect(FormInputMask.usPhone.strip(from: "(415) 555-1234") == "4155551234")
+    }
+
+    @Test("strip date removes all literals")
+    func stripDateRemovesLiterals() {
+        #expect(FormInputMask.date.strip(from: "12/25/2026") == "12252026")
+    }
+
+    @Test("strip returns empty string when given empty input")
+    func stripEmptyInput() {
+        #expect(FormInputMask.usPhone.strip(from: "") == "")
+    }
+
+    @Test("strip partial formatted string returns raw digits only")
+    func stripPartialFormatted() {
+        // "(415)" → "415"
+        #expect(FormInputMask.usPhone.strip(from: "(415)") == "415")
+    }
+
+    @Test("apply then strip is identity for valid full input")
+    func applyThenStripIsIdentity() {
+        let raw = "4155551234"
+        let formatted = FormInputMask.usPhone.apply(to: raw)
+        let stripped = FormInputMask.usPhone.strip(from: formatted)
+        #expect(stripped == raw)
+    }
+
+    @Test("apply then strip is identity for date")
+    func applyThenStripDateIsIdentity() {
+        let raw = "12252026"
+        let formatted = FormInputMask.date.apply(to: raw)
+        let stripped = FormInputMask.date.strip(from: formatted)
+        #expect(stripped == raw)
+    }
+
+    // MARK: - maxInputLength
+
+    @Test("maxInputLength counts only slot characters")
+    func maxInputLengthCountsSlots() {
+        let mask = FormInputMask("##-##-####")
+        #expect(mask.maxInputLength == 8)
+    }
+
+    @Test("maxInputLength is zero for a pattern with no slots")
+    func maxInputLengthZeroForLiteralsOnly() {
+        // "---" contains only literal hyphens — no #, A, or * slots
+        let mask = FormInputMask("---")
+        #expect(mask.maxInputLength == 0)
+    }
+
+    // MARK: - Equatable
+
+    @Test("two masks with identical patterns are equal")
+    func identicalMasksAreEqual() {
+        let a = FormInputMask("##/##/####")
+        let b = FormInputMask("##/##/####")
+        #expect(a == b)
+    }
+
+    @Test("two masks with different patterns are not equal")
+    func differentMasksAreNotEqual() {
+        let a = FormInputMask("##/##/####")
+        let b = FormInputMask("(###) ###-####")
+        #expect(a != b)
+    }
+
+    @Test("usPhone and date presets are not equal")
+    func presetsAreNotEqual() {
+        #expect(FormInputMask.usPhone != FormInputMask.date)
+    }
+
+    @Test("date preset and plain same-pattern mask are not equal")
+    func dateMaskAndPlainMaskNotEqual() {
+        let plain = FormInputMask("##/##/####")
+        #expect(plain != FormInputMask.date)
+    }
+
+    // MARK: - isDateMask
+
+    @Test("usPhone isDateMask is false")
+    func usPhoneIsNotDateMask() {
+        #expect(FormInputMask.usPhone.isDateMask == false)
+    }
+
+    @Test("date preset isDateMask is true")
+    func dateMaskIsDateMask() {
+        #expect(FormInputMask.date.isDateMask == true)
+    }
+
+    // MARK: - date(from:) / rawChars(from:)
+
+    @Test("date(from:) returns a Date for a complete valid raw input")
+    func dateFromRawCharsReturnsDate() {
+        let date = FormInputMask.date.date(from: "12252026")
+        #expect(date != nil)
+    }
+
+    @Test("date(from:) returns nil for incomplete input")
+    func dateFromRawCharsNilForIncomplete() {
+        #expect(FormInputMask.date.date(from: "1225") == nil)
+    }
+
+    @Test("date(from:) returns nil for empty input")
+    func dateFromRawCharsNilForEmpty() {
+        #expect(FormInputMask.date.date(from: "") == nil)
+    }
+
+    @Test("date(from:) returns nil for non-date mask")
+    func dateFromRawCharsNilForNonDateMask() {
+        #expect(FormInputMask.usPhone.date(from: "4155551234") == nil)
+    }
+
+    @Test("rawChars(from:) round-trips with date(from:) for a full date")
+    func rawCharsRoundTrip() {
+        let raw = "12252026"
+        guard let date = FormInputMask.date.date(from: raw) else {
+            Issue.record("date(from:) returned nil for \(raw)")
+            return
+        }
+        #expect(FormInputMask.date.rawChars(from: date) == raw)
     }
 }
 
