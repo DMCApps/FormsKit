@@ -26,7 +26,7 @@ struct SingleValueRowView: View {
             } else {
                 pickerView
             }
-            ValidationErrorView(errors: viewModel.errorsForRow(rowId))
+            ValidationErrorView(errors: viewModel.errorsForRow(rowId), rowId: rowId)
         }
     }
 

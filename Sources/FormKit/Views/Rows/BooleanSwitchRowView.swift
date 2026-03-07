@@ -22,8 +22,9 @@ struct BooleanSwitchRowView: View {
             )) {
                 rowLabel
             }
+            .accessibilityIdentifier("formkit.toggle.\(row.id)")
 
-            ValidationErrorView(errors: viewModel.errorsForRow(row.id))
+            ValidationErrorView(errors: viewModel.errorsForRow(row.id), rowId: row.id)
         }
     }
 

@@ -16,6 +16,17 @@ let project = Project(
             dependencies: [
                 .package(product: "FormKit", type: .runtime)
             ]
+        ),
+        .target(
+            name: "FormKitExampleUITests",
+            destinations: .iOS,
+            product: .uiTests,
+            bundleId: "com.example.FormKitExample.UITests",
+            deploymentTargets: .iOS("17.0"),
+            sources: ["FormKitExampleUITests/**/*.swift"],
+            dependencies: [
+                .target(name: "FormKitExample")
+            ]
         )
     ]
 )

@@ -6,6 +6,7 @@ import SwiftUI
 /// Renders nothing if `errors` is empty.
 struct ValidationErrorView: View {
     let errors: [String]
+    var rowId: String = ""
 
     var body: some View {
         if !errors.isEmpty {
@@ -22,6 +23,7 @@ struct ValidationErrorView: View {
                     }
                 }
             }
+            .accessibilityIdentifier(rowId.isEmpty ? "formkit.errors" : "formkit.errors.\(rowId)")
         }
     }
 }

@@ -47,7 +47,7 @@ struct TextInputRowView: View {
         VStack(alignment: .leading, spacing: 4) {
             rowHeader
             inputField
-            ValidationErrorView(errors: viewModel.errorsForRow(row.id))
+            ValidationErrorView(errors: viewModel.errorsForRow(row.id), rowId: row.id)
         }
         .onChange(of: isFocused) { _, newValue in
             if !newValue {
@@ -99,6 +99,7 @@ struct TextInputRowView: View {
                 .focused($isFocused)
                 .textContentType(.none)
                 .autocorrectionDisabled()
+                .accessibilityIdentifier("formkit.field.\(row.id)")
 #if os(iOS)
                 .keyboardType(row.keyboardType.uiKeyboardType)
                 .textInputAutocapitalization(.never)
@@ -111,11 +112,13 @@ struct TextInputRowView: View {
             if row.isSecure {
                 SecureField(row.placeholder ?? "", text: binding)
                     .focused($isFocused)
+                    .accessibilityIdentifier("formkit.field.\(row.id)")
             } else {
                 TextField(row.placeholder ?? "", text: binding)
                     .focused($isFocused)
                     .textContentType(.none)
                     .autocorrectionDisabled()
+                    .accessibilityIdentifier("formkit.field.\(row.id)")
 #if os(iOS)
                     .keyboardType(row.keyboardType.uiKeyboardType)
                     .textInputAutocapitalization(.never)

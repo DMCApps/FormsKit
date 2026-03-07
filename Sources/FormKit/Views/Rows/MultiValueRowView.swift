@@ -33,7 +33,7 @@ struct MultiValueRowView: View {
                 optionRow(description: description, isSelected: selected.contains(description))
             }
 
-            ValidationErrorView(errors: viewModel.errorsForRow(rowId))
+            ValidationErrorView(errors: viewModel.errorsForRow(rowId), rowId: rowId)
         }
     }
 

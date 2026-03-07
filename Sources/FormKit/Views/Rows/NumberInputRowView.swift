@@ -18,6 +18,7 @@ struct NumberInputRowView: View {
             rowHeader
             TextField(row.placeholder ?? "", text: $textBuffer)
                 .focused($isFocused)
+                .accessibilityIdentifier("formkit.field.\(row.id)")
 #if os(iOS)
                 .keyboardType(row.isDecimal ? .decimalPad : .numberPad)
 #endif
@@ -31,7 +32,7 @@ struct NumberInputRowView: View {
                         textBuffer = raw.displayString
                     }
                 }
-            ValidationErrorView(errors: viewModel.errorsForRow(row.id))
+            ValidationErrorView(errors: viewModel.errorsForRow(row.id), rowId: row.id)
         }
         .onChange(of: isFocused) { _, newValue in
             if !newValue {

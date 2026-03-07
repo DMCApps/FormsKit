@@ -48,7 +48,7 @@ public struct DynamicFormView: View {
                     // Form-top errors: displayed above all rows.
                     if !viewModel.formTopErrors.isEmpty {
                         Section {
-                            ValidationErrorView(errors: viewModel.formTopErrors)
+                            ValidationErrorView(errors: viewModel.formTopErrors, rowId: "formTop")
                         }
                     }
 
@@ -62,7 +62,7 @@ public struct DynamicFormView: View {
                     // Form-bottom errors: displayed below all rows, above the save button.
                     if !viewModel.formBottomErrors.isEmpty {
                         Section {
-                            ValidationErrorView(errors: viewModel.formBottomErrors)
+                            ValidationErrorView(errors: viewModel.formBottomErrors, rowId: "formBottom")
                         }
                     }
 
@@ -75,6 +75,7 @@ public struct DynamicFormView: View {
                             ) {
                                 Task { await viewModel.save() }
                             }
+                            .accessibilityIdentifier("formkit.saveButton")
                         }
                     }
                 }
@@ -87,6 +88,7 @@ public struct DynamicFormView: View {
                     ) {
                         Task { await viewModel.save() }
                     }
+                    .accessibilityIdentifier("formkit.saveButton")
                 }
             }
         }
@@ -104,6 +106,7 @@ public struct DynamicFormView: View {
                         Task { await viewModel.save() }
                     }
                     .disabled(isSaving)
+                    .accessibilityIdentifier("formkit.saveButton")
                 }
             }
         }
