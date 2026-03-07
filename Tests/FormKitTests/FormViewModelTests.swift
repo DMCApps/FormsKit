@@ -1448,7 +1448,7 @@ struct FormViewModelTests {
             title: "Text",
             validators: [
                 .minLength(5, trigger: .onChange),
-                .minLength(10, trigger: .onDebouncedInput(seconds: 0.05))
+                .minLength(10, trigger: .onChangeDebounced(seconds: 0.05))
             ]
         )
         let form = makeForm(rows: [AnyFormRow(row)])

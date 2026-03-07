@@ -31,11 +31,8 @@ public enum ValidationTrigger: Sendable, Equatable {
     /// Fires only when the user taps the Save button.
     case onSave
 
-    /// Fires after the user pauses typing for the given number of seconds.
-    ///
-    /// > Note: Only meaningful on input rows (`TextInputRow`, `NumberInputRow`).
-    /// > Not applicable to selection rows — use `SelectionValidator` for those.
-    case onDebouncedInput(seconds: Double)
+    /// Fires after a value change, once the value has been stable for the given number of seconds.
+    case onChangeDebounced(seconds: Double)
 
     /// Fires immediately on every value change.
     ///
@@ -66,22 +63,22 @@ public enum ValidationTrigger: Sendable, Equatable {
             return true
         case (.onBlur, .onBlur):
             return true
-        case let (.onDebouncedInput(a), .onDebouncedInput(b)):
+        case let (.onChangeDebounced(a), .onChangeDebounced(b)):
             return a == b
         default:
             return false
         }
     }
 
-    /// Returns true if this trigger is a debounced-input trigger (regardless of duration).
-    var isDebouncedInput: Bool {
-        if case .onDebouncedInput = self { return true }
+    /// Returns true if this trigger is a debounced trigger (regardless of duration).
+    var isChangeDebounced: Bool {
+        if case .onChangeDebounced = self { return true }
         return false
     }
 
     /// The debounce duration in seconds, or nil if not a debounced trigger.
     var debounceDuration: Double? {
-        if case let .onDebouncedInput(seconds) = self { return seconds }
+        if case let .onChangeDebounced(seconds) = self { return seconds }
         return nil
     }
 }

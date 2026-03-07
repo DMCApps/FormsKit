@@ -48,7 +48,7 @@ enum SettingsForm {
             title: "Contact Email",
             placeholder: "email@example.com",
             keyboardType: .emailAddress,
-            validators: [.email(trigger: .onDebouncedInput(seconds: 0.8))]
+            validators: [.email(trigger: .onChangeDebounced(seconds: 0.8))]
         )
 
         // Boolean toggle for notifications.

@@ -139,19 +139,19 @@ struct FormValidatorTests {
     func triggerPreserved() {
         let v1 = FormValidator.required(trigger: .onSave)
         let v2 = FormValidator.required(trigger: .onChange)
-        let v3 = FormValidator.required(trigger: .onDebouncedInput(seconds: 0.5))
+        let v3 = FormValidator.required(trigger: .onChangeDebounced(seconds: 0.5))
 
         #expect(v1.trigger == .onSave)
         #expect(v2.trigger == .onChange)
-        #expect(v3.trigger == .onDebouncedInput(seconds: 0.5))
+        #expect(v3.trigger == .onChangeDebounced(seconds: 0.5))
     }
 
-    @Test("ValidationTrigger isDebouncedInput")
-    func isDebouncedInput() {
-        #expect(ValidationTrigger.onDebouncedInput(seconds: 0.3).isDebouncedInput == true)
-        #expect(ValidationTrigger.onSave.isDebouncedInput == false)
-        #expect(ValidationTrigger.onChange.isDebouncedInput == false)
-        #expect(ValidationTrigger.onBlur.isDebouncedInput == false)
+    @Test("ValidationTrigger isChangeDebounced")
+    func isChangeDebounced() {
+        #expect(ValidationTrigger.onChangeDebounced(seconds: 0.3).isChangeDebounced == true)
+        #expect(ValidationTrigger.onSave.isChangeDebounced == false)
+        #expect(ValidationTrigger.onChange.isChangeDebounced == false)
+        #expect(ValidationTrigger.onBlur.isChangeDebounced == false)
     }
 
     @Test("ValidationTrigger onBlur equality")
@@ -169,7 +169,7 @@ struct FormValidatorTests {
 
     @Test("ValidationTrigger debounceDuration")
     func debounceDuration() {
-        #expect(ValidationTrigger.onDebouncedInput(seconds: 1.5).debounceDuration == 1.5)
+        #expect(ValidationTrigger.onChangeDebounced(seconds: 1.5).debounceDuration == 1.5)
         #expect(ValidationTrigger.onSave.debounceDuration == nil)
     }
 

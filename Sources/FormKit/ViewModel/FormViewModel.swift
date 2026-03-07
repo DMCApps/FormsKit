@@ -631,7 +631,7 @@ public final class FormViewModel {
     private func scheduleDebouncedValidation(for rowId: String) {
         guard let row = allRows.first(where: { $0.id == rowId }) else { return }
 
-        let debouncedValidators = row.validators.filter(\.trigger.isDebouncedInput)
+        let debouncedValidators = row.validators.filter(\.trigger.isChangeDebounced)
         guard !debouncedValidators.isEmpty else { return }
 
         let maxDelay = debouncedValidators
@@ -655,7 +655,7 @@ public final class FormViewModel {
     private func runDebouncedValidators(for rowId: String) {
         guard let row = allRows.first(where: { $0.id == rowId }) else { return }
         let rowErrors = row.validators
-            .filter(\.trigger.isDebouncedInput)
+            .filter(\.trigger.isChangeDebounced)
             .compactMap { validator -> FormError? in
                 guard let message = validator.validate(values[rowId], values) else { return nil }
                 return FormError(message: message, position: validator.errorPosition)
