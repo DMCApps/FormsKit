@@ -38,6 +38,13 @@ public enum ValidationTrigger: Sendable, Equatable {
     case onChange
 
     /// Fires when the field loses focus (blurs).
+    ///
+    /// On iOS this fires when the keyboard dismisses or the user taps elsewhere.
+    /// On tvOS this fires when remote navigation moves focus away from the field.
+    /// Both platforms are handled automatically by the built-in row views.
+    ///
+    /// > Note: `validateAll()` (called on Save) also runs `.onBlur` validators,
+    /// > so a field that was focused but never blurred is still caught at save time.
     case onBlur
 
     // MARK: Equatable

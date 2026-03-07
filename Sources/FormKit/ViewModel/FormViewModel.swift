@@ -373,11 +373,13 @@ public final class FormViewModel {
     ///
     /// First checks whether any live `.onChange` / debounced errors are already
     /// present for visible rows. If so, returns `false` immediately — the row-level
-    /// error UI already tells the user what to fix, so running `.onSave` validators
+    /// error UI already tells the user what to fix, so running save-time validators
     /// on top would be redundant.
     ///
-    /// If there are no live errors, runs all `.onSave` validators for visible rows
-    /// and updates `errors`.
+    /// If there are no live errors, runs all `.onSave` **and** `.onBlur` validators
+    /// for visible rows and updates `errors`. `.onBlur` validators are included here
+    /// so that a field the user focused but never blurred (e.g. by tapping Save
+    /// directly) is still caught at save time.
     ///
     /// - Returns: `true` if no errors were found; `false` otherwise.
     @discardableResult
@@ -416,7 +418,9 @@ public final class FormViewModel {
     /// Notify the view model that a field has lost focus.
     ///
     /// Runs all `.onBlur` validators for the given row and updates `errors`.
-    /// Called automatically from view code when a `@FocusState` transitions from `true` to `false`.
+    /// Called automatically from view code when focus leaves a field — this covers
+    /// both iOS (keyboard dismissal / tap elsewhere) and tvOS (remote navigation
+    /// moving focus to another element).
     public func rowDidBlur(_ rowId: String) {
         runValidators(for: rowId, trigger: .onBlur)
     }
