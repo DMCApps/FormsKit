@@ -64,6 +64,20 @@ struct FormRowActionTests {
         #expect(debounced.timing.debounce == 0.3)
     }
 
+    @Test(".hideRow returns its timing")
+    func hideRowReturnsTiming() {
+        let immediate = FormRowAction.hideRow(id: "t", timing: .immediate)
+        let debounced = FormRowAction.hideRow(id: "t", timing: .debounced(0.4))
+        #expect(immediate.timing.debounce == nil)
+        #expect(debounced.timing.debounce == 0.4)
+    }
+
+    @Test(".clearValue returns its timing")
+    func clearValueReturnsTiming() {
+        let debounced = FormRowAction.clearValue(id: "t", timing: .debounced(0.5))
+        #expect(debounced.timing.debounce == 0.5)
+    }
+
     @Test(".setValue returns its timing")
     func setValueReturnsTiming() {
         let action = FormRowAction.setValue(on: "t", timing: .debounced(0.2)) { _ in nil }
@@ -183,6 +197,26 @@ struct FormRowActionTests {
         let action = FormRowAction.showRow(id: MockActionRowID.target)
         guard case let .showRow(id, _, _) = action else {
             Issue.record("Expected .showRow")
+            return
+        }
+        #expect(id == MockActionRowID.target.rawValue)
+    }
+
+    @Test("FormRowAction.hideRow RawRepresentable overload sets correct targetId")
+    func hideRowRawRepresentableOverload() {
+        let action = FormRowAction.hideRow(id: MockActionRowID.target)
+        guard case let .hideRow(id, _, _) = action else {
+            Issue.record("Expected .hideRow")
+            return
+        }
+        #expect(id == MockActionRowID.target.rawValue)
+    }
+
+    @Test("FormRowAction.clearValue RawRepresentable overload sets correct targetId")
+    func clearValueRawRepresentableOverload() {
+        let action = FormRowAction.clearValue(id: MockActionRowID.target)
+        guard case let .clearValue(id, _, _) = action else {
+            Issue.record("Expected .clearValue")
             return
         }
         #expect(id == MockActionRowID.target.rawValue)

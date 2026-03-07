@@ -22,11 +22,6 @@ public enum ErrorPosition: Sendable, Equatable {
 public extension ErrorPosition {
     /// Convenience static property for the default "below the owning row" position.
     static var belowRow: ErrorPosition { .belowRow(id: nil) }
-
-    /// Convenience factory accepting a `RawRepresentable` row ID (e.g. an enum case).
-    static func belowRow<ID: RawRepresentable>(id: ID) -> ErrorPosition where ID.RawValue == String {
-        .belowRow(id: id.rawValue)
-    }
 }
 
 // MARK: - ValidationTrigger
@@ -82,14 +77,33 @@ public struct FormValidator: Sendable {
     public let errorPosition: ErrorPosition
 
     /// The validation closure. Returns `nil` if valid, or an error message string if invalid.
+    /// Used by validators that only need the row's own value.
     public let validate: @Sendable (AnyCodableValue?) -> String?
 
+    /// Optional store-aware validation closure.
+    /// When non-nil, this is called instead of `validate`, giving the validator access to
+    /// the full `FormValueStore` for cross-row comparisons (e.g. `.matches`).
+    public let validateWithStore: (@Sendable (AnyCodableValue?, FormValueStore) -> String?)?
+
+    /// Create a standard single-value validator.
     public init(trigger: ValidationTrigger = .onSave,
                 errorPosition: ErrorPosition = .belowRow,
                 validate: @escaping @Sendable (AnyCodableValue?) -> String?) {
         self.trigger = trigger
         self.errorPosition = errorPosition
         self.validate = validate
+        validateWithStore = nil
+    }
+
+    /// Create a store-aware validator that can read other rows' values.
+    /// Use this for cross-row validation (e.g. "confirm password must match password").
+    public init(trigger: ValidationTrigger = .onSave,
+                errorPosition: ErrorPosition = .belowRow,
+                validate: @escaping @Sendable (AnyCodableValue?, FormValueStore) -> String?) {
+        self.trigger = trigger
+        self.errorPosition = errorPosition
+        self.validate = { _ in nil } // unused when validateWithStore is set
+        validateWithStore = validate
     }
 }
 
@@ -305,5 +319,53 @@ public extension FormValidator {
                          trigger: ValidationTrigger = .onSave,
                          errorPosition: ErrorPosition = .belowRow) -> FormValidator {
         required(message: message, trigger: trigger, errorPosition: errorPosition)
+    }
+
+    // MARK: URL
+
+    /// The string value must be a well-formed URL with a non-empty scheme (e.g. "https://example.com").
+    /// Passes when the field is empty — combine with `.required()` to enforce a value.
+    static func url(message: String = "Must be a valid URL",
+                    trigger: ValidationTrigger = .onSave,
+                    errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+            guard case let .string(s) = value, !s.isEmpty else { return nil }
+            guard let parsed = URL(string: s), parsed.scheme?.isEmpty == false else {
+                return message
+            }
+            return nil
+        }
+    }
+
+    // MARK: Integer
+
+    /// The string value must parse as a valid integer (e.g. "42" or "-7").
+    /// Passes when the field is empty — combine with `.required()` to enforce a value.
+    static func integer(message: String = "Must be a whole number",
+                        trigger: ValidationTrigger = .onSave,
+                        errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+            guard case let .string(s) = value, !s.isEmpty else { return nil }
+            return Int(s) != nil ? nil : message
+        }
+    }
+
+    // MARK: Matches
+
+    /// This row's value must equal the value of another row (e.g. "confirm password").
+    /// Uses the store-aware validator initialiser so it can read the reference row at validation time.
+    ///
+    /// ```swift
+    /// TextInputRow(id: "confirmPassword", title: "Confirm Password", isSecure: true,
+    ///     validators: [.matches(rowId: "password", message: "Passwords must match")])
+    /// ```
+    static func matches(rowId: String,
+                        message: String = "Values do not match",
+                        trigger: ValidationTrigger = .onSave,
+                        errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(trigger: trigger, errorPosition: errorPosition) { value, store in
+            guard value != store[rowId] else { return nil }
+            return message
+        }
     }
 }

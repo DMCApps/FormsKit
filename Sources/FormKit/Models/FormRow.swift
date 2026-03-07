@@ -79,6 +79,57 @@ public enum FormRowAction: Sendable {
     ///   - timing: When to evaluate — `.immediate` or `.debounced(_:)`.
     case showRow(id: String, when: [FormCondition] = [], timing: ActionTiming = .immediate)
 
+    // MARK: Disable / Enable
+
+    /// Disable the row at `targetRowId` when ALL `conditions` evaluate to true against the
+    /// current form store. Enable it when any condition fails.
+    ///
+    /// A disabled row remains visible but cannot be interacted with (input is blocked).
+    /// Disabled rows are still included in validation and persistence.
+    ///
+    /// - Parameters:
+    ///   - targetRowId: The ID of the row to disable or enable.
+    ///   - conditions: `FormCondition` expressions evaluated against the full form store.
+    ///     Empty conditions mean the target is always disabled.
+    ///   - timing: When to evaluate — `.immediate` or `.debounced(_:)`.
+    case disableRow(id: String, when: [FormCondition] = [], timing: ActionTiming = .immediate)
+
+    // MARK: Hide Row
+
+    /// Hide the row at `targetRowId` when ALL `conditions` evaluate to true.
+    /// Show it again when any condition fails.
+    ///
+    /// Semantic inverse of `.showRow`: use whichever reads more naturally at the call site.
+    /// `.hideRow(id: "x", when: [.isTrue(rowId: "disabled")])` is equivalent to
+    /// `.showRow(id: "x", when: [.isFalse(rowId: "disabled")])`.
+    ///
+    /// - Parameters:
+    ///   - targetRowId: The ID of the row to hide or show.
+    ///   - conditions: Conditions under which the row is hidden.
+    ///     Empty conditions mean the target is always hidden.
+    ///   - timing: When to evaluate — `.immediate` or `.debounced(_:)`.
+    case hideRow(id: String, when: [FormCondition] = [], timing: ActionTiming = .immediate)
+
+    // MARK: Clear Value
+
+    /// Clear the value of the row at `targetRowId` when ALL `conditions` evaluate to true.
+    /// No-op when any condition fails.
+    ///
+    /// ```swift
+    /// // Clear the custom endpoint field whenever the user disables the override toggle.
+    /// BooleanSwitchRow(id: "useCustomEndpoint", title: "Use Custom Endpoint",
+    ///     onChange: [
+    ///         .clearValue(id: "endpoint", when: [.isFalse(rowId: "useCustomEndpoint")])
+    ///     ])
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - targetRowId: The ID of the row whose value should be cleared.
+    ///   - conditions: Conditions under which the value is cleared.
+    ///     Empty conditions mean the value is always cleared on every change.
+    ///   - timing: When to fire — `.immediate` or `.debounced(_:)`.
+    case clearValue(id: String, when: [FormCondition] = [], timing: ActionTiming = .immediate)
+
     // MARK: Set Value
 
     /// Set the value of another row when this row changes.
@@ -122,28 +173,13 @@ public enum FormRowAction: Sendable {
     var timing: ActionTiming {
         switch self {
         case let .showRow(_, _, timing): return timing
+        case let .disableRow(_, _, timing): return timing
+        case let .hideRow(_, _, timing): return timing
+        case let .clearValue(_, _, timing): return timing
         case let .setValue(_, timing, _): return timing
         case let .runValidation(timing): return timing
         case let .custom(timing, _): return timing
         }
-    }
-}
-
-// MARK: - FormRowAction RawRepresentable Convenience
-
-public extension FormRowAction {
-    /// `.showRow` accepting a `RawRepresentable` target row ID (enum case).
-    static func showRow<ID: RawRepresentable>(id: ID,
-                                              when conditions: [FormCondition] = [],
-                                              timing: ActionTiming = .immediate) -> FormRowAction where ID.RawValue == String {
-        .showRow(id: id.rawValue, when: conditions, timing: timing)
-    }
-
-    /// `.setValue` accepting a `RawRepresentable` target row ID (enum case).
-    static func setValue<ID: RawRepresentable>(on targetRowId: ID,
-                                               timing: ActionTiming = .immediate,
-                                               value: @Sendable @escaping (_ store: FormValueStore) -> AnyCodableValue?) -> FormRowAction where ID.RawValue == String {
-        .setValue(on: targetRowId.rawValue, timing: timing, value: value)
     }
 }
 
@@ -705,22 +741,6 @@ public struct ButtonRow: FormRow, @unchecked Sendable {
     }
 }
 
-public extension ButtonRow {
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               subtitle: String? = nil,
-                               onChange: [FormRowAction] = [],
-                               action: @Sendable @escaping () -> Void) where ID.RawValue == String {
-        self.init(
-            id: id.rawValue,
-            title: title,
-            subtitle: subtitle,
-            onChange: onChange,
-            action: action
-        )
-    }
-}
-
 // MARK: - InfoRow
 
 /// A read-only display row that shows a label with a corresponding value.
@@ -745,12 +765,6 @@ public struct InfoRow: FormRow, @unchecked Sendable {
         self.id = id
         self.title = title
         self.value = value
-    }
-}
-
-public extension InfoRow {
-    init<ID: RawRepresentable>(id: ID, title: String, value: @escaping () -> String) where ID.RawValue == String {
-        self.init(id: id.rawValue, title: title, value: value)
     }
 }
 
@@ -817,24 +831,6 @@ public struct FormSection: FormRow, @unchecked Sendable {
     }
 }
 
-public extension FormSection {
-    /// Create a section with a `RawRepresentable` id and a pre-built array of rows.
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               rows: [AnyFormRow],
-                               onChange: [FormRowAction] = []) where ID.RawValue == String {
-        self.init(id: id.rawValue, title: title, rows: rows, onChange: onChange)
-    }
-
-    /// Create a section with a `RawRepresentable` id using the `@FormRowBuilder` DSL.
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               onChange: [FormRowAction] = [],
-                               @FormRowBuilder rows: () -> [AnyFormRow]) where ID.RawValue == String {
-        self.init(id: id.rawValue, title: title, onChange: onChange, rows: rows)
-    }
-}
-
 // MARK: - NavigationRow
 
 /// A row that navigates to a sub-form when tapped.
@@ -861,132 +857,5 @@ public struct NavigationRow: FormRow {
         self.subtitle = subtitle
         self.destination = destination
         self.onChange = onChange
-    }
-}
-
-// MARK: - RawRepresentable Row ID Overloads
-
-// These extensions let you pass strongly-typed enum cases as row IDs.
-// Example:
-//   enum MyRowID: String { case name, email }
-//   TextInputRow(id: MyRowID.name, title: "Name")
-
-public extension SingleValueRow {
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               subtitle: String? = nil,
-                               options: [T]? = nil,
-                               defaultValue: T? = nil,
-                               validators: [FormValidator] = [],
-                               onChange: [FormRowAction] = []) where ID.RawValue == String {
-        self.init(
-            id: id.rawValue,
-            title: title,
-            subtitle: subtitle,
-            options: options,
-            defaultValue: defaultValue,
-            validators: validators,
-            onChange: onChange
-        )
-    }
-}
-
-public extension MultiValueRow {
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               subtitle: String? = nil,
-                               options: [T]? = nil,
-                               defaultValue: Set<T> = [],
-                               validators: [FormValidator] = [],
-                               onChange: [FormRowAction] = []) where ID.RawValue == String {
-        self.init(
-            id: id.rawValue,
-            title: title,
-            subtitle: subtitle,
-            options: options,
-            defaultValue: defaultValue,
-            validators: validators,
-            onChange: onChange
-        )
-    }
-}
-
-public extension BooleanSwitchRow {
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               subtitle: String? = nil,
-                               defaultValue: Bool = false,
-                               validators: [FormValidator] = [],
-                               onChange: [FormRowAction] = []) where ID.RawValue == String {
-        self.init(
-            id: id.rawValue,
-            title: title,
-            subtitle: subtitle,
-            defaultValue: defaultValue,
-            validators: validators,
-            onChange: onChange
-        )
-    }
-}
-
-public extension TextInputRow {
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               subtitle: String? = nil,
-                               defaultValue: String? = nil,
-                               isSecure: Bool = false,
-                               keyboardType: FormKeyboardType = .default,
-                               placeholder: String? = nil,
-                               mask: FormInputMask? = nil,
-                               validators: [FormValidator] = [],
-                               onChange: [FormRowAction] = []) where ID.RawValue == String {
-        self.init(
-            id: id.rawValue,
-            title: title,
-            subtitle: subtitle,
-            defaultValue: defaultValue,
-            isSecure: isSecure,
-            keyboardType: keyboardType,
-            placeholder: placeholder,
-            mask: mask,
-            validators: validators,
-            onChange: onChange
-        )
-    }
-}
-
-public extension NumberInputRow {
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               subtitle: String? = nil,
-                               placeholder: String? = nil,
-                               kind: NumberKind = .int(defaultValue: nil),
-                               validators: [FormValidator] = [],
-                               onChange: [FormRowAction] = []) where ID.RawValue == String {
-        self.init(
-            id: id.rawValue,
-            title: title,
-            subtitle: subtitle,
-            placeholder: placeholder,
-            kind: kind,
-            validators: validators,
-            onChange: onChange
-        )
-    }
-}
-
-public extension NavigationRow {
-    init<ID: RawRepresentable>(id: ID,
-                               title: String,
-                               subtitle: String? = nil,
-                               destination: FormDefinition,
-                               onChange: [FormRowAction] = []) where ID.RawValue == String {
-        self.init(
-            id: id.rawValue,
-            title: title,
-            subtitle: subtitle,
-            destination: destination,
-            onChange: onChange
-        )
     }
 }

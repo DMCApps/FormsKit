@@ -324,4 +324,109 @@ struct FormValidatorTests {
         let v = FormValidator.required(message: "Please fill this in")
         #expect(v.validate(nil) == "Please fill this in")
     }
+
+    // MARK: - url
+
+    @Test(".url passes for empty value")
+    func urlPassesForEmpty() {
+        let v = FormValidator.url()
+        #expect(v.validate(nil) == nil)
+        #expect(v.validate(.string("")) == nil)
+    }
+
+    @Test(".url passes for valid https URL")
+    func urlPassesForValidURL() {
+        let v = FormValidator.url()
+        #expect(v.validate(.string("https://example.com")) == nil)
+    }
+
+    @Test(".url passes for valid http URL")
+    func urlPassesForHTTP() {
+        let v = FormValidator.url()
+        #expect(v.validate(.string("http://192.168.1.1:8080/api")) == nil)
+    }
+
+    @Test(".url fails for bare string with no scheme")
+    func urlFailsForNoScheme() {
+        let v = FormValidator.url()
+        #expect(v.validate(.string("not a url")) != nil)
+    }
+
+    @Test(".url fails for non-string value")
+    func urlPassesForNonString() {
+        let v = FormValidator.url()
+        // non-string values are not URLs but the validator only checks strings
+        #expect(v.validate(.int(42)) == nil)
+    }
+
+    // MARK: - integer
+
+    @Test(".integer passes for empty value")
+    func integerPassesForEmpty() {
+        let v = FormValidator.integer()
+        #expect(v.validate(nil) == nil)
+        #expect(v.validate(.string("")) == nil)
+    }
+
+    @Test(".integer passes for valid integer string")
+    func integerPassesForValidInt() {
+        let v = FormValidator.integer()
+        #expect(v.validate(.string("42")) == nil)
+        #expect(v.validate(.string("-7")) == nil)
+        #expect(v.validate(.string("0")) == nil)
+    }
+
+    @Test(".integer fails for decimal string")
+    func integerFailsForDecimal() {
+        let v = FormValidator.integer()
+        #expect(v.validate(.string("3.14")) != nil)
+    }
+
+    @Test(".integer fails for non-numeric string")
+    func integerFailsForNonNumeric() {
+        let v = FormValidator.integer()
+        #expect(v.validate(.string("abc")) != nil)
+    }
+
+    // MARK: - matches
+
+    @Test(".matches passes when values are equal")
+    func matchesPassesWhenEqual() {
+        let v = FormValidator.matches(rowId: "password")
+        var store = FormValueStore()
+        store["password"] = .string("secret")
+        #expect(v.validateWithStore?(.string("secret"), store) == nil)
+    }
+
+    @Test(".matches fails when values differ")
+    func matchesFailsWhenDifferent() {
+        let v = FormValidator.matches(rowId: "password")
+        var store = FormValueStore()
+        store["password"] = .string("secret")
+        #expect(v.validateWithStore?(.string("wrong"), store) != nil)
+    }
+
+    @Test(".matches passes when both values are nil")
+    func matchesPassesWhenBothNil() {
+        let v = FormValidator.matches(rowId: "password")
+        let store = FormValueStore()
+        #expect(v.validateWithStore?(nil, store) == nil)
+    }
+
+    @Test(".matches uses store-aware init — validate closure returns nil")
+    func matchesBaseValidateReturnsNil() {
+        let v = FormValidator.matches(rowId: "password")
+        // The base `validate` closure is unused for store-aware validators.
+        #expect(v.validate(.string("anything")) == nil)
+    }
+
+    @Test(".matches RawRepresentable overload resolves rowId correctly")
+    func matchesRawRepresentableRowId() {
+        enum RowID: String { case password }
+        let v = FormValidator.matches(rowId: RowID.password)
+        var store = FormValueStore()
+        store["password"] = .string("abc")
+        #expect(v.validateWithStore?(.string("abc"), store) == nil)
+        #expect(v.validateWithStore?(.string("xyz"), store) != nil)
+    }
 }

@@ -303,7 +303,23 @@ public final class FormViewModel {
             }
         }
 
-        // No .showRow actions point at this row → always visible.
+        // Collect all .hideRow actions targeting this row.
+        let hideActions = allRows.flatMap { sourceRow in
+            sourceRow.onChange.compactMap { action -> [FormCondition]? in
+                if case let .hideRow(targetId, conditions, _) = action, targetId == row.id {
+                    return conditions
+                }
+                return nil
+            }
+        }
+
+        // If any hideRow action has all its conditions satisfied, hide the row.
+        let isHidden = hideActions.contains { conditions in
+            conditions.isEmpty || conditions.allSatisfy { $0.evaluate(with: values) }
+        }
+        if isHidden { return false }
+
+        // No .showRow actions point at this row → always visible (unless hidden above).
         guard !showActions.isEmpty else { return true }
 
         // Visible if ANY showRow action has all its conditions satisfied.
@@ -315,6 +331,40 @@ public final class FormViewModel {
     /// All rows from the form definition that are currently visible.
     public var visibleRows: [AnyFormRow] {
         formDefinition.rows.filter { isRowVisible($0) }
+    }
+
+    /// Returns true if the given row is currently disabled.
+    ///
+    /// Disabled state is controlled by `.disableRow` actions on *other* rows.
+    /// If no row in the form has a `.disableRow` action targeting this row's ID,
+    /// the row is always enabled. Otherwise it is disabled when at least one
+    /// `.disableRow` action targeting it has all its conditions satisfied.
+    ///
+    /// If the row's parent section is disabled, all its children are disabled regardless
+    /// of any actions targeting those children directly.
+    public func isRowDisabled(_ row: AnyFormRow) -> Bool {
+        // If this row lives inside a section, check the section's disabled state first.
+        if let parentSection = parentSection(of: row.id, in: formDefinition.rows) {
+            if isRowDisabled(parentSection) { return true }
+        }
+
+        // Collect all .disableRow actions across ALL rows that target this row.
+        let disableActions = allRows.flatMap { sourceRow in
+            sourceRow.onChange.compactMap { action -> [FormCondition]? in
+                if case let .disableRow(targetId, conditions, _) = action, targetId == row.id {
+                    return conditions
+                }
+                return nil
+            }
+        }
+
+        // No .disableRow actions point at this row → always enabled.
+        guard !disableActions.isEmpty else { return false }
+
+        // Disabled if ANY disableRow action has all its conditions satisfied.
+        return disableActions.contains { conditions in
+            conditions.isEmpty || conditions.allSatisfy { $0.evaluate(with: values) }
+        }
     }
 
     // MARK: - Validation
@@ -350,7 +400,12 @@ public final class FormViewModel {
             let validatorErrors = row.validators
                 .filter { $0.trigger == .onSave }
                 .compactMap { validator -> FormError? in
-                    guard let message = validator.validate(values[row.id]) else { return nil }
+                    let message: String? = if let storeValidator = validator.validateWithStore {
+                        storeValidator(values[row.id], values)
+                    } else {
+                        validator.validate(values[row.id])
+                    }
+                    guard let message else { return nil }
                     return FormError(message: message, position: validator.errorPosition)
                 }
 
@@ -550,63 +605,6 @@ public final class FormViewModel {
         !errorsForRow(rowId).isEmpty
     }
 
-    // MARK: - RawRepresentable Row ID Overloads
-
-    /// Returns a typed value for the given row ID (enum case overload).
-    public func value<T, ID: RawRepresentable>(for rowId: ID) -> T? where ID.RawValue == String {
-        value(for: rowId.rawValue)
-    }
-
-    /// Returns the raw `AnyCodableValue` for the given row ID (enum case overload).
-    public func rawValue<ID: RawRepresentable>(for rowId: ID) -> AnyCodableValue? where ID.RawValue == String {
-        rawValue(for: rowId.rawValue)
-    }
-
-    /// Set a raw `AnyCodableValue` for a row (enum case overload).
-    public func setValue(_ value: AnyCodableValue?, for rowId: some RawRepresentable<String>) {
-        setValue(value, for: rowId.rawValue)
-    }
-
-    /// Convenience: set a `Bool` value (enum case overload).
-    public func setBool(_ value: Bool, for rowId: some RawRepresentable<String>) {
-        setBool(value, for: rowId.rawValue)
-    }
-
-    /// Convenience: set a `String` value (enum case overload).
-    public func setString(_ value: String, for rowId: some RawRepresentable<String>) {
-        setString(value, for: rowId.rawValue)
-    }
-
-    /// Convenience: set an `Int` value (enum case overload).
-    public func setInt(_ value: Int, for rowId: some RawRepresentable<String>) {
-        setInt(value, for: rowId.rawValue)
-    }
-
-    /// Convenience: set a `Double` value (enum case overload).
-    public func setDouble(_ value: Double, for rowId: some RawRepresentable<String>) {
-        setDouble(value, for: rowId.rawValue)
-    }
-
-    /// Convenience: set a `Date` value (enum case overload).
-    public func setDate(_ value: Date, for rowId: some RawRepresentable<String>) {
-        setDate(value, for: rowId.rawValue)
-    }
-
-    /// Toggle an element in a multi-value array row (enum case overload).
-    public func toggleArrayValue(_ value: AnyCodableValue, for rowId: some RawRepresentable<String>) {
-        toggleArrayValue(value, for: rowId.rawValue)
-    }
-
-    /// Returns the validation errors for a specific row (enum case overload).
-    public func errorsForRow(_ rowId: some RawRepresentable<String>) -> [String] {
-        errorsForRow(rowId.rawValue)
-    }
-
-    /// True if the row currently has validation errors (enum case overload).
-    public func rowHasError(_ rowId: some RawRepresentable<String>) -> Bool {
-        rowHasError(rowId.rawValue)
-    }
-
     // MARK: - Private Helpers
 
     /// Run all validators matching the given trigger for a specific row.
@@ -615,7 +613,12 @@ public final class FormViewModel {
         let rowErrors = row.validators
             .filter { $0.trigger == trigger }
             .compactMap { validator -> FormError? in
-                guard let message = validator.validate(values[rowId]) else { return nil }
+                let message: String? = if let storeValidator = validator.validateWithStore {
+                    storeValidator(values[rowId], values)
+                } else {
+                    validator.validate(values[rowId])
+                }
+                guard let message else { return nil }
                 return FormError(message: message, position: validator.errorPosition)
             }
         errors[rowId] = rowErrors
@@ -652,7 +655,12 @@ public final class FormViewModel {
         let rowErrors = row.validators
             .filter(\.trigger.isDebouncedInput)
             .compactMap { validator -> FormError? in
-                guard let message = validator.validate(values[rowId]) else { return nil }
+                let message: String? = if let storeValidator = validator.validateWithStore {
+                    storeValidator(values[rowId], values)
+                } else {
+                    validator.validate(values[rowId])
+                }
+                guard let message else { return nil }
                 return FormError(message: message, position: validator.errorPosition)
             }
         errors[rowId] = rowErrors
@@ -699,6 +707,23 @@ public final class FormViewModel {
         case .showRow:
             // Show/hide is evaluated reactively via isRowVisible — no imperative state to update.
             break
+
+        case .disableRow:
+            // Disabled state is evaluated reactively via isRowDisabled — no imperative state to update.
+            break
+
+        case .hideRow:
+            // Hide/show is evaluated reactively via isRowVisible — no imperative state to update.
+            break
+
+        case let .clearValue(targetRowId, conditions, _):
+            // Clear the target row's value if all conditions are satisfied (or there are none).
+            let shouldClear = conditions.isEmpty || conditions.allSatisfy { $0.evaluate(with: values) }
+            if shouldClear {
+                values[targetRowId] = nil
+                isDirty = true
+                errors[targetRowId] = []
+            }
 
         case let .setValue(targetRowId, _, valueFactory):
             // Derive the new value from the current store and apply it if non-nil.

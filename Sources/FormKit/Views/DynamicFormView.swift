@@ -204,5 +204,6 @@ struct FormRowContainer: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .disabled(viewModel.isRowDisabled(row))
     }
 }

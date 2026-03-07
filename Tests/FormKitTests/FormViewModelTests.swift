@@ -1388,4 +1388,267 @@ struct FormViewModelTests {
         vm.setBool(true, for: "show")
         #expect(vm.visibleRows.count == 2)
     }
+
+    // MARK: - disableRow
+
+    @Test("isRowDisabled returns false when no disableRow action targets the row")
+    func isRowDisabledReturnsFalseWithNoActions() {
+        let form = makeForm(rows: [
+            AnyFormRow(BooleanSwitchRow(id: "toggle", title: "Toggle")),
+            AnyFormRow(TextInputRow(id: "input", title: "Input"))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+        let inputRow = AnyFormRow(TextInputRow(id: "input", title: "Input"))
+
+        #expect(vm.isRowDisabled(inputRow) == false)
+    }
+
+    @Test("isRowDisabled enables and disables based on conditions")
+    func isRowDisabledTogglesWithCondition() {
+        let form = makeForm(rows: [
+            AnyFormRow(BooleanSwitchRow(
+                id: "lock",
+                title: "Lock",
+                defaultValue: false,
+                onChange: [.disableRow(id: "input", when: [.isTrue(rowId: "lock")])]
+            )),
+            AnyFormRow(TextInputRow(id: "input", title: "Input"))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+        let inputRow = AnyFormRow(TextInputRow(id: "input", title: "Input"))
+
+        // Initially "lock" is false → "input" is enabled.
+        #expect(vm.isRowDisabled(inputRow) == false)
+
+        // Set "lock" to true → "input" should be disabled.
+        vm.setBool(true, for: "lock")
+        #expect(vm.isRowDisabled(inputRow) == true)
+
+        // Set "lock" back to false → "input" is enabled again.
+        vm.setBool(false, for: "lock")
+        #expect(vm.isRowDisabled(inputRow) == false)
+    }
+
+    @Test("isRowDisabled with empty conditions always disables the row")
+    func isRowDisabledEmptyConditionsAlwaysDisables() {
+        // Empty conditions on a .disableRow mean unconditionally disabled.
+        let form = makeForm(rows: [
+            AnyFormRow(BooleanSwitchRow(
+                id: "ctrl",
+                title: "Ctrl",
+                onChange: [.disableRow(id: "target", when: [])]
+            )),
+            AnyFormRow(TextInputRow(id: "target", title: "Target"))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+        let targetRow = AnyFormRow(TextInputRow(id: "target", title: "Target"))
+
+        #expect(vm.isRowDisabled(targetRow) == true)
+    }
+
+    @Test("isRowDisabled cascades to children when parent section is disabled")
+    func isRowDisabledCascadesToSectionChildren() {
+        let section = FormSection(id: "section", title: "Section", rows: [
+            AnyFormRow(TextInputRow(id: "child", title: "Child"))
+        ])
+        let form = makeForm(rows: [
+            AnyFormRow(BooleanSwitchRow(
+                id: "lock",
+                title: "Lock",
+                defaultValue: false,
+                onChange: [.disableRow(id: "section", when: [.isTrue(rowId: "lock")])]
+            )),
+            AnyFormRow(section)
+        ])
+        let vm = FormViewModel(formDefinition: form)
+        let sectionRow = AnyFormRow(FormSection(id: "section", title: "Section", rows: []))
+        let childRow = AnyFormRow(TextInputRow(id: "child", title: "Child"))
+
+        // Before locking: both section and child are enabled.
+        #expect(vm.isRowDisabled(sectionRow) == false)
+        #expect(vm.isRowDisabled(childRow) == false)
+
+        // After locking: section disabled → child inherits disabled state.
+        vm.setBool(true, for: "lock")
+        #expect(vm.isRowDisabled(sectionRow) == true)
+        #expect(vm.isRowDisabled(childRow) == true)
+    }
+
+    // MARK: - hideRow
+
+    @Test("hideRow hides row when conditions are satisfied")
+    func hideRowHidesWhenConditionsMet() {
+        let target = TextInputRow(id: "detail", title: "Detail")
+        let trigger = BooleanSwitchRow(
+            id: "collapse",
+            title: "Collapse",
+            defaultValue: false,
+            onChange: [.hideRow(id: "detail", when: [.isTrue(rowId: "collapse")])]
+        )
+        let form = makeForm(rows: [AnyFormRow(trigger), AnyFormRow(target)])
+        let vm = FormViewModel(formDefinition: form)
+        let targetRow = AnyFormRow(target)
+
+        // Initially visible.
+        #expect(vm.isRowVisible(targetRow) == true)
+
+        // Toggle collapse on → row should be hidden.
+        vm.setBool(true, for: "collapse")
+        #expect(vm.isRowVisible(targetRow) == false)
+
+        // Toggle off again → row should reappear.
+        vm.setBool(false, for: "collapse")
+        #expect(vm.isRowVisible(targetRow) == true)
+    }
+
+    @Test("hideRow with empty conditions always hides the row")
+    func hideRowEmptyConditionsAlwaysHides() {
+        let target = TextInputRow(id: "hidden", title: "Hidden")
+        let trigger = BooleanSwitchRow(
+            id: "toggle",
+            title: "Toggle",
+            onChange: [.hideRow(id: "hidden")]
+        )
+        let form = makeForm(rows: [AnyFormRow(trigger), AnyFormRow(target)])
+        let vm = FormViewModel(formDefinition: form)
+        let targetRow = AnyFormRow(target)
+
+        // Empty conditions → always hidden regardless of trigger value.
+        #expect(vm.isRowVisible(targetRow) == false)
+        vm.setBool(true, for: "toggle")
+        #expect(vm.isRowVisible(targetRow) == false)
+    }
+
+    @Test("hideRow takes precedence over showRow for same target")
+    func hideRowTakesPrecedenceOverShowRow() {
+        // A row that is both shown and hidden — hide wins.
+        let target = TextInputRow(id: "target", title: "Target")
+        let shower = BooleanSwitchRow(
+            id: "show",
+            title: "Show",
+            defaultValue: true,
+            onChange: [.showRow(id: "target", when: [.isTrue(rowId: "show")])]
+        )
+        let hider = BooleanSwitchRow(
+            id: "hide",
+            title: "Hide",
+            defaultValue: true,
+            onChange: [.hideRow(id: "target", when: [.isTrue(rowId: "hide")])]
+        )
+        let form = makeForm(rows: [AnyFormRow(shower), AnyFormRow(hider), AnyFormRow(target)])
+        let vm = FormViewModel(formDefinition: form)
+        let targetRow = AnyFormRow(target)
+
+        // Both show and hide are active — hide wins.
+        #expect(vm.isRowVisible(targetRow) == false)
+
+        // Disable hider → show can now take effect.
+        vm.setBool(false, for: "hide")
+        #expect(vm.isRowVisible(targetRow) == true)
+    }
+
+    // MARK: - clearValue
+
+    @Test("clearValue clears target row value with no conditions")
+    func clearValueNoConditions() {
+        let source = BooleanSwitchRow(
+            id: "toggle",
+            title: "Toggle",
+            onChange: [.clearValue(id: "field")]
+        )
+        let form = makeForm(rows: [AnyFormRow(source), AnyFormRow(TextInputRow(id: "field", title: "Field"))])
+        let vm = FormViewModel(formDefinition: form)
+        vm.setString("hello", for: "field")
+        #expect(vm.rawValue(for: "field") == .string("hello"))
+
+        // Any change to toggle should clear field (no conditions = always clear).
+        vm.setBool(true, for: "toggle")
+        #expect(vm.rawValue(for: "field") == nil)
+    }
+
+    @Test("clearValue respects conditions — only clears when satisfied")
+    func clearValueWithConditions() {
+        let source = BooleanSwitchRow(
+            id: "useCustom",
+            title: "Use Custom",
+            defaultValue: true,
+            onChange: [.clearValue(id: "custom", when: [.isFalse(rowId: "useCustom")])]
+        )
+        let form = makeForm(rows: [AnyFormRow(source), AnyFormRow(TextInputRow(id: "custom", title: "Custom"))])
+        let vm = FormViewModel(formDefinition: form)
+        vm.setString("override", for: "custom")
+
+        // Toggle is true → condition (isFalse) not met → value preserved.
+        vm.setBool(true, for: "useCustom")
+        #expect(vm.rawValue(for: "custom") == .string("override"))
+
+        // Toggle is false → condition met → value cleared.
+        vm.setBool(false, for: "useCustom")
+        #expect(vm.rawValue(for: "custom") == nil)
+    }
+
+    @Test("clearValue also clears validation errors on the target row")
+    func clearValueClearsErrors() {
+        let source = BooleanSwitchRow(
+            id: "toggle",
+            title: "Toggle",
+            onChange: [.clearValue(id: "field")]
+        )
+        let target = TextInputRow(
+            id: "field",
+            title: "Field",
+            validators: [.required()]
+        )
+        let form = makeForm(rows: [AnyFormRow(source), AnyFormRow(target)])
+        let vm = FormViewModel(formDefinition: form)
+
+        // Trigger a validation error on "field".
+        vm.setString("", for: "field")
+        vm.validateAll()
+        let hadErrors = !vm.errorsForRow("field").isEmpty
+
+        // Clear via action — errors should be wiped.
+        vm.setBool(true, for: "toggle")
+        #expect(hadErrors)
+        #expect(vm.errorsForRow("field").isEmpty)
+    }
+
+    // MARK: - store-aware validators (.matches via FormViewModel)
+
+    @Test(".matches validator fires on save and reports mismatch")
+    func matchesValidatorOnSave() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(id: "password", title: "Password")),
+            AnyFormRow(TextInputRow(
+                id: "confirm",
+                title: "Confirm",
+                validators: [.matches(rowId: "password", message: "Must match")]
+            ))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+        vm.setString("abc", for: "password")
+        vm.setString("xyz", for: "confirm")
+
+        vm.validateAll()
+        #expect(vm.errorsForRow("confirm") == ["Must match"])
+        #expect(vm.errorsForRow("password").isEmpty)
+    }
+
+    @Test(".matches validator passes when values are equal")
+    func matchesValidatorPassesWhenEqual() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(id: "password", title: "Password")),
+            AnyFormRow(TextInputRow(
+                id: "confirm",
+                title: "Confirm",
+                validators: [.matches(rowId: "password")]
+            ))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+        vm.setString("same", for: "password")
+        vm.setString("same", for: "confirm")
+
+        vm.validateAll()
+        #expect(vm.errorsForRow("confirm").isEmpty)
+    }
 }
