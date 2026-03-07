@@ -27,6 +27,7 @@ extension FormKeyboardType {
 struct TextInputRowView: View {
     let row: TextInputRow
     @Bindable var viewModel: FormViewModel
+    @FocusState private var isFocused: Bool
 
     private var text: String {
         if let mask = row.mask,
@@ -47,6 +48,11 @@ struct TextInputRowView: View {
             rowHeader
             inputField
             ValidationErrorView(errors: viewModel.errorsForRow(row.id))
+        }
+        .onChange(of: isFocused) { _, newValue in
+            if !newValue {
+                viewModel.rowDidBlur(row.id)
+            }
         }
     }
 
@@ -90,6 +96,7 @@ struct TextInputRowView: View {
                 }
             )
             TextField(mask.pattern, text: binding)
+                .focused($isFocused)
                 .textContentType(.none)
                 .autocorrectionDisabled()
 #if os(iOS)
@@ -103,8 +110,10 @@ struct TextInputRowView: View {
             )
             if row.isSecure {
                 SecureField(row.placeholder ?? "", text: binding)
+                    .focused($isFocused)
             } else {
                 TextField(row.placeholder ?? "", text: binding)
+                    .focused($isFocused)
                     .textContentType(.none)
                     .autocorrectionDisabled()
 #if os(iOS)

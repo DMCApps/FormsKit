@@ -393,12 +393,12 @@ public final class FormViewModel {
         let hasLiveErrors = errors.contains { visibleRowIds.contains($0.key) && !$0.value.isEmpty }
         if hasLiveErrors { return false }
 
-        // No live errors — run .onSave validators.
+        // No live errors — run .onSave and .onBlur validators.
         var newErrors: [String: [FormError]] = [:]
 
         for row in allRows where isRowVisible(row) {
             let validatorErrors = row.validators
-                .filter { $0.trigger == .onSave }
+                .filter { $0.trigger == .onSave || $0.trigger == .onBlur }
                 .compactMap { validator -> FormError? in
                     guard let message = validator.validate(values[row.id], values) else { return nil }
                     return FormError(message: message, position: validator.errorPosition)
@@ -411,6 +411,14 @@ public final class FormViewModel {
 
         errors = newErrors
         return newErrors.values.allSatisfy(\.isEmpty)
+    }
+
+    /// Notify the view model that a field has lost focus.
+    ///
+    /// Runs all `.onBlur` validators for the given row and updates `errors`.
+    /// Called automatically from view code when a `@FocusState` transitions from `true` to `false`.
+    public func rowDidBlur(_ rowId: String) {
+        runValidators(for: rowId, trigger: .onBlur)
     }
 
     // MARK: - Save

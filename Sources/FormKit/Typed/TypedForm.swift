@@ -217,6 +217,13 @@ where RowID.RawValue == String {
         viewModel.rowHasError(rowId.rawValue)
     }
 
+    /// Notify the view model that a field has lost focus.
+    ///
+    /// Runs all `.onBlur` validators for the given row and updates `errors`.
+    public func rowDidBlur(_ rowId: RowID) {
+        viewModel.rowDidBlur(rowId.rawValue)
+    }
+
     /// Error messages that should be displayed at the top of the form, above all rows.
     public var formTopErrors: [String] { viewModel.formTopErrors }
 

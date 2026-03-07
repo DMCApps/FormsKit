@@ -37,6 +37,9 @@ public enum ValidationTrigger: Sendable, Equatable {
     /// Fires immediately on every value change.
     case onChange
 
+    /// Fires when the field loses focus (blurs).
+    case onBlur
+
     // MARK: Equatable
 
     public static func == (lhs: ValidationTrigger, rhs: ValidationTrigger) -> Bool {
@@ -44,6 +47,8 @@ public enum ValidationTrigger: Sendable, Equatable {
         case (.onSave, .onSave):
             return true
         case (.onChange, .onChange):
+            return true
+        case (.onBlur, .onBlur):
             return true
         case let (.onDebouncedInput(a), .onDebouncedInput(b)):
             return a == b

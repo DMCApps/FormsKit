@@ -11,11 +11,13 @@ struct NumberInputRowView: View {
     // Use a local string buffer so the user can type freely.
     @State private var textBuffer: String = ""
     @State private var didInitialise = false
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             rowHeader
             TextField(row.placeholder ?? "", text: $textBuffer)
+                .focused($isFocused)
 #if os(iOS)
                 .keyboardType(row.isDecimal ? .decimalPad : .numberPad)
 #endif
@@ -30,6 +32,11 @@ struct NumberInputRowView: View {
                     }
                 }
             ValidationErrorView(errors: viewModel.errorsForRow(row.id))
+        }
+        .onChange(of: isFocused) { _, newValue in
+            if !newValue {
+                viewModel.rowDidBlur(row.id)
+            }
         }
     }
 

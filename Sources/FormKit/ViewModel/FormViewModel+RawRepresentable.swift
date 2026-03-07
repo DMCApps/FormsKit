@@ -67,4 +67,9 @@ public extension FormViewModel {
     func rowHasError(_ rowId: some RawRepresentable<String>) -> Bool {
         rowHasError(rowId.rawValue)
     }
+
+    /// Notify the view model that a field has lost focus (enum case overload).
+    func rowDidBlur(_ rowId: some RawRepresentable<String>) {
+        rowDidBlur(rowId.rawValue)
+    }
 }

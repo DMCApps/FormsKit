@@ -319,6 +319,112 @@ struct FormViewModelTests {
         #expect(vm.errorsForRow("text").isEmpty == false)
     }
 
+    // MARK: - onBlur
+
+    @Test("rowDidBlur runs .onBlur validators for the given row")
+    func rowDidBlurRunsOnBlurValidators() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required(trigger: .onBlur)]))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+
+        // No errors yet — blur hasn't fired.
+        #expect(vm.errorsForRow("name").isEmpty == true)
+
+        vm.rowDidBlur("name")
+
+        // After blur, the .onBlur required validator fires on empty field.
+        #expect(vm.errorsForRow("name").isEmpty == false)
+    }
+
+    @Test("rowDidBlur clears errors when value becomes valid")
+    func rowDidBlurClearsErrorsWhenValid() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required(trigger: .onBlur)]))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+
+        // Fire blur on empty field → error.
+        vm.rowDidBlur("name")
+        #expect(vm.errorsForRow("name").isEmpty == false)
+
+        // Fill in a value then blur again → error clears.
+        vm.setString("Alice", for: "name")
+        vm.rowDidBlur("name")
+        #expect(vm.errorsForRow("name").isEmpty == true)
+    }
+
+    @Test("rowDidBlur does NOT run .onSave or .onChange validators")
+    func rowDidBlurDoesNotRunOtherTriggers() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(
+                id: "field",
+                title: "Field",
+                validators: [
+                    .required(trigger: .onSave),
+                    .required(trigger: .onChange)
+                ]
+            ))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+
+        // Blur should not fire .onSave or .onChange validators.
+        vm.rowDidBlur("field")
+        #expect(vm.errorsForRow("field").isEmpty == true)
+    }
+
+    @Test("validateAll runs .onBlur validators alongside .onSave validators")
+    func validateAllRunsOnBlurValidators() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required(trigger: .onBlur)]))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+
+        // validateAll covers .onBlur so a focused-but-never-blurred field is still caught.
+        let isValid = vm.validateAll()
+        #expect(isValid == false)
+        #expect(vm.errorsForRow("name").isEmpty == false)
+    }
+
+    @Test("validateAll runs both .onSave and .onBlur validators on the same row")
+    func validateAllRunsBothOnSaveAndOnBlur() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(
+                id: "field",
+                title: "Field",
+                validators: [
+                    .minLength(5, message: "Too short (onSave)", trigger: .onSave),
+                    .maxLength(3, message: "Too long (onBlur)", trigger: .onBlur)
+                ]
+            ))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+        // Set a value of length 4 — fails onSave (minLength 5) but passes onBlur (maxLength 3).
+        vm.setString("abcd", for: "field")
+
+        vm.validateAll()
+
+        // The onSave validator must fire.
+        #expect(vm.errorsForRow("field").contains("Too short (onSave)"))
+    }
+
+    @Test("validateAll does NOT run .onChange validators")
+    func validateAllDoesNotRunOnChangeValidators() {
+        let form = makeForm(rows: [
+            AnyFormRow(TextInputRow(
+                id: "field",
+                title: "Field",
+                validators: [.required(message: "onChange error", trigger: .onChange)]
+            ))
+        ])
+        let vm = FormViewModel(formDefinition: form)
+
+        let isValid = vm.validateAll()
+        // .onChange validators don't fire via validateAll — field is considered valid.
+        #expect(isValid == true)
+        #expect(vm.errorsForRow("field").isEmpty == true)
+    }
+
     // MARK: - Save
 
     @Test("Save with invalid form returns false")

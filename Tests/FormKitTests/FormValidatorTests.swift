@@ -151,6 +151,20 @@ struct FormValidatorTests {
         #expect(ValidationTrigger.onDebouncedInput(seconds: 0.3).isDebouncedInput == true)
         #expect(ValidationTrigger.onSave.isDebouncedInput == false)
         #expect(ValidationTrigger.onChange.isDebouncedInput == false)
+        #expect(ValidationTrigger.onBlur.isDebouncedInput == false)
+    }
+
+    @Test("ValidationTrigger onBlur equality")
+    func onBlurEquality() {
+        #expect(ValidationTrigger.onBlur == .onBlur)
+        #expect(ValidationTrigger.onBlur != .onSave)
+        #expect(ValidationTrigger.onBlur != .onChange)
+    }
+
+    @Test("onBlur trigger is preserved on a created validator")
+    func onBlurTriggerPreserved() {
+        let v = FormValidator.required(trigger: .onBlur)
+        #expect(v.trigger == .onBlur)
     }
 
     @Test("ValidationTrigger debounceDuration")
