@@ -400,12 +400,7 @@ public final class FormViewModel {
             let validatorErrors = row.validators
                 .filter { $0.trigger == .onSave }
                 .compactMap { validator -> FormError? in
-                    let message: String? = if let storeValidator = validator.validateWithStore {
-                        storeValidator(values[row.id], values)
-                    } else {
-                        validator.validate(values[row.id])
-                    }
-                    guard let message else { return nil }
+                    guard let message = validator.validate(values[row.id], values) else { return nil }
                     return FormError(message: message, position: validator.errorPosition)
                 }
 
@@ -613,12 +608,7 @@ public final class FormViewModel {
         let rowErrors = row.validators
             .filter { $0.trigger == trigger }
             .compactMap { validator -> FormError? in
-                let message: String? = if let storeValidator = validator.validateWithStore {
-                    storeValidator(values[rowId], values)
-                } else {
-                    validator.validate(values[rowId])
-                }
-                guard let message else { return nil }
+                guard let message = validator.validate(values[rowId], values) else { return nil }
                 return FormError(message: message, position: validator.errorPosition)
             }
         errors[rowId] = rowErrors
@@ -655,12 +645,7 @@ public final class FormViewModel {
         let rowErrors = row.validators
             .filter(\.trigger.isDebouncedInput)
             .compactMap { validator -> FormError? in
-                let message: String? = if let storeValidator = validator.validateWithStore {
-                    storeValidator(values[rowId], values)
-                } else {
-                    validator.validate(values[rowId])
-                }
-                guard let message else { return nil }
+                guard let message = validator.validate(values[rowId], values) else { return nil }
                 return FormError(message: message, position: validator.errorPosition)
             }
         errors[rowId] = rowErrors

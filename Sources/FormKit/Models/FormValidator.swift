@@ -69,6 +69,9 @@ public enum ValidationTrigger: Sendable, Equatable {
 
 /// A validator that inspects a row's current value and optionally returns an error message.
 /// Validators are attached per-row and fire based on their `trigger`.
+///
+/// Use the single-value init for most validators — the `FormValueStore` is handled internally.
+/// Use the store-aware init when you need to compare against other rows (e.g. `.matches`).
 public struct FormValidator: Sendable {
     /// When this validator fires.
     public let trigger: ValidationTrigger
@@ -77,33 +80,27 @@ public struct FormValidator: Sendable {
     public let errorPosition: ErrorPosition
 
     /// The validation closure. Returns `nil` if valid, or an error message string if invalid.
-    /// Used by validators that only need the row's own value.
-    public let validate: @Sendable (AnyCodableValue?) -> String?
+    /// Always receives both the row's own value and the full form store.
+    public let validate: @Sendable (AnyCodableValue?, FormValueStore) -> String?
 
-    /// Optional store-aware validation closure.
-    /// When non-nil, this is called instead of `validate`, giving the validator access to
-    /// the full `FormValueStore` for cross-row comparisons (e.g. `.matches`).
-    public let validateWithStore: (@Sendable (AnyCodableValue?, FormValueStore) -> String?)?
-
-    /// Create a standard single-value validator.
+    /// Single-value init. Use this for validators that only need the row's own value.
+    /// The `FormValueStore` parameter is handled internally.
     public init(trigger: ValidationTrigger = .onSave,
                 errorPosition: ErrorPosition = .belowRow,
                 validate: @escaping @Sendable (AnyCodableValue?) -> String?) {
         self.trigger = trigger
         self.errorPosition = errorPosition
-        self.validate = validate
-        validateWithStore = nil
+        self.validate = { value, _ in validate(value) }
     }
 
-    /// Create a store-aware validator that can read other rows' values.
-    /// Use this for cross-row validation (e.g. "confirm password must match password").
+    /// Store-aware init. Use this for cross-row validators that need to inspect other rows
+    /// (e.g. `.matches`).
     public init(trigger: ValidationTrigger = .onSave,
                 errorPosition: ErrorPosition = .belowRow,
-                validate: @escaping @Sendable (AnyCodableValue?, FormValueStore) -> String?) {
+                validateWithStore: @escaping @Sendable (AnyCodableValue?, FormValueStore) -> String?) {
         self.trigger = trigger
         self.errorPosition = errorPosition
-        self.validate = { _ in nil } // unused when validateWithStore is set
-        validateWithStore = validate
+        validate = validateWithStore
     }
 }
 
@@ -353,7 +350,6 @@ public extension FormValidator {
     // MARK: Matches
 
     /// This row's value must equal the value of another row (e.g. "confirm password").
-    /// Uses the store-aware validator initialiser so it can read the reference row at validation time.
     ///
     /// ```swift
     /// TextInputRow(id: "confirmPassword", title: "Confirm Password", isSecure: true,
@@ -363,9 +359,9 @@ public extension FormValidator {
                         message: String = "Values do not match",
                         trigger: ValidationTrigger = .onSave,
                         errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition) { value, store in
+        FormValidator(trigger: trigger, errorPosition: errorPosition, validateWithStore: { value, store in
             guard value != store[rowId] else { return nil }
             return message
-        }
+        })
     }
 }

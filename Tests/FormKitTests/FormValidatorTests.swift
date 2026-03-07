@@ -9,35 +9,35 @@ struct FormValidatorTests {
     @Test("required — nil fails")
     func requiredNilFails() {
         let v = FormValidator.required()
-        #expect(v.validate(nil) != nil)
+        #expect(v.validate(nil, FormValueStore()) != nil)
     }
 
     @Test("required — .null fails")
     func requiredNullFails() {
         let v = FormValidator.required()
-        #expect(v.validate(.null) != nil)
+        #expect(v.validate(.null, FormValueStore()) != nil)
     }
 
     @Test("required — empty string fails")
     func requiredEmptyStringFails() {
         let v = FormValidator.required()
-        #expect(v.validate(.string("")) != nil)
-        #expect(v.validate(.string("   ")) != nil)
+        #expect(v.validate(.string(""), FormValueStore()) != nil)
+        #expect(v.validate(.string("   "), FormValueStore()) != nil)
     }
 
     @Test("required — empty array fails")
     func requiredEmptyArrayFails() {
         let v = FormValidator.required()
-        #expect(v.validate(.array([])) != nil)
+        #expect(v.validate(.array([]), FormValueStore()) != nil)
     }
 
     @Test("required — valid values pass")
     func requiredValidPass() {
         let v = FormValidator.required()
-        #expect(v.validate(.string("hello")) == nil)
-        #expect(v.validate(.int(0)) == nil)
-        #expect(v.validate(.bool(false)) == nil)
-        #expect(v.validate(.array([.string("one")])) == nil)
+        #expect(v.validate(.string("hello"), FormValueStore()) == nil)
+        #expect(v.validate(.int(0), FormValueStore()) == nil)
+        #expect(v.validate(.bool(false), FormValueStore()) == nil)
+        #expect(v.validate(.array([.string("one")]), FormValueStore()) == nil)
     }
 
     // MARK: - Email
@@ -45,23 +45,23 @@ struct FormValidatorTests {
     @Test("email — valid addresses pass")
     func emailValid() {
         let v = FormValidator.email()
-        #expect(v.validate(.string("user@example.com")) == nil)
-        #expect(v.validate(.string("user+tag@sub.domain.org")) == nil)
+        #expect(v.validate(.string("user@example.com"), FormValueStore()) == nil)
+        #expect(v.validate(.string("user+tag@sub.domain.org"), FormValueStore()) == nil)
     }
 
     @Test("email — invalid addresses fail")
     func emailInvalid() {
         let v = FormValidator.email()
-        #expect(v.validate(.string("notanemail")) != nil)
-        #expect(v.validate(.string("missing@tld")) != nil)
-        #expect(v.validate(.string("@nodomain.com")) != nil)
+        #expect(v.validate(.string("notanemail"), FormValueStore()) != nil)
+        #expect(v.validate(.string("missing@tld"), FormValueStore()) != nil)
+        #expect(v.validate(.string("@nodomain.com"), FormValueStore()) != nil)
     }
 
     @Test("email — empty string passes (not responsible for required)")
     func emailEmptyPasses() {
         let v = FormValidator.email()
-        #expect(v.validate(.string("")) == nil)
-        #expect(v.validate(nil) == nil)
+        #expect(v.validate(.string(""), FormValueStore()) == nil)
+        #expect(v.validate(nil, FormValueStore()) == nil)
     }
 
     // MARK: - minLength
@@ -69,10 +69,10 @@ struct FormValidatorTests {
     @Test("minLength")
     func minLength() {
         let v = FormValidator.minLength(5)
-        #expect(v.validate(.string("hi")) != nil)
-        #expect(v.validate(.string("hello")) == nil)
-        #expect(v.validate(.string("longer")) == nil)
-        #expect(v.validate(nil) == nil) // nil is not a string — not our responsibility
+        #expect(v.validate(.string("hi"), FormValueStore()) != nil)
+        #expect(v.validate(.string("hello"), FormValueStore()) == nil)
+        #expect(v.validate(.string("longer"), FormValueStore()) == nil)
+        #expect(v.validate(nil, FormValueStore()) == nil) // nil is not a string — not our responsibility
     }
 
     // MARK: - maxLength
@@ -80,9 +80,9 @@ struct FormValidatorTests {
     @Test("maxLength")
     func maxLength() {
         let v = FormValidator.maxLength(5)
-        #expect(v.validate(.string("toolong")) != nil)
-        #expect(v.validate(.string("hi")) == nil)
-        #expect(v.validate(.string("hello")) == nil)
+        #expect(v.validate(.string("toolong"), FormValueStore()) != nil)
+        #expect(v.validate(.string("hi"), FormValueStore()) == nil)
+        #expect(v.validate(.string("hello"), FormValueStore()) == nil)
     }
 
     // MARK: - range (Double)
@@ -90,12 +90,12 @@ struct FormValidatorTests {
     @Test("range Double")
     func rangeDouble() {
         let v = FormValidator.range(1.0 ... 10.0)
-        #expect(v.validate(.double(5.0)) == nil)
-        #expect(v.validate(.double(1.0)) == nil)
-        #expect(v.validate(.double(10.0)) == nil)
-        #expect(v.validate(.double(0.9)) != nil)
-        #expect(v.validate(.double(10.1)) != nil)
-        #expect(v.validate(.int(5)) == nil) // Int coerced to Double
+        #expect(v.validate(.double(5.0), FormValueStore()) == nil)
+        #expect(v.validate(.double(1.0), FormValueStore()) == nil)
+        #expect(v.validate(.double(10.0), FormValueStore()) == nil)
+        #expect(v.validate(.double(0.9), FormValueStore()) != nil)
+        #expect(v.validate(.double(10.1), FormValueStore()) != nil)
+        #expect(v.validate(.int(5), FormValueStore()) == nil) // Int coerced to Double
     }
 
     // MARK: - range (Int)
@@ -103,10 +103,10 @@ struct FormValidatorTests {
     @Test("range Int")
     func rangeInt() {
         let v = FormValidator.range(1 ... 10)
-        #expect(v.validate(.int(5)) == nil)
-        #expect(v.validate(.int(1)) == nil)
-        #expect(v.validate(.int(11)) != nil)
-        #expect(v.validate(.string("5")) == nil) // non-int passes (not validated)
+        #expect(v.validate(.int(5), FormValueStore()) == nil)
+        #expect(v.validate(.int(1), FormValueStore()) == nil)
+        #expect(v.validate(.int(11), FormValueStore()) != nil)
+        #expect(v.validate(.string("5"), FormValueStore()) == nil) // non-int passes (not validated)
     }
 
     // MARK: - regex
@@ -114,10 +114,10 @@ struct FormValidatorTests {
     @Test("regex matching")
     func regexMatch() {
         let v = FormValidator.regex("^[0-9]{4}$", message: "Must be 4 digits")
-        #expect(v.validate(.string("1234")) == nil)
-        #expect(v.validate(.string("12345")) != nil)
-        #expect(v.validate(.string("abcd")) != nil)
-        #expect(v.validate(nil) == nil) // not a string — pass
+        #expect(v.validate(.string("1234"), FormValueStore()) == nil)
+        #expect(v.validate(.string("12345"), FormValueStore()) != nil)
+        #expect(v.validate(.string("abcd"), FormValueStore()) != nil)
+        #expect(v.validate(nil, FormValueStore()) == nil) // not a string — pass
     }
 
     // MARK: - custom
@@ -128,9 +128,9 @@ struct FormValidatorTests {
             guard let value, case let .int(i) = value else { return true }
             return i > 0
         }
-        #expect(v.validate(.int(5)) == nil)
-        #expect(v.validate(.int(-1)) != nil)
-        #expect(v.validate(nil) == nil)
+        #expect(v.validate(.int(5), FormValueStore()) == nil)
+        #expect(v.validate(.int(-1), FormValueStore()) != nil)
+        #expect(v.validate(nil, FormValueStore()) == nil)
     }
 
     // MARK: - Trigger
@@ -164,38 +164,38 @@ struct FormValidatorTests {
     @Test("double — valid decimal strings pass")
     func doubleValidStringsPass() {
         let v = FormValidator.double()
-        #expect(v.validate(.string("37.7833")) == nil)
-        #expect(v.validate(.string("-122.4167")) == nil)
-        #expect(v.validate(.string("0")) == nil)
-        #expect(v.validate(.string("1e5")) == nil)
+        #expect(v.validate(.string("37.7833"), FormValueStore()) == nil)
+        #expect(v.validate(.string("-122.4167"), FormValueStore()) == nil)
+        #expect(v.validate(.string("0"), FormValueStore()) == nil)
+        #expect(v.validate(.string("1e5"), FormValueStore()) == nil)
     }
 
     @Test("double — invalid strings fail")
     func doubleInvalidStringsFail() {
         let v = FormValidator.double()
-        #expect(v.validate(.string("abc")) != nil)
-        #expect(v.validate(.string("12.34.56")) != nil)
-        #expect(v.validate(.string("--1")) != nil)
+        #expect(v.validate(.string("abc"), FormValueStore()) != nil)
+        #expect(v.validate(.string("12.34.56"), FormValueStore()) != nil)
+        #expect(v.validate(.string("--1"), FormValueStore()) != nil)
     }
 
     @Test("double — empty string passes (not responsible for required)")
     func doubleEmptyStringPasses() {
         let v = FormValidator.double()
-        #expect(v.validate(.string("")) == nil)
-        #expect(v.validate(nil) == nil)
+        #expect(v.validate(.string(""), FormValueStore()) == nil)
+        #expect(v.validate(nil, FormValueStore()) == nil)
     }
 
     @Test("double — non-string values pass through")
     func doubleNonStringPasses() {
         let v = FormValidator.double()
-        #expect(v.validate(.int(5)) == nil)
-        #expect(v.validate(.bool(true)) == nil)
+        #expect(v.validate(.int(5), FormValueStore()) == nil)
+        #expect(v.validate(.bool(true), FormValueStore()) == nil)
     }
 
     @Test("double — custom message returned on failure")
     func doubleCustomMessage() {
         let v = FormValidator.double(message: "Bad number")
-        #expect(v.validate(.string("nope")) == "Bad number")
+        #expect(v.validate(.string("nope"), FormValueStore()) == "Bad number")
     }
 
     // MARK: - ipv4
@@ -203,40 +203,40 @@ struct FormValidatorTests {
     @Test("ipv4 — valid addresses pass")
     func ipv4ValidAddressesPass() {
         let v = FormValidator.ipv4()
-        #expect(v.validate(.string("192.168.1.1")) == nil)
-        #expect(v.validate(.string("0.0.0.0")) == nil)
-        #expect(v.validate(.string("255.255.255.255")) == nil)
-        #expect(v.validate(.string("128.218.229.26")) == nil)
+        #expect(v.validate(.string("192.168.1.1"), FormValueStore()) == nil)
+        #expect(v.validate(.string("0.0.0.0"), FormValueStore()) == nil)
+        #expect(v.validate(.string("255.255.255.255"), FormValueStore()) == nil)
+        #expect(v.validate(.string("128.218.229.26"), FormValueStore()) == nil)
     }
 
     @Test("ipv4 — invalid format fails")
     func ipv4InvalidFormatFails() {
         let v = FormValidator.ipv4()
-        #expect(v.validate(.string("999.999.999.999")) != nil) // octets out of range
-        #expect(v.validate(.string("192.168.1")) != nil) // only 3 octets
-        #expect(v.validate(.string("192.168.1.1.1")) != nil) // 5 octets
-        #expect(v.validate(.string("abc.def.ghi.jkl")) != nil) // non-numeric
-        #expect(v.validate(.string("192.168.1.256")) != nil) // octet > 255
+        #expect(v.validate(.string("999.999.999.999"), FormValueStore()) != nil) // octets out of range
+        #expect(v.validate(.string("192.168.1"), FormValueStore()) != nil) // only 3 octets
+        #expect(v.validate(.string("192.168.1.1.1"), FormValueStore()) != nil) // 5 octets
+        #expect(v.validate(.string("abc.def.ghi.jkl"), FormValueStore()) != nil) // non-numeric
+        #expect(v.validate(.string("192.168.1.256"), FormValueStore()) != nil) // octet > 255
     }
 
     @Test("ipv4 — empty string passes (not responsible for required)")
     func ipv4EmptyStringPasses() {
         let v = FormValidator.ipv4()
-        #expect(v.validate(.string("")) == nil)
-        #expect(v.validate(nil) == nil)
+        #expect(v.validate(.string(""), FormValueStore()) == nil)
+        #expect(v.validate(nil, FormValueStore()) == nil)
     }
 
     @Test("ipv4 — non-string values pass through")
     func ipv4NonStringPasses() {
         let v = FormValidator.ipv4()
-        #expect(v.validate(.int(42)) == nil)
-        #expect(v.validate(.bool(false)) == nil)
+        #expect(v.validate(.int(42), FormValueStore()) == nil)
+        #expect(v.validate(.bool(false), FormValueStore()) == nil)
     }
 
     @Test("ipv4 — custom message returned on failure")
     func ipv4CustomMessage() {
         let v = FormValidator.ipv4(message: "Bad IP")
-        #expect(v.validate(.string("notanip")) == "Bad IP")
+        #expect(v.validate(.string("notanip"), FormValueStore()) == "Bad IP")
     }
 
     // MARK: - date
@@ -244,71 +244,71 @@ struct FormValidatorTests {
     @Test("date — valid date string passes (raw mask format MMddyyyy)")
     func dateRawMaskFormatPasses() {
         let v = FormValidator.date(format: "MMddyyyy")
-        #expect(v.validate(.string("12252026")) == nil)
-        #expect(v.validate(.string("01012000")) == nil)
+        #expect(v.validate(.string("12252026"), FormValueStore()) == nil)
+        #expect(v.validate(.string("01012000"), FormValueStore()) == nil)
     }
 
     @Test("date — valid date string passes (pre-formatted MM/dd/yyyy)")
     func datePreformattedPasses() {
         let v = FormValidator.date(format: "MM/dd/yyyy")
-        #expect(v.validate(.string("12/25/2026")) == nil)
-        #expect(v.validate(.string("01/01/2000")) == nil)
+        #expect(v.validate(.string("12/25/2026"), FormValueStore()) == nil)
+        #expect(v.validate(.string("01/01/2000"), FormValueStore()) == nil)
     }
 
     @Test("date — invalid date fails (month 13)")
     func dateInvalidMonthFails() {
         let v = FormValidator.date(format: "MMddyyyy")
-        #expect(v.validate(.string("13012026")) != nil)
+        #expect(v.validate(.string("13012026"), FormValueStore()) != nil)
     }
 
     @Test("date — invalid date fails (day 32)")
     func dateInvalidDayFails() {
         let v = FormValidator.date(format: "MMddyyyy")
-        #expect(v.validate(.string("01322026")) != nil)
+        #expect(v.validate(.string("01322026"), FormValueStore()) != nil)
     }
 
     @Test("date — non-calendar date fails (Feb 30)")
     func dateNonCalendarDateFails() {
         let v = FormValidator.date(format: "MMddyyyy")
-        #expect(v.validate(.string("02302026")) != nil)
+        #expect(v.validate(.string("02302026"), FormValueStore()) != nil)
     }
 
     @Test("date — non-numeric string fails")
     func dateNonNumericFails() {
         let v = FormValidator.date(format: "MMddyyyy")
-        #expect(v.validate(.string("abcdefgh")) != nil)
+        #expect(v.validate(.string("abcdefgh"), FormValueStore()) != nil)
     }
 
     @Test("date — empty string passes (not responsible for required)")
     func dateEmptyStringPasses() {
         let v = FormValidator.date(format: "MMddyyyy")
-        #expect(v.validate(.string("")) == nil)
-        #expect(v.validate(nil) == nil)
+        #expect(v.validate(.string(""), FormValueStore()) == nil)
+        #expect(v.validate(nil, FormValueStore()) == nil)
     }
 
     @Test("date — non-string values pass through")
     func dateNonStringPasses() {
         let v = FormValidator.date(format: "MMddyyyy")
-        #expect(v.validate(.int(12252026)) == nil)
-        #expect(v.validate(.bool(true)) == nil)
+        #expect(v.validate(.int(12252026), FormValueStore()) == nil)
+        #expect(v.validate(.bool(true), FormValueStore()) == nil)
     }
 
     @Test("date — .date(Date) is always valid (typed date needs no parsing)")
     func dateCaseAlwaysPasses() {
         let v = FormValidator.date()
-        #expect(v.validate(.date(Date())) == nil)
+        #expect(v.validate(.date(Date()), FormValueStore()) == nil)
     }
 
     @Test("date — no format and string value passes through (not responsible for parsing)")
     func dateNoFormatStringPassesThrough() {
         let v = FormValidator.date()
-        #expect(v.validate(.string("anything")) == nil)
+        #expect(v.validate(.string("anything"), FormValueStore()) == nil)
     }
 
     @Test("date — custom message returned on failure")
     func dateCustomMessage() {
         let v = FormValidator.date(format: "MMddyyyy", message: "Enter a real date")
-        #expect(v.validate(.string("99999999")) == "Enter a real date")
+        #expect(v.validate(.string("99999999"), FormValueStore()) == "Enter a real date")
     }
 
     @Test("date — trigger is preserved")
@@ -322,7 +322,7 @@ struct FormValidatorTests {
     @Test("custom error messages are returned")
     func customErrorMessages() {
         let v = FormValidator.required(message: "Please fill this in")
-        #expect(v.validate(nil) == "Please fill this in")
+        #expect(v.validate(nil, FormValueStore()) == "Please fill this in")
     }
 
     // MARK: - url
@@ -330,33 +330,33 @@ struct FormValidatorTests {
     @Test(".url passes for empty value")
     func urlPassesForEmpty() {
         let v = FormValidator.url()
-        #expect(v.validate(nil) == nil)
-        #expect(v.validate(.string("")) == nil)
+        #expect(v.validate(nil, FormValueStore()) == nil)
+        #expect(v.validate(.string(""), FormValueStore()) == nil)
     }
 
     @Test(".url passes for valid https URL")
     func urlPassesForValidURL() {
         let v = FormValidator.url()
-        #expect(v.validate(.string("https://example.com")) == nil)
+        #expect(v.validate(.string("https://example.com"), FormValueStore()) == nil)
     }
 
     @Test(".url passes for valid http URL")
     func urlPassesForHTTP() {
         let v = FormValidator.url()
-        #expect(v.validate(.string("http://192.168.1.1:8080/api")) == nil)
+        #expect(v.validate(.string("http://192.168.1.1:8080/api"), FormValueStore()) == nil)
     }
 
     @Test(".url fails for bare string with no scheme")
     func urlFailsForNoScheme() {
         let v = FormValidator.url()
-        #expect(v.validate(.string("not a url")) != nil)
+        #expect(v.validate(.string("not a url"), FormValueStore()) != nil)
     }
 
     @Test(".url fails for non-string value")
     func urlPassesForNonString() {
         let v = FormValidator.url()
         // non-string values are not URLs but the validator only checks strings
-        #expect(v.validate(.int(42)) == nil)
+        #expect(v.validate(.int(42), FormValueStore()) == nil)
     }
 
     // MARK: - integer
@@ -364,28 +364,28 @@ struct FormValidatorTests {
     @Test(".integer passes for empty value")
     func integerPassesForEmpty() {
         let v = FormValidator.integer()
-        #expect(v.validate(nil) == nil)
-        #expect(v.validate(.string("")) == nil)
+        #expect(v.validate(nil, FormValueStore()) == nil)
+        #expect(v.validate(.string(""), FormValueStore()) == nil)
     }
 
     @Test(".integer passes for valid integer string")
     func integerPassesForValidInt() {
         let v = FormValidator.integer()
-        #expect(v.validate(.string("42")) == nil)
-        #expect(v.validate(.string("-7")) == nil)
-        #expect(v.validate(.string("0")) == nil)
+        #expect(v.validate(.string("42"), FormValueStore()) == nil)
+        #expect(v.validate(.string("-7"), FormValueStore()) == nil)
+        #expect(v.validate(.string("0"), FormValueStore()) == nil)
     }
 
     @Test(".integer fails for decimal string")
     func integerFailsForDecimal() {
         let v = FormValidator.integer()
-        #expect(v.validate(.string("3.14")) != nil)
+        #expect(v.validate(.string("3.14"), FormValueStore()) != nil)
     }
 
     @Test(".integer fails for non-numeric string")
     func integerFailsForNonNumeric() {
         let v = FormValidator.integer()
-        #expect(v.validate(.string("abc")) != nil)
+        #expect(v.validate(.string("abc"), FormValueStore()) != nil)
     }
 
     // MARK: - matches
@@ -395,7 +395,7 @@ struct FormValidatorTests {
         let v = FormValidator.matches(rowId: "password")
         var store = FormValueStore()
         store["password"] = .string("secret")
-        #expect(v.validateWithStore?(.string("secret"), store) == nil)
+        #expect(v.validate(.string("secret"), store) == nil)
     }
 
     @Test(".matches fails when values differ")
@@ -403,21 +403,14 @@ struct FormValidatorTests {
         let v = FormValidator.matches(rowId: "password")
         var store = FormValueStore()
         store["password"] = .string("secret")
-        #expect(v.validateWithStore?(.string("wrong"), store) != nil)
+        #expect(v.validate(.string("wrong"), store) != nil)
     }
 
     @Test(".matches passes when both values are nil")
     func matchesPassesWhenBothNil() {
         let v = FormValidator.matches(rowId: "password")
         let store = FormValueStore()
-        #expect(v.validateWithStore?(nil, store) == nil)
-    }
-
-    @Test(".matches uses store-aware init — validate closure returns nil")
-    func matchesBaseValidateReturnsNil() {
-        let v = FormValidator.matches(rowId: "password")
-        // The base `validate` closure is unused for store-aware validators.
-        #expect(v.validate(.string("anything")) == nil)
+        #expect(v.validate(nil, store) == nil)
     }
 
     @Test(".matches RawRepresentable overload resolves rowId correctly")
@@ -426,7 +419,7 @@ struct FormValidatorTests {
         let v = FormValidator.matches(rowId: RowID.password)
         var store = FormValueStore()
         store["password"] = .string("abc")
-        #expect(v.validateWithStore?(.string("abc"), store) == nil)
-        #expect(v.validateWithStore?(.string("xyz"), store) != nil)
+        #expect(v.validate(.string("abc"), store) == nil)
+        #expect(v.validate(.string("xyz"), store) != nil)
     }
 }
