@@ -436,4 +436,97 @@ struct FormValidatorTests {
         #expect(v.validate(.string("abc"), store) == nil)
         #expect(v.validate(.string("xyz"), store) != nil)
     }
+
+    // MARK: - SelectionValidator
+
+    @Test("SelectionValidator.required always uses .onSave trigger")
+    func selectionValidatorRequiredTriggerIsOnSave() {
+        let v = SelectionValidator.required()
+        #expect(v.asFormValidator.trigger == .onSave)
+    }
+
+    @Test("SelectionValidator.notEmpty always uses .onSave trigger")
+    func selectionValidatorNotEmptyTriggerIsOnSave() {
+        let v = SelectionValidator.notEmpty()
+        #expect(v.asFormValidator.trigger == .onSave)
+    }
+
+    @Test("SelectionValidator.custom always uses .onSave trigger")
+    func selectionValidatorCustomTriggerIsOnSave() {
+        let v = SelectionValidator.custom(message: "Nope") { _ in false }
+        #expect(v.asFormValidator.trigger == .onSave)
+    }
+
+    @Test("SelectionValidator.required fires on nil value")
+    func selectionValidatorRequiredFailsOnNil() {
+        let v = SelectionValidator.required()
+        #expect(v.asFormValidator.validate(nil, FormValueStore()) != nil)
+    }
+
+    @Test("SelectionValidator.required passes on non-empty value")
+    func selectionValidatorRequiredPassesOnValue() {
+        let v = SelectionValidator.required()
+        #expect(v.asFormValidator.validate(.string("dev"), FormValueStore()) == nil)
+    }
+
+    @Test("SelectionValidator.notEmpty uses custom message")
+    func selectionValidatorNotEmptyCustomMessage() {
+        let v = SelectionValidator.notEmpty(message: "Pick one")
+        #expect(v.asFormValidator.validate(nil, FormValueStore()) == "Pick one")
+    }
+
+    @Test("SelectionValidator.custom uses provided predicate")
+    func selectionValidatorCustomPredicate() {
+        let v = SelectionValidator.custom(message: "Must be prod") { value in
+            guard case let .string(s) = value else { return false }
+            return s == "prod"
+        }
+        #expect(v.asFormValidator.validate(.string("prod"), FormValueStore()) == nil)
+        #expect(v.asFormValidator.validate(.string("dev"), FormValueStore()) != nil)
+    }
+
+    @Test("BooleanSwitchRow accepts [SelectionValidator] and converts to [FormValidator]")
+    func booleanSwitchRowAcceptsSelectionValidators() {
+        let row = BooleanSwitchRow(
+            id: "agree",
+            title: "I Agree",
+            validators: [.required(message: "You must agree")]
+        )
+        // The stored validators array should contain one FormValidator with .onSave trigger.
+        #expect(row.validators.count == 1)
+        #expect(row.validators[0].trigger == .onSave)
+        #expect(row.validators[0].validate(nil, FormValueStore()) == "You must agree")
+    }
+
+    @Test("SingleValueRow accepts [SelectionValidator] and converts to [FormValidator]")
+    func singleValueRowAcceptsSelectionValidators() {
+        enum Env: String, CaseIterable, CustomStringConvertible, Hashable, Sendable, Codable {
+            case dev, prod
+            var description: String { rawValue }
+        }
+        let row = SingleValueRow<Env>(
+            id: "env",
+            title: "Environment",
+            validators: [.notEmpty(message: "Select an environment")]
+        )
+        #expect(row.validators.count == 1)
+        #expect(row.validators[0].trigger == .onSave)
+        #expect(row.validators[0].validate(nil, FormValueStore()) == "Select an environment")
+    }
+
+    @Test("MultiValueRow accepts [SelectionValidator] and converts to [FormValidator]")
+    func multiValueRowAcceptsSelectionValidators() {
+        enum Tag: String, CaseIterable, CustomStringConvertible, Hashable, Sendable, Codable {
+            case swift, ui
+            var description: String { rawValue }
+        }
+        let row = MultiValueRow<Tag>(
+            id: "tags",
+            title: "Tags",
+            validators: [.required(message: "Pick at least one")]
+        )
+        #expect(row.validators.count == 1)
+        #expect(row.validators[0].trigger == .onSave)
+        #expect(row.validators[0].validate(.array([]), FormValueStore()) == "Pick at least one")
+    }
 }

@@ -32,12 +32,21 @@ public enum ValidationTrigger: Sendable, Equatable {
     case onSave
 
     /// Fires after the user pauses typing for the given number of seconds.
+    ///
+    /// > Note: Only meaningful on input rows (`TextInputRow`, `NumberInputRow`).
+    /// > Not applicable to selection rows — use `SelectionValidator` for those.
     case onDebouncedInput(seconds: Double)
 
     /// Fires immediately on every value change.
+    ///
+    /// > Note: Only meaningful on input rows (`TextInputRow`, `NumberInputRow`).
+    /// > Not applicable to selection rows — use `SelectionValidator` for those.
     case onChange
 
     /// Fires when the field loses focus (blurs).
+    ///
+    /// > Note: Only meaningful on input rows (`TextInputRow`, `NumberInputRow`).
+    /// > Not applicable to selection rows — use `SelectionValidator` for those.
     ///
     /// On iOS this fires when the keyboard dismisses or the user taps elsewhere.
     /// On tvOS this fires when remote navigation moves focus away from the field.
@@ -74,6 +83,55 @@ public enum ValidationTrigger: Sendable, Equatable {
     var debounceDuration: Double? {
         if case let .onDebouncedInput(seconds) = self { return seconds }
         return nil
+    }
+}
+
+// MARK: - SelectionValidator
+
+/// A validator for selection-based rows (`BooleanSwitchRow`, `SingleValueRow`, `MultiValueRow`).
+///
+/// Selection rows have no keyboard or focus events, so only `.onSave` validators are
+/// meaningful on them. `SelectionValidator` exposes a focused set of factory methods
+/// that omit the `trigger` parameter entirely — the trigger is always `.onSave`.
+///
+/// Pass a `[SelectionValidator]` to the `validators` parameter on any selection row.
+/// The row converts them to `[FormValidator]` internally, so `FormViewModel` is unchanged.
+///
+/// ```swift
+/// BooleanSwitchRow(id: "agree", title: "I agree",
+///     validators: [.required(message: "You must agree to continue")])
+///
+/// SingleValueRow<Plan>(id: "plan", title: "Plan",
+///     validators: [.notEmpty(message: "Please select a plan")])
+/// ```
+public struct SelectionValidator: Sendable {
+    /// The underlying `FormValidator` this wraps.
+    let asFormValidator: FormValidator
+
+    // MARK: Required
+
+    /// The row must have a non-null, non-empty value.
+    public static func required(message: String = "This field is required",
+                                errorPosition: ErrorPosition = .belowRow) -> SelectionValidator {
+        SelectionValidator(asFormValidator: .required(message: message, trigger: .onSave, errorPosition: errorPosition))
+    }
+
+    // MARK: Not Empty (alias)
+
+    /// Alias for `.required()` with clearer intent for selection rows.
+    public static func notEmpty(message: String = "A selection is required",
+                                errorPosition: ErrorPosition = .belowRow) -> SelectionValidator {
+        SelectionValidator(asFormValidator: .notEmpty(message: message, trigger: .onSave, errorPosition: errorPosition))
+    }
+
+    // MARK: Custom
+
+    /// A custom validator with a user-provided predicate.
+    /// The predicate should return `true` when the value is VALID.
+    public static func custom(message: String,
+                              errorPosition: ErrorPosition = .belowRow,
+                              isValid: @escaping @Sendable (AnyCodableValue?) -> Bool) -> SelectionValidator {
+        SelectionValidator(asFormValidator: .custom(message: message, trigger: .onSave, errorPosition: errorPosition, isValid: isValid))
     }
 }
 

@@ -315,14 +315,14 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
                 subtitle: String? = nil,
                 options: [T]? = nil,
                 defaultValue: T? = nil,
-                validators: [FormValidator] = [],
+                validators: [SelectionValidator] = [],
                 onChange: [FormRowAction] = []) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         self.options = options ?? Array(T.allCases)
         _defaultValue = defaultValue
-        self.validators = validators
+        self.validators = validators.map(\.asFormValidator)
         self.onChange = onChange
     }
 }
@@ -365,14 +365,14 @@ public struct MultiValueRow<T>: FormRow, MultiValueRowRepresentable
                 subtitle: String? = nil,
                 options: [T]? = nil,
                 defaultValue: Set<T> = [],
-                validators: [FormValidator] = [],
+                validators: [SelectionValidator] = [],
                 onChange: [FormRowAction] = []) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         self.options = options ?? Array(T.allCases)
         _defaultValue = defaultValue
-        self.validators = validators
+        self.validators = validators.map(\.asFormValidator)
         self.onChange = onChange
     }
 }
@@ -395,13 +395,13 @@ public struct BooleanSwitchRow: FormRow {
                 title: String,
                 subtitle: String? = nil,
                 defaultValue: Bool = false,
-                validators: [FormValidator] = [],
+                validators: [SelectionValidator] = [],
                 onChange: [FormRowAction] = []) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         _defaultValue = defaultValue
-        self.validators = validators
+        self.validators = validators.map(\.asFormValidator)
         self.onChange = onChange
     }
 }

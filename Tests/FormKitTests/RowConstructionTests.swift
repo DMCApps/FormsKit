@@ -294,7 +294,7 @@ struct SingleValueRowTests {
 
     @Test("SingleValueRow stores validators")
     func singleValueRowStoresValidators() {
-        let v = FormValidator { _ in nil }
+        let v = SelectionValidator.required()
         let row = SingleValueRow<Colour>(id: "colour", title: "Colour", validators: [v])
         #expect(row.validators.count == 1)
     }
@@ -436,7 +436,7 @@ struct MultiValueRowTests {
 
     @Test("MultiValueRow stores validators")
     func multiValueRowStoresValidators() {
-        let v = FormValidator { _ in nil }
+        let v = SelectionValidator.required()
         let row = MultiValueRow<Tag>(id: "tags", title: "Tags", validators: [v])
         #expect(row.validators.count == 1)
     }
@@ -543,7 +543,7 @@ struct BooleanSwitchRowTests {
 
     @Test("BooleanSwitchRow stores validators")
     func booleanSwitchRowStoresValidators() {
-        let v = FormValidator { _ in nil }
+        let v = SelectionValidator.required()
         let row = BooleanSwitchRow(id: "toggle", title: "Toggle", validators: [v])
         #expect(row.validators.count == 1)
     }

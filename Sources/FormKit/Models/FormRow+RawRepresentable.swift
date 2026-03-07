@@ -18,7 +18,7 @@ public extension SingleValueRow {
                                subtitle: String? = nil,
                                options: [T]? = nil,
                                defaultValue: T? = nil,
-                               validators: [FormValidator] = [],
+                               validators: [SelectionValidator] = [],
                                onChange: [FormRowAction] = []) where ID.RawValue == String {
         self.init(
             id: id.rawValue,
@@ -38,7 +38,7 @@ public extension MultiValueRow {
                                subtitle: String? = nil,
                                options: [T]? = nil,
                                defaultValue: Set<T> = [],
-                               validators: [FormValidator] = [],
+                               validators: [SelectionValidator] = [],
                                onChange: [FormRowAction] = []) where ID.RawValue == String {
         self.init(
             id: id.rawValue,
@@ -57,7 +57,7 @@ public extension BooleanSwitchRow {
                                title: String,
                                subtitle: String? = nil,
                                defaultValue: Bool = false,
-                               validators: [FormValidator] = [],
+                               validators: [SelectionValidator] = [],
                                onChange: [FormRowAction] = []) where ID.RawValue == String {
         self.init(
             id: id.rawValue,
