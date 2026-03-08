@@ -28,6 +28,8 @@ struct TextInputRowView: View {
     let row: TextInputRow
     @Bindable var viewModel: FormViewModel
     @FocusState private var isFocused: Bool
+    /// Tracks whether a secure field is currently revealed via the eye toggle.
+    @State private var isRevealed = false
 
     private var text: String {
         if let mask = row.mask,
@@ -110,9 +112,32 @@ struct TextInputRowView: View {
                 set: { viewModel.setString($0, for: row.id) }
             )
             if row.isSecure {
-                SecureField(row.placeholder ?? "", text: binding)
-                    .focused($isFocused)
-                    .accessibilityIdentifier("formkit.field.\(row.id)")
+                HStack(spacing: 8) {
+                    if isRevealed {
+                        TextField(row.placeholder ?? "", text: binding)
+                            .focused($isFocused)
+                            .textContentType(.none)
+                            .autocorrectionDisabled()
+                            .accessibilityIdentifier("formkit.field.\(row.id)")
+#if os(iOS)
+                            .textInputAutocapitalization(.never)
+#endif
+                    } else {
+                        SecureField(row.placeholder ?? "", text: binding)
+                            .focused($isFocused)
+                            .accessibilityIdentifier("formkit.field.\(row.id)")
+                    }
+                    if row.showSecureToggle {
+                        Button {
+                            isRevealed.toggle()
+                        } label: {
+                            Image(systemName: isRevealed ? "eye.slash" : "eye")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(isRevealed ? "Hide password" : "Show password")
+                    }
+                }
             } else {
                 TextField(row.placeholder ?? "", text: binding)
                     .focused($isFocused)

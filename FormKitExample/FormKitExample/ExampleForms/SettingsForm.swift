@@ -27,7 +27,10 @@ enum SettingsForm {
             id: "theme",
             title: "App Theme",
             subtitle: "Choose your preferred colour scheme",
-            defaultValue: .system
+            defaultValue: .system,
+            onChange: [
+                .showRow(id: "fontSize", when: [.notEquals(rowId: "theme", value: .string(AppTheme.system.description))])
+            ]
         )
 
         // Free text for display name with required + minLength validators.
@@ -39,6 +42,9 @@ enum SettingsForm {
                 .required(),
                 .minLength(2),
                 .maxLength(50)
+            ],
+            onChange: [
+                .showRow(id: "pin", when: [.isNotEmpty(rowId: "displayName")])
             ]
         )
 
@@ -46,8 +52,8 @@ enum SettingsForm {
         TextInputRow(
             id: "contactEmail",
             title: "Contact Email",
-            placeholder: "email@example.com",
             keyboardType: .emailAddress,
+            placeholder: "email@example.com",
             validators: [.email(trigger: .onChangeDebounced(seconds: 0.8))]
         )
 
@@ -55,15 +61,17 @@ enum SettingsForm {
         BooleanSwitchRow(
             id: "notifications",
             title: "Enable Notifications",
-            defaultValue: true
+            defaultValue: true,
+            onChange: [
+                .showRow(id: "notificationCategories", when: [.isTrue(rowId: "notifications")])
+            ]
         )
 
         // Multi-value selection — only visible when notifications are enabled.
         MultiValueRow<NotificationCategory>(
             id: "notificationCategories",
             title: "Notification Categories",
-            subtitle: "Select which categories to receive",
-            conditions: [.isTrue(rowId: "notifications")]
+            subtitle: "Select which categories to receive"
         )
 
         // Number input for font size — only visible when theme is NOT system default.
@@ -72,9 +80,6 @@ enum SettingsForm {
             title: "Font Size",
             placeholder: "16",
             kind: .int(defaultValue: 16),
-            conditions: [
-                .notEquals(rowId: "theme", value: .string(AppTheme.system.description))
-            ],
             validators: [.range(10 ... 32)]
         )
 
@@ -82,9 +87,8 @@ enum SettingsForm {
         TextInputRow(
             id: "pin",
             title: "Account PIN",
-            placeholder: "4-digit PIN",
             isSecure: true,
-            conditions: [.isNotEmpty(rowId: "displayName")],
+            placeholder: "4-digit PIN",
             validators: [
                 .regex("^[0-9]{4}$", message: "PIN must be exactly 4 digits", trigger: .onSave)
             ]

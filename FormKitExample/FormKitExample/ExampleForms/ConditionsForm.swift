@@ -47,7 +47,7 @@ enum ConditionsForm {
                 defaultValue: .active,
                 onChange: [
                     .showRow(id: "activeNote", when: [.equals(rowId: "statusPicker", string: "Active")]),
-                    .showRow(id: "inactiveNote", when: [.notEquals(rowId: "statusPicker", string: "Active")])
+                    .showRow(id: "inactiveNote", when: [.notEquals(rowId: "statusPicker", value: .string("Active"))])
                 ]
             )
 

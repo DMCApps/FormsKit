@@ -39,8 +39,8 @@ enum ErrorPositionsForm {
                         id: "field2",
                         title: "Email field",
                         subtitle: "Enter an invalid email and tap Save",
-                        placeholder: "you@example.com",
                         keyboardType: .emailAddress,
+                        placeholder: "you@example.com",
                         validators: [.email(errorPosition: .belowRow)]
                     )
                 }
@@ -71,8 +71,8 @@ enum ErrorPositionsForm {
                         id: "field2",
                         title: "Email field",
                         subtitle: "Enter an invalid email and tap Save",
-                        placeholder: "you@example.com",
                         keyboardType: .emailAddress,
+                        placeholder: "you@example.com",
                         validators: [.email(errorPosition: .formTop)]
                     )
                 }
@@ -103,8 +103,8 @@ enum ErrorPositionsForm {
                         id: "field2",
                         title: "Email field",
                         subtitle: "Enter an invalid email and tap Save",
-                        placeholder: "you@example.com",
                         keyboardType: .emailAddress,
+                        placeholder: "you@example.com",
                         validators: [.email(errorPosition: .formBottom)]
                     )
                 }
@@ -135,8 +135,8 @@ enum ErrorPositionsForm {
                         id: "field2",
                         title: "Email field",
                         subtitle: "Enter an invalid email and tap Save",
-                        placeholder: "you@example.com",
                         keyboardType: .emailAddress,
+                        placeholder: "you@example.com",
                         validators: [.email(errorPosition: .alert)]
                     )
                 }

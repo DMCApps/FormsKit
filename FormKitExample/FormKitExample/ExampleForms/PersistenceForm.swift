@@ -52,7 +52,7 @@ enum PersistenceForm {
                     InfoRow(id: "hint2", title: "Behaviour") { "Values are JSON-encoded and stored in UserDefaults. They survive app restarts." }
 
                     TextInputRow(id: "username", title: "Username", placeholder: "Enter a username")
-                    TextInputRow(id: "serverUrl", title: "Server URL", placeholder: "https://api.example.com", keyboardType: .url)
+                    TextInputRow(id: "serverUrl", title: "Server URL", keyboardType: .url, placeholder: "https://api.example.com")
                     BooleanSwitchRow(id: "analyticsEnabled", title: "Analytics enabled", defaultValue: true)
                     SingleValueRow<LogLevel>(id: "logLevel", title: "Log level", defaultValue: .warning)
                 }
@@ -74,7 +74,7 @@ enum PersistenceForm {
                     InfoRow(id: "hint2", title: "Location") { "<Application Support>/FormKit/" }
                     InfoRow(id: "hint3", title: "Behaviour") { "Values are JSON-encoded and written to a file. They survive app restarts." }
 
-                    TextInputRow(id: "token", title: "API Token", placeholder: "Enter a token", isSecure: true)
+                    TextInputRow(id: "token", title: "API Token", isSecure: true, placeholder: "Enter a token")
                     TextInputRow(id: "environment", title: "Environment", placeholder: "e.g. staging")
                     NumberInputRow(id: "timeout", title: "Timeout (s)", placeholder: "30", kind: .int(defaultValue: 30))
                     BooleanSwitchRow(id: "verbose", title: "Verbose logging")

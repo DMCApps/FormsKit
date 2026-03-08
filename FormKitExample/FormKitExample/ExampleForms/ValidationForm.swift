@@ -60,8 +60,8 @@ enum ValidationForm {
                 id: "emailText",
                 title: "email()",
                 subtitle: "Must be a valid email address",
-                placeholder: "you@example.com",
                 keyboardType: .emailAddress,
+                placeholder: "you@example.com",
                 validators: [.email()]
             )
 
@@ -93,8 +93,8 @@ enum ValidationForm {
                 id: "urlText",
                 title: "url()",
                 subtitle: "Must be a valid URL",
-                placeholder: "https://example.com",
                 keyboardType: .url,
+                placeholder: "https://example.com",
                 validators: [.url()]
             )
 
@@ -160,16 +160,16 @@ enum ValidationForm {
                 id: "password",
                 title: "Password",
                 subtitle: "Enter a password",
-                placeholder: "••••••••",
-                isSecure: true
+                isSecure: true,
+                placeholder: "••••••••"
             )
 
             TextInputRow(
                 id: "confirmPassword",
                 title: "matches(rowId:)",
                 subtitle: "Must match the Password field above",
-                placeholder: "Repeat password",
                 isSecure: true,
+                placeholder: "Repeat password",
                 validators: [.matches(rowId: "password", message: "Passwords do not match")]
             )
         }

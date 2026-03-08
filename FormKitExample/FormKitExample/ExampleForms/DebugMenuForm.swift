@@ -7,7 +7,7 @@ enum DebugEnvironment: String, CaseIterable, CustomStringConvertible, Hashable, 
     var description: String { rawValue.capitalized }
 }
 
-enum LogLevel: String, CaseIterable, CustomStringConvertible, Hashable, Sendable, Codable {
+private enum LogLevel: String, CaseIterable, CustomStringConvertible, Hashable, Sendable, Codable {
     case verbose, debug, info, warning, error
     var description: String { rawValue.capitalized }
 }
@@ -27,8 +27,8 @@ enum DebugMenuForm {
         TextInputRow(
             id: "baseURL",
             title: "API Base URL",
-            placeholder: "https://api.example.com",
             defaultValue: "https://api.dev.example.com",
+            placeholder: "https://api.example.com",
             validators: [
                 .regex("^https?://", message: "Must start with http:// or https://", trigger: .onSave)
             ]
@@ -76,7 +76,10 @@ enum DebugMenuForm {
         BooleanSwitchRow(
             id: "mockAPI",
             title: "Use Mock API",
-            defaultValue: false
+            defaultValue: false,
+            onChange: [
+                .showRow(id: "mockDelay", when: [.isTrue(rowId: "mockAPI")])
+            ]
         )
 
         // Mock delay slider — only visible when mock API is enabled.
@@ -85,7 +88,6 @@ enum DebugMenuForm {
             title: "Mock API Delay (ms)",
             placeholder: "200",
             kind: .int(defaultValue: 200),
-            conditions: [.isTrue(rowId: "mockAPI")],
             validators: [.range(0 ... 5000)]
         )
     }
@@ -101,38 +103,42 @@ enum DebugMenuForm {
         SingleValueRow<DebugEnvironment>(
             id: "environment",
             title: "Environment",
-            defaultValue: .dev
+            defaultValue: .dev,
+            onChange: [
+                .showRow(id: "logLevel", when: [
+                    .or([
+                        .equals(rowId: "environment", string: DebugEnvironment.dev.description),
+                        .equals(rowId: "environment", string: DebugEnvironment.staging.description)
+                    ])
+                ]),
+                .showRow(id: "verboseLogging", when: [
+                    .equals(rowId: "environment", string: DebugEnvironment.dev.description)
+                ]),
+                .showRow(id: "crashMessage", when: [
+                    .notEquals(rowId: "environment", value: .string(DebugEnvironment.prod.description))
+                ])
+            ]
         )
 
         // Log level — only shown in dev/staging.
         SingleValueRow<LogLevel>(
             id: "logLevel",
             title: "Log Level",
-            defaultValue: .debug,
-            conditions: [
-                .or([
-                    .equals(rowId: "environment", string: DebugEnvironment.dev.description),
-                    .equals(rowId: "environment", string: DebugEnvironment.staging.description)
-                ])
-            ]
+            defaultValue: .debug
         )
 
         // Verbose logging toggle — only in dev.
         BooleanSwitchRow(
             id: "verboseLogging",
             title: "Verbose Logging",
-            defaultValue: true,
-            conditions: [.equals(rowId: "environment", string: DebugEnvironment.dev.description)]
+            defaultValue: true
         )
 
         // Force-crash button stub (text input as crash message) — hidden in prod.
         TextInputRow(
             id: "crashMessage",
             title: "Force Crash Message",
-            placeholder: "Test crash message",
-            conditions: [
-                .notEquals(rowId: "environment", value: .string(DebugEnvironment.prod.description))
-            ]
+            placeholder: "Test crash message"
         )
 
         // Sub-form navigation rows.

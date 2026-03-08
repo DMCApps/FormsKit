@@ -1,4 +1,5 @@
 import FormKit
+import Foundation
 
 // MARK: - Support types
 
@@ -40,24 +41,33 @@ enum RowTypesForm {
             TextInputRow(
                 id: "secureText",
                 title: "Secure (Password)",
-                placeholder: "••••••••",
-                isSecure: true
+                isSecure: true,
+                placeholder: "••••••••"
+            )
+
+            TextInputRow(
+                id: "secureTextToggle",
+                title: "Secure with Toggle",
+                subtitle: "showSecureToggle: true",
+                isSecure: true,
+                showSecureToggle: true,
+                placeholder: "Tap eye to reveal"
             )
 
             TextInputRow(
                 id: "emailText",
                 title: "Email Keyboard",
                 subtitle: "keyboardType: .emailAddress",
-                placeholder: "you@example.com",
-                keyboardType: .emailAddress
+                keyboardType: .emailAddress,
+                placeholder: "you@example.com"
             )
 
             TextInputRow(
                 id: "urlText",
                 title: "URL Keyboard",
                 subtitle: "keyboardType: .url",
-                placeholder: "https://",
-                keyboardType: .url
+                keyboardType: .url,
+                placeholder: "https://"
             )
         }
 

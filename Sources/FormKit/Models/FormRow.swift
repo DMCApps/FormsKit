@@ -607,6 +607,9 @@ public struct TextInputRow: FormRow {
     public let onChange: [FormRowAction]
     public let validators: [FormValidator]
     public let isSecure: Bool
+    /// When `true` and `isSecure` is `true`, renders an eye button inside the field
+    /// that the user can tap to reveal or re-hide the input.
+    public let showSecureToggle: Bool
     public let keyboardType: FormKeyboardType
     /// Hint text shown when the field is empty. Ignored when `mask` is set.
     public let placeholder: String?
@@ -627,6 +630,7 @@ public struct TextInputRow: FormRow {
                 subtitle: String? = nil,
                 defaultValue: String? = nil,
                 isSecure: Bool = false,
+                showSecureToggle: Bool = false,
                 keyboardType: FormKeyboardType = .default,
                 placeholder: String? = nil,
                 mask: FormInputMask? = nil,
@@ -638,6 +642,7 @@ public struct TextInputRow: FormRow {
         self.placeholder = placeholder
         _defaultValue = defaultValue
         self.isSecure = isSecure
+        self.showSecureToggle = showSecureToggle
         self.keyboardType = keyboardType
         self.mask = mask
         self.validators = validators

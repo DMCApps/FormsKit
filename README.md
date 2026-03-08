@@ -75,6 +75,9 @@ TextInputRow(id: "username", title: "Username", placeholder: "e.g. jappleseed")
 // Password field
 TextInputRow(id: "password", title: "Password", isSecure: true)
 
+// Password field with show/hide toggle (eye button rendered inside the field)
+TextInputRow(id: "password", title: "Password", isSecure: true, showSecureToggle: true)
+
 // Specific keyboard type
 TextInputRow(id: "email", title: "Email", keyboardType: .emailAddress)
 
@@ -83,6 +86,8 @@ TextInputRow(id: "phone", title: "Phone", mask: .usPhone)
 ```
 
 **FormKeyboardType cases:** `.default`, `.emailAddress`, `.url`, `.phonePad`, `.numberPad`, `.decimalPad`
+
+When `isSecure: true` and `showSecureToggle: true`, an eye button is rendered inside the field. Tapping it toggles between `SecureField` (hidden) and `TextField` (visible) using SF Symbols `eye` / `eye.slash`.
 
 ---
 

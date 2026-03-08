@@ -95,7 +95,7 @@ enum SaveBehaviourForm {
         FormSection(id: "customTitleSection", title: "Custom button titles") {
             NavigationRow(
                 id: "customTitle",
-                title: "Custom title: "Apply"",
+                title: "Custom title: \"Apply\"",
                 subtitle: "buttonNavigationBar(title: \"Apply\")",
                 destination: FormDefinition(
                     id: "saveBehaviour.customTitle",

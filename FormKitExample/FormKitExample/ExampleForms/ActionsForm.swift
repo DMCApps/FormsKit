@@ -104,8 +104,8 @@ enum ActionsForm {
                 id: "liveEmailField",
                 title: "Email with live validation",
                 subtitle: ".runValidation() fires validators on every change",
-                placeholder: "you@example.com",
                 keyboardType: .emailAddress,
+                placeholder: "you@example.com",
                 validators: [.email(trigger: .onChange)],
                 onChange: [.runValidation()]
             )

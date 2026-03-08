@@ -669,6 +669,36 @@ struct TextInputRowTests {
         #expect(row.isSecure == true)
     }
 
+    @Test("TextInputRow showSecureToggle defaults to false")
+    func textInputRowShowSecureToggleFalseByDefault() {
+        let row = TextInputRow(id: "password", title: "Password")
+        #expect(row.showSecureToggle == false)
+    }
+
+    @Test("TextInputRow stores showSecureToggle true")
+    func textInputRowStoresShowSecureToggleTrue() {
+        let row = TextInputRow(id: "password", title: "Password", isSecure: true, showSecureToggle: true)
+        #expect(row.showSecureToggle == true)
+    }
+
+    @Test("TextInputRow showSecureToggle independent of isSecure")
+    func textInputRowShowSecureToggleIndependentOfIsSecure() {
+        // showSecureToggle is only meaningful when isSecure is true, but both are
+        // stored independently — the view decides how to combine them.
+        let row = TextInputRow(id: "text", title: "Text", isSecure: false, showSecureToggle: true)
+        #expect(row.isSecure == false)
+        #expect(row.showSecureToggle == true)
+    }
+
+    @Test("TextInputRow RawRepresentable id with showSecureToggle")
+    func textInputRowRawRepresentableWithShowSecureToggle() {
+        enum RowID: String { case pin = "account_pin" }
+        let row = TextInputRow(id: RowID.pin, title: "PIN", isSecure: true, showSecureToggle: true)
+        #expect(row.id == "account_pin")
+        #expect(row.isSecure == true)
+        #expect(row.showSecureToggle == true)
+    }
+
     @Test("TextInputRow mask is nil by default")
     func textInputRowMaskNilByDefault() {
         let row = TextInputRow(id: "text", title: "Text")
