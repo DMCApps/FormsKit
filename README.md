@@ -625,6 +625,62 @@ actor MyCloudPersistence: FormPersistence {
 }
 ```
 
+### Mixed Persistence (routing rows to different backends)
+
+`FormPersistenceMixed` fans out a single form's values to multiple backends, with each backend responsible for a declared subset of row IDs. This is the recommended approach when different rows have different security requirements — for example, persisting most fields to UserDefaults while routing sensitive fields (passwords, PINs) to the Keychain.
+
+#### RowScope
+
+Each backend entry declares a `RowScope` that controls which keys it receives:
+
+| Scope | Behaviour |
+|-------|-----------|
+| `.all` | Backend receives every key in the store (default) |
+| `.including(["id1", "id2"])` | Backend receives **only** the listed row IDs |
+| `.excluding(["id1", "id2"])` | Backend receives every row ID **except** the listed ones |
+
+#### Basic usage
+
+```swift
+let persistence = FormPersistenceMixed([
+    .init(FormPersistenceUserDefaults(), scope: .excluding(["password"])),
+    .init(MyKeychainPersistence(),       scope: .including(["password"]))
+])
+
+let form = FormDefinition(
+    id: "login",
+    title: "Sign In",
+    persistence: persistence,
+    saveBehaviour: .buttonNavigationBar()
+) {
+    TextInputRow(id: "email",    title: "Email",    keyboardType: .emailAddress)
+    TextInputRow(id: "password", title: "Password", isSecure: true)
+}
+```
+
+#### With a typed RowID enum
+
+If you use `TypedFormDefinition`, pass your enum values directly — no `.rawValue` needed:
+
+```swift
+enum LoginRow: String {
+    case email, password, pin
+}
+
+FormPersistenceMixed([
+    .init(FormPersistenceUserDefaults(), scope: .excluding([LoginRow.password, LoginRow.pin])),
+    .init(MyKeychainPersistence(),       scope: .including([LoginRow.password, LoginRow.pin]))
+])
+```
+
+#### Execution order
+
+**Save** — entries are processed in array order, sequentially. Each backend receives only the keys permitted by its scope. If a backend throws, execution stops immediately and subsequent backends are **not** called. Place the most critical backend first if partial failure is a concern.
+
+**Load** — entries are loaded in array order, sequentially. Results are merged using last-writer-wins: if two backends return a value for the same key, the **later entry** in the array wins. This is deterministic and predictable; in practice it should never trigger when scopes are non-overlapping.
+
+**Clear** — entries are cleared in array order, sequentially. The same early-exit-on-throw behaviour applies as with save.
+
 ---
 
 ## Error Positions

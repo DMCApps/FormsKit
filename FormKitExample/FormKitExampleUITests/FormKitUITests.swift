@@ -29,9 +29,49 @@ final class FormKitUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// Navigate from the catalogue into a named form.
+    /// Navigate from the catalogue into a named form by title.
+    /// Scrolls the catalogue list until the row is visible and tappable.
     private func openForm(titled title: String) {
-        app.tables.staticTexts[title].tap()
+        let list = app.collectionViews.firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+        let cell = app.staticTexts[title]
+        // Scroll until the cell exists in the hierarchy.
+        var existenceAttempts = 0
+        while !cell.exists, existenceAttempts < 5 {
+            list.swipeUp(velocity: .slow)
+            existenceAttempts += 1
+        }
+        XCTAssertTrue(cell.waitForExistence(timeout: 3), "Could not find '\(title)' after \(existenceAttempts) swipes")
+        // Scroll a little more if needed to make it hittable (not obscured).
+        var hittableAttempts = 0
+        while !cell.isHittable, hittableAttempts < 5 {
+            list.swipeUp(velocity: .slow)
+            hittableAttempts += 1
+        }
+        // If still not hittable, scroll back up in case we overshot.
+        if !cell.isHittable {
+            list.swipeDown(velocity: .slow)
+        }
+        cell.tap()
+        // Wait for navigation animation to settle before proceeding.
+        sleep(1)
+    }
+
+    /// Navigate into a FormKit NavigationRow sub-form by its row ID.
+    private func openSubForm(id rowId: String) {
+        let cell = app.descendants(matching: .any).matching(identifier: "formkit.navrow.\(rowId)").firstMatch
+        // Wait for the cell to appear (navigation may still be animating).
+        XCTAssertTrue(cell.waitForExistence(timeout: 5))
+        let list = app.collectionViews.firstMatch
+        var attempts = 0
+        while !cell.isHittable, attempts < 5 {
+            list.swipeUp()
+            attempts += 1
+        }
+        XCTAssertTrue(cell.isHittable, "Could not reach navrow '\(rowId)'")
+        cell.tap()
+        // Allow navigation animation to complete.
+        sleep(1)
     }
 
     /// Return the TextField / SecureField for the given row ID.
@@ -59,6 +99,14 @@ final class FormKitUITests: XCTestCase {
         app.buttons["formkit.saveButton"]
     }
 
+    /// Type text character by character to allow the SwiftUI binding to process
+    /// each keystroke incrementally (important for input mask fields).
+    private func typeSlowly(_ text: String, into element: XCUIElement) {
+        for char in text {
+            element.typeText(String(char))
+        }
+    }
+
     // MARK: - 1. Blur triggers onBlur validation
 
     func testBlurTriggersOnBlurValidation() throws {
@@ -66,28 +114,34 @@ final class FormKitUITests: XCTestCase {
 
         // "onBlur" field — error fires on blur, not on typing.
         let blurField = field("onBlurTrigger")
-        XCTAssertTrue(blurField.waitForExistence(timeout: 3))
+        XCTAssertTrue(blurField.waitForExistence(timeout: 5))
 
         // Tap into the field — no error yet.
         blurField.tap()
         XCTAssertFalse(errorView("onBlurTrigger").exists)
 
-        // Tap away to blur the field — error should now appear.
-        app.navigationBars.firstMatch.tap()
-        XCTAssertTrue(errorView("onBlurTrigger").waitForExistence(timeout: 2))
+        // Tap a different field to blur this one and trigger onBlur validation.
+        let otherField = field("onChangeTrigger")
+        XCTAssertTrue(otherField.waitForExistence(timeout: 3))
+        otherField.tap()
+
+        // Error should now appear — wait for @FocusState onChange + SwiftUI re-render.
+        XCTAssertTrue(errorView("onBlurTrigger").waitForExistence(timeout: 5))
     }
 
     func testOnChangeValidationFiresImmediately() throws {
         openForm(titled: "Validation")
 
         let changeField = field("onChangeTrigger")
-        XCTAssertTrue(changeField.waitForExistence(timeout: 3))
+        XCTAssertTrue(changeField.waitForExistence(timeout: 5))
 
-        // Tap then clear — error should appear without blurring.
+        // Tap then type, then clear — error should appear without blurring.
         changeField.tap()
         changeField.typeText("x")
         changeField.clearText()
-        XCTAssertTrue(errorView("onChangeTrigger").waitForExistence(timeout: 2))
+
+        // Error should appear immediately on onChange — wait for SwiftUI re-render.
+        XCTAssertTrue(errorView("onChangeTrigger").waitForExistence(timeout: 5))
     }
 
     // MARK: - 2. Input mask formatting
@@ -96,12 +150,17 @@ final class FormKitUITests: XCTestCase {
         openForm(titled: "Input Masks")
 
         let phoneField = field("usPhone")
-        XCTAssertTrue(phoneField.waitForExistence(timeout: 3))
+        XCTAssertTrue(phoneField.waitForExistence(timeout: 5))
 
         phoneField.tap()
-        phoneField.typeText("4155551234")
+        // Type one character at a time so the binding processes each keystroke.
+        typeSlowly("4155551234", into: phoneField)
 
         // The mask should format "4155551234" → "(415) 555-1234".
+        // Wait for SwiftUI binding to settle and re-render the field.
+        let formattedPredicate = NSPredicate(format: "value == '(415) 555-1234'")
+        let expectation = XCTNSPredicateExpectation(predicate: formattedPredicate, object: phoneField)
+        XCTWaiter().wait(for: [expectation], timeout: 5)
         XCTAssertEqual(phoneField.value as? String, "(415) 555-1234")
     }
 
@@ -109,13 +168,16 @@ final class FormKitUITests: XCTestCase {
         openForm(titled: "Input Masks")
 
         let phoneField = field("usPhone")
-        XCTAssertTrue(phoneField.waitForExistence(timeout: 3))
+        XCTAssertTrue(phoneField.waitForExistence(timeout: 5))
 
         phoneField.tap()
-        // Type more digits than the mask allows (10 slots).
-        phoneField.typeText("41555512349999")
+        // Type more digits than the mask allows (10 slots), one char at a time.
+        typeSlowly("41555512349999", into: phoneField)
 
         // Value should be clamped to 10 digits formatted.
+        let clampedPredicate = NSPredicate(format: "value == '(415) 555-1234'")
+        let expectation = XCTNSPredicateExpectation(predicate: clampedPredicate, object: phoneField)
+        XCTWaiter().wait(for: [expectation], timeout: 5)
         XCTAssertEqual(phoneField.value as? String, "(415) 555-1234")
     }
 
@@ -130,11 +192,11 @@ final class FormKitUITests: XCTestCase {
 
         // Turn the toggle on.
         let boolToggle = toggle("boolToggle")
-        XCTAssertTrue(boolToggle.waitForExistence(timeout: 3))
+        XCTAssertTrue(boolToggle.waitForExistence(timeout: 5))
         boolToggle.tap()
 
-        // Row should now be visible.
-        XCTAssertTrue(targetField.waitForExistence(timeout: 2))
+        // Row should now be visible — wait up to 5 s for SwiftUI re-render.
+        XCTAssertTrue(targetField.waitForExistence(timeout: 5))
     }
 
     func testHideRowDisappearsWhenConditionMet() throws {
@@ -142,14 +204,15 @@ final class FormKitUITests: XCTestCase {
 
         // "shownWhenFalse" starts visible (toggle is off = isFalse = true).
         let targetField = field("shownWhenFalse")
-        XCTAssertTrue(targetField.waitForExistence(timeout: 3))
+        XCTAssertTrue(targetField.waitForExistence(timeout: 5))
 
         // Turn the toggle on — isFalse becomes false → row should hide.
         let boolToggle = toggle("boolToggle")
         XCTAssertTrue(boolToggle.waitForExistence(timeout: 3))
         boolToggle.tap()
 
-        XCTAssertFalse(targetField.waitForExistence(timeout: 2))
+        // Row should now be gone — waitForExistence should timeout and return false.
+        XCTAssertFalse(targetField.waitForExistence(timeout: 3))
     }
 
     // MARK: - 4. disableRow blocks interaction
@@ -159,13 +222,18 @@ final class FormKitUITests: XCTestCase {
 
         // disableTarget starts enabled.
         let target = field("disableTarget")
-        XCTAssertTrue(target.waitForExistence(timeout: 3))
+        XCTAssertTrue(target.waitForExistence(timeout: 5))
         XCTAssertTrue(target.isEnabled)
 
         // Turn on the disable toggle.
         let disableToggle = toggle("disableToggle")
         XCTAssertTrue(disableToggle.waitForExistence(timeout: 3))
         disableToggle.tap()
+
+        // Wait for SwiftUI to propagate the disabled state via @Observable re-render.
+        let disabledPredicate = NSPredicate(format: "enabled == false")
+        let expectation = XCTNSPredicateExpectation(predicate: disabledPredicate, object: target)
+        XCTWaiter().wait(for: [expectation], timeout: 5)
 
         // Row should now be disabled.
         XCTAssertFalse(target.isEnabled)
@@ -175,62 +243,62 @@ final class FormKitUITests: XCTestCase {
 
     func testBelowRowErrorAppearsAfterSave() throws {
         openForm(titled: "Error Positions")
-        app.tables.staticTexts["Below Row"].tap()
+        openSubForm(id: "belowRowExample")
 
         // Tap Save without filling in the required field.
         let save = saveButton()
-        XCTAssertTrue(save.waitForExistence(timeout: 3))
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
         save.tap()
 
-        // Inline error should appear below the row.
-        XCTAssertTrue(errorView("field1").waitForExistence(timeout: 2))
+        // Inline error should appear below the row after async save + re-render.
+        XCTAssertTrue(errorView("field1").waitForExistence(timeout: 5))
     }
 
     // MARK: - 6. Error position — formTop
 
     func testFormTopErrorAppearsAfterSave() throws {
         openForm(titled: "Error Positions")
-        app.tables.staticTexts["Form Top"].tap()
+        openSubForm(id: "formTopExample")
 
         let save = saveButton()
-        XCTAssertTrue(save.waitForExistence(timeout: 3))
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
         save.tap()
 
-        XCTAssertTrue(formTopErrorView().waitForExistence(timeout: 2))
+        XCTAssertTrue(formTopErrorView().waitForExistence(timeout: 5))
     }
 
     // MARK: - 7. Error position — alert
 
     func testAlertErrorAppearsAfterSave() throws {
         openForm(titled: "Error Positions")
-        app.tables.staticTexts["Alert"].tap()
+        openSubForm(id: "alertExample")
 
         let save = saveButton()
-        XCTAssertTrue(save.waitForExistence(timeout: 3))
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
         save.tap()
 
-        // An alert should be presented.
-        XCTAssertTrue(app.alerts["Validation Error"].waitForExistence(timeout: 2))
+        // An alert should be presented after async save + re-render.
+        XCTAssertTrue(app.alerts["Validation Error"].waitForExistence(timeout: 5))
     }
 
     // MARK: - 8. Save button placement
 
     func testNavBarSaveButtonExists() throws {
         openForm(titled: "Save Behaviour")
-        app.tables.staticTexts[".buttonNavigationBar()"].tap()
+        openSubForm(id: "navBarButton")
 
         // Save button should be in the navigation bar area.
         let save = saveButton()
-        XCTAssertTrue(save.waitForExistence(timeout: 3))
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars.buttons["Save"].exists)
     }
 
     func testStickyBottomSaveButtonExists() throws {
         openForm(titled: "Save Behaviour")
-        app.tables.staticTexts[".buttonStickyBottom()"].tap()
+        openSubForm(id: "stickyBottomButton")
 
         let save = saveButton()
-        XCTAssertTrue(save.waitForExistence(timeout: 3))
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
     }
 }
 

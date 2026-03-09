@@ -21,5 +21,6 @@ struct NavigationRowView: View {
                 }
             }
         }
+        .accessibilityIdentifier("formkit.navrow.\(row.id)")
     }
 }

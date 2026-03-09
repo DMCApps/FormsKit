@@ -563,22 +563,16 @@ public struct FormInputMask: Sendable {
 
     /// Strips all literal characters from a formatted string, returning only
     /// the raw input characters.
+    ///
+    /// This implementation extracts all characters from `formatted` that are not
+    /// literal pattern characters. This correctly handles both fully-formatted strings
+    /// (e.g. `"(415) 555-1234"`) and partially-typed strings where the mask literals
+    /// have not yet been inserted (e.g. a raw digit string `"4155551234"`).
     func strip(from formatted: String) -> String {
-        var raw = ""
-        var patternIndex = pattern.startIndex
-
-        for char in formatted {
-            guard patternIndex < pattern.endIndex else { break }
-            let maskChar = pattern[patternIndex]
-            if Self.slotCharacters.contains(maskChar) {
-                raw.append(char)
-                patternIndex = pattern.index(after: patternIndex)
-            } else {
-                // Skip literals in formatted string and advance pattern.
-                patternIndex = pattern.index(after: patternIndex)
-            }
-        }
-        return raw
+        // Collect the set of literal characters used in this mask pattern.
+        let literals = Set(pattern.filter { !Self.slotCharacters.contains($0) })
+        // Return only the characters that are not literals.
+        return formatted.filter { !literals.contains($0) }
     }
 
     /// The maximum number of raw (non-literal) characters the mask accepts.
