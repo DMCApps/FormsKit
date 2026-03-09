@@ -12,6 +12,9 @@ let project = Project(
             product: .app,
             bundleId: "com.example.FormKitExample",
             deploymentTargets: .iOS("17.0"),
+            infoPlist: .extendingDefault(with: [
+                "UILaunchScreen": .dictionary([:])
+            ]),
             sources: ["FormKitExample/**/*.swift"],
             dependencies: [
                 .package(product: "FormKit", type: .runtime)
