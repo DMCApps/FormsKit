@@ -226,10 +226,18 @@ public extension FormValidator {
     // MARK: Required
 
     /// The row must have a non-null, non-empty value.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func required(message: String = "This field is required",
                          trigger: ValidationTrigger = .onSave,
                          errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        required(message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func required(message: String = "This field is required",
+                         triggers: [ValidationTrigger],
+                         errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             guard let value else { return message }
             switch value {
             case .null:
@@ -248,17 +256,21 @@ public extension FormValidator {
 
     /// The row value must be a syntactically valid email address.
     /// Does not enforce that the row is non-empty — combine with `.required()` for that.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func email(message: String = "Please enter a valid email address",
                       trigger: ValidationTrigger = .onSave,
                       errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
-            guard let value, case let .string(s) = value, !s.isEmpty else {
-                return nil
-            }
+        email(message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func email(message: String = "Please enter a valid email address",
+                      triggers: [ValidationTrigger],
+                      errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
+            guard let value, case let .string(s) = value, !s.isEmpty else { return nil }
             let pattern = #"^[A-Z0-9a-z._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"#
-            guard s.range(of: pattern, options: .regularExpression) != nil else {
-                return message
-            }
+            guard s.range(of: pattern, options: .regularExpression) != nil else { return message }
             return nil
         }
     }
@@ -266,24 +278,42 @@ public extension FormValidator {
     // MARK: Length
 
     /// The string value must have at least `min` characters.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func minLength(_ min: Int,
                           message: String? = nil,
                           trigger: ValidationTrigger = .onSave,
                           errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        minLength(min, message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func minLength(_ min: Int,
+                          message: String? = nil,
+                          triggers: [ValidationTrigger],
+                          errorPosition: ErrorPosition = .belowRow) -> FormValidator {
         let errorMessage = message ?? "Must be at least \(min) character\(min == 1 ? "" : "s")"
-        return FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        return FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             guard let value, case let .string(s) = value else { return nil }
             return s.count < min ? errorMessage : nil
         }
     }
 
     /// The string value must have at most `max` characters.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func maxLength(_ max: Int,
                           message: String? = nil,
                           trigger: ValidationTrigger = .onSave,
                           errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        maxLength(max, message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func maxLength(_ max: Int,
+                          message: String? = nil,
+                          triggers: [ValidationTrigger],
+                          errorPosition: ErrorPosition = .belowRow) -> FormValidator {
         let errorMessage = message ?? "Must be at most \(max) character\(max == 1 ? "" : "s")"
-        return FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        return FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             guard let value, case let .string(s) = value else { return nil }
             return s.count > max ? errorMessage : nil
         }
@@ -292,12 +322,21 @@ public extension FormValidator {
     // MARK: Range
 
     /// The numeric value must be within the given closed range.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func range(_ range: ClosedRange<Double>,
                       message: String? = nil,
                       trigger: ValidationTrigger = .onSave,
                       errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        self.range(range, message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func range(_ range: ClosedRange<Double>,
+                      message: String? = nil,
+                      triggers: [ValidationTrigger],
+                      errorPosition: ErrorPosition = .belowRow) -> FormValidator {
         let errorMessage = message ?? "Must be between \(range.lowerBound) and \(range.upperBound)"
-        return FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        return FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             guard let value else { return nil }
             let numericValue: Double? = switch value {
             case let .int(v): Double(v)
@@ -310,12 +349,21 @@ public extension FormValidator {
     }
 
     /// The integer value must be within the given closed range.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func range(_ range: ClosedRange<Int>,
                       message: String? = nil,
                       trigger: ValidationTrigger = .onSave,
                       errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        self.range(range, message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func range(_ range: ClosedRange<Int>,
+                      message: String? = nil,
+                      triggers: [ValidationTrigger],
+                      errorPosition: ErrorPosition = .belowRow) -> FormValidator {
         let errorMessage = message ?? "Must be between \(range.lowerBound) and \(range.upperBound)"
-        return FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        return FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             guard let value, case let .int(v) = value else { return nil }
             return range.contains(v) ? nil : errorMessage
         }
@@ -324,15 +372,22 @@ public extension FormValidator {
     // MARK: Regex
 
     /// The string value must match the given regular expression pattern.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func regex(_ pattern: String,
                       message: String = "Invalid format",
                       trigger: ValidationTrigger = .onSave,
                       errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        regex(pattern, message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func regex(_ pattern: String,
+                      message: String = "Invalid format",
+                      triggers: [ValidationTrigger],
+                      errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             guard let value, case let .string(s) = value, !s.isEmpty else { return nil }
-            guard s.range(of: pattern, options: .regularExpression) != nil else {
-                return message
-            }
+            guard s.range(of: pattern, options: .regularExpression) != nil else { return message }
             return nil
         }
     }
@@ -341,10 +396,18 @@ public extension FormValidator {
 
     /// The string value must parse as a valid Double (e.g. "37.7833" or "-122.4167").
     /// Passes when the field is empty — combine with `.required()` to enforce a value.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func double(message: String = "Must be a valid decimal number",
                        trigger: ValidationTrigger = .onSave,
                        errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        double(message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func double(message: String = "Must be a valid decimal number",
+                       triggers: [ValidationTrigger],
+                       errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             guard case let .string(s) = value, !s.isEmpty else { return nil }
             return Swift.Double(s) != nil ? nil : message
         }
@@ -354,10 +417,18 @@ public extension FormValidator {
 
     /// The string value must be a valid IPv4 address (e.g. "192.168.1.1").
     /// Each octet must be 0–255. Passes when the field is empty.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func ipv4(message: String = "Must be a valid IPv4 address (e.g. 192.168.1.1)",
                      trigger: ValidationTrigger = .onSave,
                      errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        ipv4(message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func ipv4(message: String = "Must be a valid IPv4 address (e.g. 192.168.1.1)",
+                     triggers: [ValidationTrigger],
+                     errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             guard case let .string(s) = value, !s.isEmpty else { return nil }
             let pattern = #"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$"#
             guard s.range(of: pattern, options: .regularExpression) != nil else { return message }
@@ -390,12 +461,20 @@ public extension FormValidator {
     ///   - format: The `DateFormatter` format string the string input must satisfy.
     ///     Optional when using the `.date` mask (which stores a typed `Date`).
     ///   - message: Error message shown when the date is invalid.
-    ///   - trigger: When to fire the validator.
+    ///   - trigger: When to fire the validator. Forwards to the `triggers:` variant.
     static func date(format: String? = nil,
                      message: String = "Please enter a valid date",
                      trigger: ValidationTrigger = .onSave,
                      errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        date(format: format, message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func date(format: String? = nil,
+                     message: String = "Please enter a valid date",
+                     triggers: [ValidationTrigger],
+                     errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             switch value {
             case .date:
                 // Already a typed Date — always valid.
@@ -416,11 +495,20 @@ public extension FormValidator {
 
     /// A custom validator with a user-provided predicate.
     /// The predicate should return `true` when the value is VALID.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func custom(message: String,
                        trigger: ValidationTrigger = .onSave,
                        errorPosition: ErrorPosition = .belowRow,
                        isValid: @escaping @Sendable (AnyCodableValue?) -> Bool) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        custom(message: message, triggers: [trigger], errorPosition: errorPosition, isValid: isValid)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func custom(message: String,
+                       triggers: [ValidationTrigger],
+                       errorPosition: ErrorPosition = .belowRow,
+                       isValid: @escaping @Sendable (AnyCodableValue?) -> Bool) -> FormValidator {
+        FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             isValid(value) ? nil : message
         }
     }
@@ -428,24 +516,38 @@ public extension FormValidator {
     // MARK: Not Empty (alias)
 
     /// Alias for `.required()` with clearer intent for non-text fields.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func notEmpty(message: String = "A selection is required",
                          trigger: ValidationTrigger = .onSave,
                          errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        required(message: message, trigger: trigger, errorPosition: errorPosition)
+        required(message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func notEmpty(message: String = "A selection is required",
+                         triggers: [ValidationTrigger],
+                         errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        required(message: message, triggers: triggers, errorPosition: errorPosition)
     }
 
     // MARK: URL
 
     /// The string value must be a well-formed URL with a non-empty scheme (e.g. "https://example.com").
     /// Passes when the field is empty — combine with `.required()` to enforce a value.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func url(message: String = "Must be a valid URL",
                     trigger: ValidationTrigger = .onSave,
                     errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        url(message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func url(message: String = "Must be a valid URL",
+                    triggers: [ValidationTrigger],
+                    errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             guard case let .string(s) = value, !s.isEmpty else { return nil }
-            guard let parsed = URL(string: s), parsed.scheme?.isEmpty == false else {
-                return message
-            }
+            guard let parsed = URL(string: s), parsed.scheme?.isEmpty == false else { return message }
             return nil
         }
     }
@@ -454,10 +556,18 @@ public extension FormValidator {
 
     /// The string value must parse as a valid integer (e.g. "42" or "-7").
     /// Passes when the field is empty — combine with `.required()` to enforce a value.
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func integer(message: String = "Must be a whole number",
                         trigger: ValidationTrigger = .onSave,
                         errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition) { value in
+        integer(message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func integer(message: String = "Must be a whole number",
+                        triggers: [ValidationTrigger],
+                        errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(triggers: triggers, errorPosition: errorPosition) { value in
             guard case let .string(s) = value, !s.isEmpty else { return nil }
             return Int(s) != nil ? nil : message
         }
@@ -471,11 +581,20 @@ public extension FormValidator {
     /// TextInputRow(id: "confirmPassword", title: "Confirm Password", isSecure: true,
     ///     validators: [.matches(rowId: "password", message: "Passwords must match")])
     /// ```
+    /// Single-trigger convenience — forwards to the `triggers:` variant.
     static func matches(rowId: String,
                         message: String = "Values do not match",
                         trigger: ValidationTrigger = .onSave,
                         errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(trigger: trigger, errorPosition: errorPosition, validateWithStore: { value, store in
+        matches(rowId: rowId, message: message, triggers: [trigger], errorPosition: errorPosition)
+    }
+
+    /// Multi-trigger variant — fires on any of the listed triggers.
+    static func matches(rowId: String,
+                        message: String = "Values do not match",
+                        triggers: [ValidationTrigger],
+                        errorPosition: ErrorPosition = .belowRow) -> FormValidator {
+        FormValidator(triggers: triggers, errorPosition: errorPosition, validateWithStore: { value, store in
             guard value != store[rowId] else { return nil }
             return message
         })

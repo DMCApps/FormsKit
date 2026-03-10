@@ -190,6 +190,58 @@ struct FormValidatorTests {
         #expect(v.trigger == .onChange)
     }
 
+    @Test("triggers: factory overloads store the full trigger array")
+    func triggersFactoryStoresTriggerArray() {
+        let triggers: [ValidationTrigger] = [.onBlur, .onSave]
+        let validators: [FormValidator] = [
+            .required(triggers: triggers),
+            .email(triggers: triggers),
+            .minLength(3, triggers: triggers),
+            .maxLength(10, triggers: triggers),
+            .regex(".*", triggers: triggers),
+            .double(triggers: triggers),
+            .ipv4(triggers: triggers),
+            .date(triggers: triggers),
+            .custom(message: "e", triggers: triggers) { _ in true },
+            .url(triggers: triggers),
+            .integer(triggers: triggers),
+            .matches(rowId: "other", triggers: triggers)
+        ]
+        for v in validators {
+            #expect(v.triggers.contains(.onBlur))
+            #expect(v.triggers.contains(.onSave))
+            #expect(v.triggers.count == 2)
+        }
+    }
+
+    @Test("Single-trigger factory forwards same logic as multi-trigger factory")
+    func singleTriggerForwardsToMultiTrigger() {
+        let single = FormValidator.required(trigger: .onSave)
+        let multi = FormValidator.required(triggers: [.onSave])
+        let store = FormValueStore()
+        #expect(single.validate(nil, store) != nil)
+        #expect(multi.validate(nil, store) != nil)
+        #expect(single.validate(.string("hello"), store) == nil)
+        #expect(multi.validate(.string("hello"), store) == nil)
+    }
+
+    @Test("Array<ValidationTrigger>.isChangeDebounced")
+    func arrayIsChangeDebounced() {
+        #expect([ValidationTrigger.onSave, .onBlur].isChangeDebounced == false)
+        #expect([ValidationTrigger.onChange].isChangeDebounced == false)
+        #expect([ValidationTrigger.onChangeDebounced(seconds: 0.5)].isChangeDebounced == true)
+        #expect([ValidationTrigger.onSave, .onChangeDebounced(seconds: 1.0)].isChangeDebounced == true)
+        #expect([ValidationTrigger]().isChangeDebounced == false)
+    }
+
+    @Test("Array<ValidationTrigger>.debounceDuration returns longest duration")
+    func arrayDebounceDuration() {
+        #expect([ValidationTrigger.onSave].debounceDuration == nil)
+        #expect([ValidationTrigger.onChangeDebounced(seconds: 0.5)].debounceDuration == 0.5)
+        let mixed: [ValidationTrigger] = [.onChangeDebounced(seconds: 0.3), .onChangeDebounced(seconds: 1.5)]
+        #expect(mixed.debounceDuration == 1.5)
+    }
+
     // MARK: - double
 
     @Test("double — valid decimal strings pass")

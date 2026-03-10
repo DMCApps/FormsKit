@@ -191,6 +191,34 @@ enum ValidationForm {
             )
         }
 
+        // MARK: Multi-Trigger
+
+        FormSection(id: "multiTriggerSection", title: "Multi-Trigger") {
+            TextInputRow(
+                id: "blurAndSave",
+                title: "onBlur + onSave",
+                subtitle: "Single validator fires on both blur and save",
+                placeholder: "Required",
+                validators: [.required(triggers: [.onBlur, .onSave])]
+            )
+
+            TextInputRow(
+                id: "changeAndSave",
+                title: "onChange + onSave",
+                subtitle: "Single validator fires on every keystroke and on save",
+                placeholder: "Required",
+                validators: [.required(triggers: [.onChange, .onSave])]
+            )
+
+            TextInputRow(
+                id: "allTriggers",
+                title: "onChange + onBlur + onSave",
+                subtitle: "Single validator fires on keystroke, blur, and save",
+                placeholder: "Required",
+                validators: [.required(triggers: [.onChange, .onBlur, .onSave])]
+            )
+        }
+
         // MARK: Error Positions
 
         FormSection(id: "errorPositionSection", title: "Error Positions (preview)") {
