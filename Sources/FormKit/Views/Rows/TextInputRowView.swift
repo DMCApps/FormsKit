@@ -174,6 +174,7 @@ struct TextInputRowView: View {
             let rawBinding = Binding<String>(
                 get: { text },
                 set: { newRaw in
+                    guard newRaw != text else { return }
                     let clamped = String(newRaw.prefix(mask.maxInputLength))
                     if let toStorable = mask.toStorable,
                        clamped.count == mask.maxInputLength,
@@ -198,6 +199,7 @@ struct TextInputRowView: View {
                 set: { newFormatted in
                     let raw = mask.strip(from: newFormatted)
                     let clamped = String(raw.prefix(mask.maxInputLength))
+                    guard clamped != text else { return }
                     if let toStorable = mask.toStorable,
                        clamped.count == mask.maxInputLength,
                        let typed = toStorable(clamped) {
@@ -215,7 +217,10 @@ struct TextInputRowView: View {
         } else {
             let binding = Binding(
                 get: { text },
-                set: { viewModel.setString($0, for: row.id) }
+                set: { newValue in
+                    guard newValue != text else { return }
+                    viewModel.setString(newValue, for: row.id)
+                }
             )
             if row.isSecure {
                 HStack(spacing: 8) {

@@ -90,13 +90,17 @@ final class FormKitUITests: XCTestCase {
     }
 
     /// Return the error container for a specific row.
+    /// Uses descendants(matching: .any) because the identifier is on a VStack container,
+    /// not a staticText — querying staticTexts directly is unreliable for container views.
     private func errorView(_ rowId: String) -> XCUIElement {
-        app.staticTexts["formkit.errors.\(rowId)"]
+        app.descendants(matching: .any)["formkit.errors.\(rowId)"]
     }
 
     /// Return the form-level error banner at the top.
+    /// Uses descendants(matching: .any) because the identifier is on a VStack container,
+    /// not a staticText — querying staticTexts directly is unreliable for container views.
     private func formTopErrorView() -> XCUIElement {
-        app.staticTexts["formkit.errors.formTop"]
+        app.descendants(matching: .any)["formkit.errors.formTop"]
     }
 
     /// Return the save button (any variant).
@@ -147,6 +151,60 @@ final class FormKitUITests: XCTestCase {
 
         // Error should appear immediately on onChange — wait for SwiftUI re-render.
         XCTAssertTrue(errorView("onChangeTrigger").waitForExistence(timeout: 5))
+    }
+
+    func testFocusAloneDoesNotTriggerOnChangeValidation() throws {
+        openForm(titled: "Validation")
+
+        let changeField = field("onChangeTrigger")
+        XCTAssertTrue(changeField.waitForExistence(timeout: 5))
+
+        // Tap the onChange field — gaining focus must NOT fire validation.
+        changeField.tap()
+        XCTAssertFalse(
+            errorView("onChangeTrigger").exists,
+            "Error should not appear on focus before any value change"
+        )
+
+        // Blur by tapping another field — still no error (nothing was typed).
+        let blurField = field("onBlurTrigger")
+        XCTAssertTrue(blurField.waitForExistence(timeout: 3))
+        blurField.tap()
+        XCTAssertFalse(
+            errorView("onChangeTrigger").exists,
+            "Error should not appear after blur when no value was typed"
+        )
+    }
+
+    func testFocusAloneDoesNotTriggerOnChangeDebounceValidation() throws {
+        openForm(titled: "Validation")
+
+        let debouncedField = field("onDebouncedTrigger")
+        XCTAssertTrue(debouncedField.waitForExistence(timeout: 5))
+
+        // Tap the debounced field — gaining focus must NOT fire validation.
+        debouncedField.tap()
+        XCTAssertFalse(
+            errorView("onDebouncedTrigger").exists,
+            "Error should not appear on focus before any value change"
+        )
+
+        // Wait longer than the debounce interval (0.5 s) to ensure the timer
+        // did not start from a spurious focus-triggered value change.
+        Thread.sleep(forTimeInterval: 1.0)
+        XCTAssertFalse(
+            errorView("onDebouncedTrigger").exists,
+            "Error should not appear after debounce interval when no value was typed"
+        )
+
+        // Blur by tapping another field — still no error.
+        let blurField = field("onBlurTrigger")
+        XCTAssertTrue(blurField.waitForExistence(timeout: 3))
+        blurField.tap()
+        XCTAssertFalse(
+            errorView("onDebouncedTrigger").exists,
+            "Error should not appear after blur when no value was typed"
+        )
     }
 
     // MARK: - 2. Input mask formatting
@@ -236,12 +294,17 @@ final class FormKitUITests: XCTestCase {
         disableToggle.tap()
 
         // Wait for SwiftUI to propagate the disabled state via @Observable re-render.
+        // XCTNSPredicateExpectation polls the accessibility snapshot, which can be one
+        // run-loop cycle behind the SwiftUI state update. We use waitForExistence on a
+        // non-interactive query instead, which forces a fresh snapshot before asserting.
         let disabledPredicate = NSPredicate(format: "enabled == false")
-        let expectation = XCTNSPredicateExpectation(predicate: disabledPredicate, object: target)
-        XCTWaiter().wait(for: [expectation], timeout: 5)
+        let disabledExpectation = XCTNSPredicateExpectation(predicate: disabledPredicate, object: target)
+        let result = XCTWaiter().wait(for: [disabledExpectation], timeout: 5)
+        XCTAssertEqual(result, .completed, "Timed out waiting for disableTarget to become disabled")
 
-        // Row should now be disabled.
-        XCTAssertFalse(target.isEnabled)
+        // Re-query the element to get a fresh accessibility snapshot before asserting.
+        let freshTarget = field("disableTarget")
+        XCTAssertFalse(freshTarget.isEnabled)
     }
 
     // MARK: - 5. Error position — belowRow
