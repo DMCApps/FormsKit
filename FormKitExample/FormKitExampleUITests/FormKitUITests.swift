@@ -78,20 +78,25 @@ final class FormKitUITests: XCTestCase {
     private func field(_ rowId: String) -> XCUIElement {
         app.textFields["formkit.field.\(rowId)"]
     }
-
-    /// Return the Toggle for the given row ID.
+    
+    /// Return the full Toggle row for the given row ID.
     private func toggle(_ rowId: String) -> XCUIElement {
         app.switches["formkit.toggle.\(rowId)"]
+    }
+    
+    /// Return the inner switch of the Toggle for the given row ID.
+    private func toggleSwitch(_ rowId: String) -> XCUIElement {
+        app.switches["formkit.toggle.\(rowId)"].switches.firstMatch
     }
 
     /// Return the error container for a specific row.
     private func errorView(_ rowId: String) -> XCUIElement {
-        app.otherElements["formkit.errors.\(rowId)"]
+        app.staticTexts["formkit.errors.\(rowId)"]
     }
 
     /// Return the form-level error banner at the top.
     private func formTopErrorView() -> XCUIElement {
-        app.otherElements["formkit.errors.formTop"]
+        app.staticTexts["formkit.errors.formTop"]
     }
 
     /// Return the save button (any variant).
@@ -191,7 +196,7 @@ final class FormKitUITests: XCTestCase {
         XCTAssertFalse(targetField.exists)
 
         // Turn the toggle on.
-        let boolToggle = toggle("boolToggle")
+        let boolToggle = toggleSwitch("boolToggle")
         XCTAssertTrue(boolToggle.waitForExistence(timeout: 5))
         boolToggle.tap()
 
@@ -207,7 +212,7 @@ final class FormKitUITests: XCTestCase {
         XCTAssertTrue(targetField.waitForExistence(timeout: 5))
 
         // Turn the toggle on — isFalse becomes false → row should hide.
-        let boolToggle = toggle("boolToggle")
+        let boolToggle = toggleSwitch("boolToggle")
         XCTAssertTrue(boolToggle.waitForExistence(timeout: 3))
         boolToggle.tap()
 
@@ -226,7 +231,7 @@ final class FormKitUITests: XCTestCase {
         XCTAssertTrue(target.isEnabled)
 
         // Turn on the disable toggle.
-        let disableToggle = toggle("disableToggle")
+        let disableToggle = toggleSwitch("disableToggle")
         XCTAssertTrue(disableToggle.waitForExistence(timeout: 3))
         disableToggle.tap()
 

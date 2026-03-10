@@ -15,7 +15,7 @@ enum ValidationForm {
             TextInputRow(
                 id: "onSaveTrigger",
                 title: "onSave (default)",
-                subtitle: "Error appears only when Save is tapped",
+                subtitle: ".required() Error appears only when Save is tapped",
                 placeholder: "Required",
                 validators: [.required()]
             )
@@ -23,7 +23,7 @@ enum ValidationForm {
             TextInputRow(
                 id: "onChangeTrigger",
                 title: "onChange",
-                subtitle: "Error appears on every keystroke",
+                subtitle: ".required() Error appears on every keystroke",
                 placeholder: "Required",
                 validators: [.required(trigger: .onChange)]
             )
@@ -31,7 +31,7 @@ enum ValidationForm {
             TextInputRow(
                 id: "onDebouncedTrigger",
                 title: "onChangeDebounced",
-                subtitle: "Error appears 0.5 s after you stop typing",
+                subtitle: ".required() Error appears 0.5 s after you stop typing",
                 placeholder: "Required",
                 validators: [.required(trigger: .onChangeDebounced(seconds: 0.5))]
             )
@@ -39,7 +39,7 @@ enum ValidationForm {
             TextInputRow(
                 id: "onBlurTrigger",
                 title: "onBlur",
-                subtitle: "Error appears when the field loses focus",
+                subtitle: ".required() Error appears when the field loses focus",
                 placeholder: "Required",
                 validators: [.required(trigger: .onBlur)]
             )

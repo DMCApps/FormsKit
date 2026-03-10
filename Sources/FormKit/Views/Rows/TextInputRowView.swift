@@ -20,6 +20,93 @@ extension FormKeyboardType {
 }
 #endif
 
+// MARK: - MaskedTextField (UIViewRepresentable)
+
+#if os(iOS)
+/// A UIViewRepresentable wrapper around UITextField that applies a FormInputMask.
+/// Using UITextFieldDelegate.textField(_:shouldChangeCharactersIn:replacementString:)
+/// is the only reliable way to intercept keystrokes and reformat text in UIKit —
+/// SwiftUI's TextField ignores programmatic text changes made from within its own binding setter.
+@available(iOS 17, *)
+struct MaskedTextField: UIViewRepresentable {
+    let mask: FormInputMask
+    let placeholder: String
+    let keyboardType: UIKeyboardType
+    let accessibilityIdentifier: String
+    /// Raw slot characters (no literals), clamped to maxInputLength.
+    @Binding var rawText: String
+
+    func makeUIView(context: Context) -> UITextField {
+        let field = UITextField()
+        field.delegate = context.coordinator
+        field.placeholder = placeholder
+        field.keyboardType = keyboardType
+        field.autocorrectionType = .no
+        field.autocapitalizationType = .none
+        field.textContentType = .none
+        field.accessibilityIdentifier = accessibilityIdentifier
+        // Seed the initial display value.
+        field.text = mask.apply(to: rawText)
+        return field
+    }
+
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        // Only update if the field is not currently being edited — let the delegate own it while active.
+        guard !uiView.isFirstResponder else { return }
+        let expected = mask.apply(to: rawText)
+        if uiView.text != expected {
+            uiView.text = expected
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(mask: mask, rawText: $rawText)
+    }
+
+    // MARK: - Coordinator
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        let mask: FormInputMask
+        @Binding var rawText: String
+
+        init(mask: FormInputMask, rawText: Binding<String>) {
+            self.mask = mask
+            _rawText = rawText
+        }
+
+        func textField(_ textField: UITextField,
+                       shouldChangeCharactersIn range: NSRange,
+                       replacementString string: String) -> Bool {
+            let current = textField.text ?? ""
+            guard let swiftRange = Range(range, in: current) else { return false }
+
+            // Compute what the field would contain after the edit.
+            let proposed = current.replacingCharacters(in: swiftRange, with: string)
+
+            // Strip literals and clamp to the maximum number of input slots.
+            let raw = mask.strip(from: proposed)
+            let clamped = String(raw.prefix(mask.maxInputLength))
+
+            // Apply the mask to get the formatted display string.
+            let formatted = mask.apply(to: clamped)
+
+            // Update the field text and cursor ourselves — returning false prevents UIKit's default.
+            textField.text = formatted
+
+            // Place the cursor at the end of the formatted text.
+            if let end = textField.position(from: textField.endOfDocument, offset: 0) {
+                textField.selectedTextRange = textField.textRange(from: end, to: end)
+            }
+
+            // Propagate the raw (no-literal) characters back to SwiftUI.
+            rawText = clamped
+
+            return false
+        }
+    }
+}
+#endif
+
 // MARK: - TextInputRowView
 
 /// Renders a TextInputRow as a TextField or SecureField.
@@ -79,8 +166,33 @@ struct TextInputRowView: View {
     @ViewBuilder
     private var inputField: some View {
         if let mask = row.mask {
-            // Masked input: display string has literals inserted. Masks with a `toStorable`
-            // closure store a typed value; all others store the raw slot chars as `.string`.
+// Masked input: use a UIViewRepresentable so the UITextFieldDelegate can intercept
+// each keystroke, reformat the display text, and clamp to the mask length reliably.
+// SwiftUI's TextField ignores programmatic text changes made from within its own
+// binding setter during active editing, making the delegate approach necessary.
+#if os(iOS)
+            let rawBinding = Binding<String>(
+                get: { text },
+                set: { newRaw in
+                    let clamped = String(newRaw.prefix(mask.maxInputLength))
+                    if let toStorable = mask.toStorable,
+                       clamped.count == mask.maxInputLength,
+                       let typed = toStorable(clamped) {
+                        viewModel.setValue(typed, for: row.id)
+                    } else {
+                        viewModel.setString(clamped, for: row.id)
+                    }
+                }
+            )
+            MaskedTextField(
+                mask: mask,
+                placeholder: row.placeholder ?? mask.pattern,
+                keyboardType: row.keyboardType.uiKeyboardType,
+                accessibilityIdentifier: "formkit.field.\(row.id)",
+                rawText: rawBinding
+            )
+#else
+            // Non-iOS fallback: plain SwiftUI TextField with best-effort masking.
             let binding = Binding(
                 get: { mask.apply(to: text) },
                 set: { newFormatted in
@@ -89,22 +201,16 @@ struct TextInputRowView: View {
                     if let toStorable = mask.toStorable,
                        clamped.count == mask.maxInputLength,
                        let typed = toStorable(clamped) {
-                        // Mask has a toStorable converter and the input is complete — store typed value.
                         viewModel.setValue(typed, for: row.id)
                     } else {
-                        // No converter, or input is incomplete — store raw chars as a string.
                         viewModel.setString(clamped, for: row.id)
                     }
                 }
             )
             TextField(mask.pattern, text: binding)
-                .focused($isFocused)
                 .textContentType(.none)
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("formkit.field.\(row.id)")
-#if os(iOS)
-                .keyboardType(row.keyboardType.uiKeyboardType)
-                .textInputAutocapitalization(.never)
 #endif
         } else {
             let binding = Binding(
