@@ -173,6 +173,23 @@ struct FormValidatorTests {
         #expect(ValidationTrigger.onSave.debounceDuration == nil)
     }
 
+    @Test("Multi-trigger validator fires on any listed trigger")
+    func multiTriggerValidator() {
+        let v = FormValidator(triggers: [.onBlur, .onSave]) { _ in "error" }
+        #expect(v.triggers.contains(.onBlur))
+        #expect(v.triggers.contains(.onSave))
+        #expect(!v.triggers.contains(.onChange))
+        // Convenience accessor returns first trigger.
+        #expect(v.trigger == .onBlur)
+    }
+
+    @Test("Single-trigger init wraps trigger in array")
+    func singleTriggerWrapsInArray() {
+        let v = FormValidator.required(trigger: .onChange)
+        #expect(v.triggers == [.onChange])
+        #expect(v.trigger == .onChange)
+    }
+
     // MARK: - double
 
     @Test("double — valid decimal strings pass")

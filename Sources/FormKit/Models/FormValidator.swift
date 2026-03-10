@@ -83,6 +83,20 @@ public enum ValidationTrigger: Sendable, Equatable {
     }
 }
 
+// MARK: - ValidationTrigger + Array helpers
+
+extension [ValidationTrigger] {
+    /// Returns true if any trigger in the array is a debounced trigger.
+    var isChangeDebounced: Bool {
+        contains { $0.isChangeDebounced }
+    }
+
+    /// The longest debounce duration among all debounced triggers, or nil if none.
+    var debounceDuration: Double? {
+        compactMap(\.debounceDuration).max()
+    }
+}
+
 // MARK: - SelectionValidator
 
 /// A validator for selection-based rows (`BooleanSwitchRow`, `SingleValueRow`, `MultiValueRow`).
@@ -135,13 +149,28 @@ public struct SelectionValidator: Sendable {
 // MARK: - FormValidator
 
 /// A validator that inspects a row's current value and optionally returns an error message.
-/// Validators are attached per-row and fire based on their `trigger`.
+/// Validators are attached per-row and fire based on their `triggers`.
+///
+/// Use the single-trigger `trigger:` parameter for the common case, or `triggers:` to fire
+/// on multiple events with a single validator declaration:
+///
+/// ```swift
+/// // Single trigger (most common)
+/// .required(trigger: .onBlur)
+///
+/// // Multiple triggers — fires on both blur and save
+/// .required(triggers: [.onBlur, .onSave])
+/// ```
 ///
 /// Use the single-value init for most validators — the `FormValueStore` is handled internally.
 /// Use the store-aware init when you need to compare against other rows (e.g. `.matches`).
 public struct FormValidator: Sendable {
-    /// When this validator fires.
-    public let trigger: ValidationTrigger
+    /// The set of events that cause this validator to fire.
+    public let triggers: [ValidationTrigger]
+
+    /// Convenience accessor for the single-trigger case. Returns the first trigger,
+    /// or `.onSave` if the triggers list is empty.
+    public var trigger: ValidationTrigger { triggers.first ?? .onSave }
 
     /// Where the error message is displayed in the form UI. Defaults to `.belowRow`.
     public let errorPosition: ErrorPosition
@@ -150,22 +179,42 @@ public struct FormValidator: Sendable {
     /// Always receives both the row's own value and the full form store.
     public let validate: @Sendable (AnyCodableValue?, FormValueStore) -> String?
 
-    /// Single-value init. Use this for validators that only need the row's own value.
+    /// Single-trigger init. Use this for validators that only need the row's own value.
     /// The `FormValueStore` parameter is handled internally.
     public init(trigger: ValidationTrigger = .onSave,
                 errorPosition: ErrorPosition = .belowRow,
                 validate: @escaping @Sendable (AnyCodableValue?) -> String?) {
-        self.trigger = trigger
+        triggers = [trigger]
         self.errorPosition = errorPosition
         self.validate = { value, _ in validate(value) }
     }
 
-    /// Store-aware init. Use this for cross-row validators that need to inspect other rows
-    /// (e.g. `.matches`).
+    /// Multi-trigger init. Fires on any of the listed triggers.
+    /// Use this when you need the same validator to fire at multiple points
+    /// without duplicating the validator declaration.
+    public init(triggers: [ValidationTrigger],
+                errorPosition: ErrorPosition = .belowRow,
+                validate: @escaping @Sendable (AnyCodableValue?) -> String?) {
+        self.triggers = triggers
+        self.errorPosition = errorPosition
+        self.validate = { value, _ in validate(value) }
+    }
+
+    /// Single-trigger store-aware init. Use this for cross-row validators that need to
+    /// inspect other rows (e.g. `.matches`).
     public init(trigger: ValidationTrigger = .onSave,
                 errorPosition: ErrorPosition = .belowRow,
                 validateWithStore: @escaping @Sendable (AnyCodableValue?, FormValueStore) -> String?) {
-        self.trigger = trigger
+        triggers = [trigger]
+        self.errorPosition = errorPosition
+        validate = validateWithStore
+    }
+
+    /// Multi-trigger store-aware init.
+    public init(triggers: [ValidationTrigger],
+                errorPosition: ErrorPosition = .belowRow,
+                validateWithStore: @escaping @Sendable (AnyCodableValue?, FormValueStore) -> String?) {
+        self.triggers = triggers
         self.errorPosition = errorPosition
         validate = validateWithStore
     }

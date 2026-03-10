@@ -400,7 +400,7 @@ public final class FormViewModel {
 
         for row in allRows where isRowVisible(row) {
             let validatorErrors = row.validators
-                .filter { $0.trigger == .onSave || $0.trigger == .onBlur }
+                .filter { $0.triggers.contains(.onSave) || $0.triggers.contains(.onBlur) }
                 .compactMap { validator -> FormError? in
                     guard let message = validator.validate(values[row.id], values) else { return nil }
                     return FormError(message: message, position: validator.errorPosition)
@@ -618,7 +618,7 @@ public final class FormViewModel {
     private func runValidators(for rowId: String, trigger: ValidationTrigger) {
         guard let row = allRows.first(where: { $0.id == rowId }) else { return }
         let rowErrors = row.validators
-            .filter { $0.trigger == trigger }
+            .filter { $0.triggers.contains(trigger) }
             .compactMap { validator -> FormError? in
                 guard let message = validator.validate(values[rowId], values) else { return nil }
                 return FormError(message: message, position: validator.errorPosition)
@@ -631,11 +631,11 @@ public final class FormViewModel {
     private func scheduleDebouncedValidation(for rowId: String) {
         guard let row = allRows.first(where: { $0.id == rowId }) else { return }
 
-        let debouncedValidators = row.validators.filter(\.trigger.isChangeDebounced)
+        let debouncedValidators = row.validators.filter(\.triggers.isChangeDebounced)
         guard !debouncedValidators.isEmpty else { return }
 
         let maxDelay = debouncedValidators
-            .compactMap(\.trigger.debounceDuration)
+            .compactMap(\.triggers.debounceDuration)
             .max() ?? 0.5
 
         // Cancel any existing timer for this row.
@@ -655,7 +655,7 @@ public final class FormViewModel {
     private func runDebouncedValidators(for rowId: String) {
         guard let row = allRows.first(where: { $0.id == rowId }) else { return }
         let rowErrors = row.validators
-            .filter(\.trigger.isChangeDebounced)
+            .filter(\.triggers.isChangeDebounced)
             .compactMap { validator -> FormError? in
                 guard let message = validator.validate(values[rowId], values) else { return nil }
                 return FormError(message: message, position: validator.errorPosition)
