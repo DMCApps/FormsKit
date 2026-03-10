@@ -10,7 +10,6 @@ struct NumberInputRowView: View {
 
     // Use a local string buffer so the user can type freely.
     @State private var textBuffer: String = ""
-    @State private var didInitialise = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -26,8 +25,6 @@ struct NumberInputRowView: View {
                     commitText(newValue)
                 }
                 .onAppear {
-                    guard !didInitialise else { return }
-                    didInitialise = true
                     if let raw = viewModel.rawValue(for: row.id) {
                         textBuffer = raw.displayString
                     }

@@ -53,8 +53,9 @@ final class FormKitUITests: XCTestCase {
             list.swipeDown(velocity: .slow)
         }
         cell.tap()
-        // Wait for navigation animation to settle before proceeding.
-        sleep(1)
+        // Wait for the navigation bar title to update, confirming the push completed.
+        let navBar = app.navigationBars[title]
+        _ = navBar.waitForExistence(timeout: 5)
     }
 
     /// Navigate into a FormKit NavigationRow sub-form by its row ID.
@@ -70,13 +71,17 @@ final class FormKitUITests: XCTestCase {
         }
         XCTAssertTrue(cell.isHittable, "Could not reach navrow '\(rowId)'")
         cell.tap()
-        // Allow navigation animation to complete.
-        sleep(1)
+        // Wait for the sub-form content to appear before proceeding.
+        _ = app.collectionViews.firstMatch.waitForExistence(timeout: 5)
     }
 
-    /// Return the TextField / SecureField for the given row ID.
+    /// Return the TextField or SecureField for the given row ID.
+    /// Checks textFields first; falls back to secureTextFields for isSecure rows.
     private func field(_ rowId: String) -> XCUIElement {
-        app.textFields["formkit.field.\(rowId)"]
+        let identifier = "formkit.field.\(rowId)"
+        let textField = app.textFields[identifier]
+        if textField.exists { return textField }
+        return app.secureTextFields[identifier]
     }
     
     /// Return the full Toggle row for the given row ID.
@@ -249,33 +254,33 @@ final class FormKitUITests: XCTestCase {
     func testShowRowAppearsWhenConditionMet() throws {
         openForm(titled: "Conditions")
 
-        // "shownWhenTrue" starts hidden (toggle is off).
-        let targetField = field("shownWhenTrue")
-        XCTAssertFalse(targetField.exists)
-
-        // Turn the toggle on.
+        // Wait for the toggle to confirm the form has fully settled, then verify
+        // "shownWhenTrue" is hidden (toggle is off). Re-query rather than capturing
+        // upfront to avoid a stale element reference from the navigation transition.
         let boolToggle = toggleSwitch("boolToggle")
         XCTAssertTrue(boolToggle.waitForExistence(timeout: 5))
+        XCTAssertFalse(field("shownWhenTrue").exists)
+
+        // Turn the toggle on.
         boolToggle.tap()
 
         // Row should now be visible — wait up to 5 s for SwiftUI re-render.
-        XCTAssertTrue(targetField.waitForExistence(timeout: 5))
+        XCTAssertTrue(field("shownWhenTrue").waitForExistence(timeout: 5))
     }
 
     func testHideRowDisappearsWhenConditionMet() throws {
         openForm(titled: "Conditions")
 
         // "shownWhenFalse" starts visible (toggle is off = isFalse = true).
-        let targetField = field("shownWhenFalse")
-        XCTAssertTrue(targetField.waitForExistence(timeout: 5))
+        let boolToggle = toggleSwitch("boolToggle")
+        XCTAssertTrue(boolToggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(field("shownWhenFalse").waitForExistence(timeout: 5))
 
         // Turn the toggle on — isFalse becomes false → row should hide.
-        let boolToggle = toggleSwitch("boolToggle")
-        XCTAssertTrue(boolToggle.waitForExistence(timeout: 3))
         boolToggle.tap()
 
         // Row should now be gone — waitForExistence should timeout and return false.
-        XCTAssertFalse(targetField.waitForExistence(timeout: 3))
+        XCTAssertFalse(field("shownWhenFalse").waitForExistence(timeout: 3))
     }
 
     // MARK: - 4. disableRow blocks interaction
