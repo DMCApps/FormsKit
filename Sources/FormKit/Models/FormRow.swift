@@ -830,6 +830,75 @@ public struct FormSection: FormRow, @unchecked Sendable {
     }
 }
 
+// MARK: - CollapsibleSection
+
+/// A container row that groups child rows under a collapsible header.
+///
+/// Unlike `FormSection`, which always shows its children, a `CollapsibleSection`
+/// renders a tappable header with a disclosure arrow. When collapsed, only the
+/// header is visible; when expanded, all child rows appear below it.
+///
+/// The expand/collapse state is transient UI state managed by `FormViewModel`
+/// — it is NOT persisted to the form value store.
+///
+/// ```swift
+/// FormDefinition(id: "settings", title: "Settings") {
+///     CollapsibleSection(id: "advanced", title: "Advanced Settings") {
+///         TextInputRow(id: "timeout", title: "Timeout")
+///         NumberInputRow(id: "retries", title: "Retries")
+///     }
+/// }
+/// ```
+public struct CollapsibleSection: FormRow, @unchecked Sendable {
+    public let id: String
+    public let title: String
+    public let subtitle: String? = nil
+    public let onChange: [FormRowAction]
+    public let validators: [FormValidator] = []
+    public let defaultValue: AnyCodableValue? = nil
+
+    /// Whether this section starts expanded. Defaults to `true`.
+    public let isExpandedByDefault: Bool
+
+    /// The child rows contained in this section.
+    public let rows: [AnyFormRow]
+
+    // MARK: Initialisers
+
+    /// Create a collapsible section with a pre-built array of rows.
+    public init(id: String,
+                title: String,
+                isExpandedByDefault: Bool = true,
+                rows: [AnyFormRow],
+                onChange: [FormRowAction] = []) {
+        self.id = id
+        self.title = title
+        self.isExpandedByDefault = isExpandedByDefault
+        self.rows = rows
+        self.onChange = onChange
+    }
+
+    /// Create a collapsible section using the `@FormRowBuilder` DSL.
+    ///
+    /// ```swift
+    /// CollapsibleSection(id: "account", title: "Account") {
+    ///     TextInputRow(id: "name", title: "Name")
+    ///     TextInputRow(id: "email", title: "Email")
+    /// }
+    /// ```
+    public init(id: String,
+                title: String,
+                isExpandedByDefault: Bool = true,
+                onChange: [FormRowAction] = [],
+                @FormRowBuilder rows: () -> [AnyFormRow]) {
+        self.id = id
+        self.title = title
+        self.isExpandedByDefault = isExpandedByDefault
+        self.rows = rows()
+        self.onChange = onChange
+    }
+}
+
 // MARK: - NavigationRow
 
 /// A row that navigates to a sub-form when tapped.

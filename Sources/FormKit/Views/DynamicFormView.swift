@@ -182,6 +182,8 @@ struct FormRowContainer: View {
         Group {
             if let section = row.asType(FormSection.self) {
                 FormSectionView(section: section, viewModel: viewModel)
+            } else if let collapsible = row.asType(CollapsibleSection.self) {
+                CollapsibleSectionView(section: collapsible, viewModel: viewModel)
             } else if let infoRow = row.asType(InfoRow.self) {
                 InfoRowView(row: infoRow)
             } else if let buttonRow = row.asType(ButtonRow.self) {

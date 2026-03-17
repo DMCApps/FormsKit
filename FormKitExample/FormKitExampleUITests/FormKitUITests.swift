@@ -373,6 +373,64 @@ final class FormKitUITests: XCTestCase {
         let save = saveButton()
         XCTAssertTrue(save.waitForExistence(timeout: 5))
     }
+
+    // MARK: - 9. Collapsible Sections
+
+    /// Returns the collapsible section header button for the given section ID.
+    private func collapsibleHeader(_ sectionId: String) -> XCUIElement {
+        app.buttons["formkit.collapsible.\(sectionId)"]
+    }
+
+    func testCollapsibleSectionExpandsAndCollapses() throws {
+        openForm(titled: "Collapsible Sections")
+
+        // "expandedByDefault" section starts expanded — child field should be visible.
+        let childField = field("field1")
+        XCTAssertTrue(childField.waitForExistence(timeout: 5))
+
+        // Tap the header to collapse it.
+        let header = collapsibleHeader("expandedByDefault")
+        XCTAssertTrue(header.waitForExistence(timeout: 3))
+        header.tap()
+
+        // Child field should disappear after collapse.
+        XCTAssertFalse(field("field1").waitForExistence(timeout: 3))
+
+        // Tap the header again to expand.
+        header.tap()
+
+        // Child field should reappear.
+        XCTAssertTrue(field("field1").waitForExistence(timeout: 5))
+    }
+
+    func testCollapsibleSectionStartsCollapsed() throws {
+        openForm(titled: "Collapsible Sections")
+
+        // "collapsedByDefault" section starts collapsed — child field should NOT be visible.
+        let childField = field("field2")
+        XCTAssertFalse(childField.waitForExistence(timeout: 3))
+
+        // Tap the header to expand.
+        let header = collapsibleHeader("collapsedByDefault")
+        XCTAssertTrue(header.waitForExistence(timeout: 5))
+        header.tap()
+
+        // Child field should now appear.
+        XCTAssertTrue(field("field2").waitForExistence(timeout: 5))
+    }
+
+    func testCollapsibleSectionAccessibilityValue() throws {
+        openForm(titled: "Collapsible Sections")
+
+        let header = collapsibleHeader("expandedByDefault")
+        XCTAssertTrue(header.waitForExistence(timeout: 5))
+        XCTAssertEqual(header.value as? String, "expanded")
+
+        header.tap()
+        // Allow animation to complete.
+        Thread.sleep(forTimeInterval: 0.5)
+        XCTAssertEqual(header.value as? String, "collapsed")
+    }
 }
 
 // MARK: - XCUIElement helpers

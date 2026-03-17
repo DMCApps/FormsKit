@@ -17,8 +17,14 @@ struct ContentView: View {
         CatalogueEntry(
             id: "rowTypes",
             title: "Row Types",
-            subtitle: "Text, Number, Boolean, Picker, Button, Info, Section, Navigation",
+            subtitle: "Text, Number, Boolean, Picker, Button, Info, Section, Navigation, Collapsible",
             destination: RowTypesForm.definition
+        ),
+        CatalogueEntry(
+            id: "collapsibleSections",
+            title: "Collapsible Sections",
+            subtitle: "Expandable/collapsible section containers with animated arrows",
+            destination: CollapsibleSectionForm.definition
         ),
         CatalogueEntry(
             id: "validation",

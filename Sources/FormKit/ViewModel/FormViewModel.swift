@@ -163,6 +163,10 @@ public final class FormViewModel {
     /// same row, which would otherwise cause unbounded recursion).
     private var dispatchingRows: Set<String> = []
 
+    /// IDs of `CollapsibleSection` rows that are currently expanded.
+    /// This is transient UI state — not persisted or included in the form value store.
+    public private(set) var expandedSections: Set<String> = []
+
     /// All leaf rows in the form, flattened from nested sections. Immutable for the
     /// lifetime of the view model — safe because `FormDefinition.rows` is a `let`.
     private let allRows: [AnyFormRow]
@@ -193,6 +197,14 @@ public final class FormViewModel {
             }
         }
         values = store
+
+        // Seed the initial expand/collapse state for CollapsibleSection rows.
+        for row in flatRows {
+            if let collapsible = row.asType(CollapsibleSection.self),
+               collapsible.isExpandedByDefault {
+                expandedSections.insert(collapsible.id)
+            }
+        }
 
         // Kick off the async load. `status` starts as `.needsLoad` and transitions
         // to `.loading` → `.ready` (or `.loadFailed`) once the load completes.
@@ -290,6 +302,12 @@ public final class FormViewModel {
         // If this row lives inside a section, check the section's visibility first.
         if let parentSection = parentSection(of: row.id, in: formDefinition.rows) {
             guard isRowVisible(parentSection) else { return false }
+
+            // If the parent is a collapsed CollapsibleSection, hide all children.
+            if let collapsible = parentSection.asType(CollapsibleSection.self),
+               !isSectionExpanded(collapsible.id) {
+                return false
+            }
         }
 
         // Collect all .showRow actions across ALL rows (including section children)
@@ -365,6 +383,22 @@ public final class FormViewModel {
         return disableActions.contains { conditions in
             conditions.isEmpty || conditions.allSatisfy { $0.evaluate(with: values) }
         }
+    }
+
+    // MARK: - Collapsible Sections
+
+    /// Toggle the expanded/collapsed state of a `CollapsibleSection`.
+    public func toggleSection(_ sectionId: String) {
+        if expandedSections.contains(sectionId) {
+            expandedSections.remove(sectionId)
+        } else {
+            expandedSections.insert(sectionId)
+        }
+    }
+
+    /// Returns `true` if the `CollapsibleSection` with the given ID is currently expanded.
+    public func isSectionExpanded(_ sectionId: String) -> Bool {
+        expandedSections.contains(sectionId)
     }
 
     // MARK: - Validation
@@ -555,6 +589,14 @@ public final class FormViewModel {
         actionDebounceTimers.values.forEach { $0.cancel() }
         actionDebounceTimers = [:]
         dispatchingRows = []
+        // Re-seed expand/collapse state for CollapsibleSection rows.
+        expandedSections = []
+        for row in allRows {
+            if let collapsible = row.asType(CollapsibleSection.self),
+               collapsible.isExpandedByDefault {
+                expandedSections.insert(collapsible.id)
+            }
+        }
         // If persistence is configured, reload from storage immediately.
         // Mirrors the same pattern used in init().
         if persistence != nil {
@@ -751,20 +793,24 @@ public final class FormViewModel {
 
     // MARK: - Section Helpers
 
-    /// Returns a flattened array of all leaf rows, recursively expanding any `FormSection` rows.
-    /// Sections themselves are included so that their `onChange` actions can be inspected.
+    /// Returns a flattened array of all leaf rows, recursively expanding any `FormSection`
+    /// or `CollapsibleSection` rows. Sections themselves are included so that their
+    /// `onChange` actions can be inspected.
     static func allRows(in rows: [AnyFormRow]) -> [AnyFormRow] {
         rows.flatMap { row -> [AnyFormRow] in
             if let section = row.asType(FormSection.self) {
                 // Include the section row itself (for its onChange actions) plus all its children.
                 return [row] + allRows(in: section.rows)
             }
+            if let collapsible = row.asType(CollapsibleSection.self) {
+                return [row] + allRows(in: collapsible.rows)
+            }
             return [row]
         }
     }
 
-    /// Returns the `AnyFormRow` wrapping the `FormSection` that directly contains `rowId`,
-    /// or `nil` if the row is not inside any section.
+    /// Returns the `AnyFormRow` wrapping the `FormSection` or `CollapsibleSection` that
+    /// directly contains `rowId`, or `nil` if the row is not inside any section.
     private func parentSection(of rowId: String, in rows: [AnyFormRow]) -> AnyFormRow? {
         for row in rows {
             if let section = row.asType(FormSection.self) {
@@ -773,6 +819,14 @@ public final class FormViewModel {
                 }
                 // Recurse into nested sections.
                 if let found = parentSection(of: rowId, in: section.rows) {
+                    return found
+                }
+            }
+            if let collapsible = row.asType(CollapsibleSection.self) {
+                if collapsible.rows.contains(where: { $0.id == rowId }) {
+                    return row
+                }
+                if let found = parentSection(of: rowId, in: collapsible.rows) {
                     return found
                 }
             }

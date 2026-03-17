@@ -72,4 +72,14 @@ public extension FormViewModel {
     func rowDidBlur(_ rowId: some RawRepresentable<String>) {
         rowDidBlur(rowId.rawValue)
     }
+
+    /// Toggle the expanded/collapsed state of a `CollapsibleSection` (enum case overload).
+    func toggleSection(_ sectionId: some RawRepresentable<String>) {
+        toggleSection(sectionId.rawValue)
+    }
+
+    /// Returns `true` if the `CollapsibleSection` is currently expanded (enum case overload).
+    func isSectionExpanded(_ sectionId: some RawRepresentable<String>) -> Bool {
+        isSectionExpanded(sectionId.rawValue)
+    }
 }

@@ -158,6 +158,26 @@ public extension FormSection {
     }
 }
 
+public extension CollapsibleSection {
+    /// Create a collapsible section with a `RawRepresentable` id and a pre-built array of rows.
+    init<ID: RawRepresentable>(id: ID,
+                               title: String,
+                               isExpandedByDefault: Bool = true,
+                               rows: [AnyFormRow],
+                               onChange: [FormRowAction] = []) where ID.RawValue == String {
+        self.init(id: id.rawValue, title: title, isExpandedByDefault: isExpandedByDefault, rows: rows, onChange: onChange)
+    }
+
+    /// Create a collapsible section with a `RawRepresentable` id using the `@FormRowBuilder` DSL.
+    init<ID: RawRepresentable>(id: ID,
+                               title: String,
+                               isExpandedByDefault: Bool = true,
+                               onChange: [FormRowAction] = [],
+                               @FormRowBuilder rows: () -> [AnyFormRow]) where ID.RawValue == String {
+        self.init(id: id.rawValue, title: title, isExpandedByDefault: isExpandedByDefault, onChange: onChange, rows: rows)
+    }
+}
+
 public extension NavigationRow {
     init<ID: RawRepresentable>(id: ID,
                                title: String,

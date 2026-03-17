@@ -181,5 +181,20 @@ enum RowTypesForm {
             BooleanSwitchRow(id: "nestedA", title: "Row A inside a section")
             BooleanSwitchRow(id: "nestedB", title: "Row B inside the same section")
         }
+
+        // MARK: Collapsible Section
+
+        CollapsibleSection(id: "collapsibleExample", title: "CollapsibleSection (tap to toggle)") {
+            BooleanSwitchRow(id: "collapsibleA", title: "Row A inside collapsible")
+            BooleanSwitchRow(id: "collapsibleB", title: "Row B inside collapsible")
+        }
+
+        CollapsibleSection(
+            id: "collapsibleExampleClosed",
+            title: "CollapsibleSection (starts collapsed)",
+            isExpandedByDefault: false
+        ) {
+            BooleanSwitchRow(id: "collapsibleC", title: "Row C inside collapsible")
+        }
     }
 }
