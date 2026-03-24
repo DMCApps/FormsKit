@@ -9,6 +9,7 @@ A declarative, type-safe form building framework for SwiftUI on iOS 17+. FormKit
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
 - [Row Types](#row-types)
+  - [CollapsibleSection](#collapsiblesection)
 - [Validation](#validation)
 - [Conditions](#conditions)
 - [Row Actions](#row-actions)
@@ -122,7 +123,7 @@ BooleanSwitchRow(
 
 ### SingleValueRow
 
-A picker for choosing one value from a `CaseIterable` enum.
+A picker for choosing one value from a `CaseIterable` enum. The presentation style is configurable via the `pickerStyle` parameter.
 
 ```swift
 enum Environment: String, CaseIterable, CustomStringConvertible, Codable, Sendable {
@@ -130,12 +131,38 @@ enum Environment: String, CaseIterable, CustomStringConvertible, Codable, Sendab
     var description: String { rawValue.capitalized }
 }
 
+// Default — system-chosen style (inline wheel on most contexts)
 SingleValueRow<Environment>(
     id: "env",
     title: "Environment",
     defaultValue: .development
 )
+
+// Segmented control — title/subtitle rendered above the control
+SingleValueRow<Environment>(
+    id: "env",
+    title: "Environment",
+    pickerStyle: .segmented
+)
+
+// Compact menu button
+SingleValueRow<Environment>(
+    id: "env",
+    title: "Environment",
+    pickerStyle: .menu
+)
+
+// Navigation link — pushes a full-screen list
+SingleValueRow<Environment>(
+    id: "env",
+    title: "Environment",
+    pickerStyle: .navigationLink
+)
 ```
+
+**`FormPickerStyle` cases:** `.automatic` (default), `.segmented`, `.menu`, `.navigationLink`
+
+> **Note:** `.menu` and `.navigationLink` are iOS/iPadOS only; they fall back to `.automatic` on tvOS.
 
 ---
 
@@ -210,6 +237,44 @@ FormSection(id: "address", title: "Shipping Address") {
     TextInputRow(id: "city",   title: "City")
     TextInputRow(id: "zip",    title: "Postcode")
 }
+```
+
+---
+
+### CollapsibleSection
+
+Groups rows under a tappable header that expands or collapses with an animated disclosure arrow. Child rows are hidden when collapsed.
+
+```swift
+// Expanded by default
+CollapsibleSection(id: "details", title: "Details") {
+    TextInputRow(id: "bio",      title: "Bio")
+    TextInputRow(id: "website",  title: "Website")
+}
+
+// Collapsed by default
+CollapsibleSection(
+    id: "advanced",
+    title: "Advanced",
+    isExpandedByDefault: false
+) {
+    BooleanSwitchRow(id: "devMode", title: "Developer Mode")
+    NumberInputRow(id: "timeout",  title: "Timeout (s)", kind: .int(defaultValue: 30))
+}
+```
+
+Collapsible sections integrate with visibility conditions and row actions the same way `FormSection` does — you can show or hide the entire section using `.showRow` / `.hideRow` targeting the section's `id`.
+
+```swift
+BooleanSwitchRow(
+    id: "showAdvanced",
+    title: "Show Advanced",
+    onChange: [
+        .showRow(id: "advanced", when: [.isTrue(rowId: "showAdvanced")])
+    ]
+)
+
+CollapsibleSection(id: "advanced", title: "Advanced") { ... }
 ```
 
 ---
@@ -829,6 +894,10 @@ viewModel.saveError    // Error? — most recent save failure
 viewModel.isRowVisible(row)
 viewModel.isRowDisabled(row)
 viewModel.visibleRows
+
+// Collapsible sections
+viewModel.toggleSection("advanced")          // expand or collapse by ID
+viewModel.isSectionExpanded("advanced")      // Bool
 ```
 
 ### FormStatus
@@ -851,7 +920,8 @@ The `FormKitExample` app (in `FormKitExample/`) demonstrates every capability. R
 
 | Screen | Demonstrates |
 |--------|-------------|
-| **Row Types** | All 9 row types in a single form |
+| **Row Types** | All 10 row types, including all `FormPickerStyle` variants for `SingleValueRow` |
+| **Collapsible Sections** | Expanded/collapsed by default, animated disclosure arrow, conditional visibility |
 | **Validation** | All built-in validators, all triggers (.onSave, .onChange, .onChangeDebounced, .onBlur), all error positions |
 | **Conditions** | isTrue/isFalse, equals, isEmpty/isNotEmpty, numeric comparisons, contains, and/or/not composition |
 | **Actions** | showRow, hideRow, disableRow, clearValue, setValue, runValidation, custom; immediate vs. debounced timing |
@@ -859,6 +929,7 @@ The `FormKitExample` app (in `FormKitExample/`) demonstrates every capability. R
 | **Error Positions** | belowRow, belowRow(id:), formTop, formBottom, alert |
 | **Input Masks** | .usPhone, .date, custom patterns, character slot behaviour |
 | **Persistence** | Memory, UserDefaults, and File backends; auto-save and manual save |
+| **Debug Menu** | Sub-form navigation and file-based persistence |
 
 ---
 
