@@ -217,6 +217,32 @@ public extension FormRow {
     var defaultValue: AnyCodableValue? { nil }
 }
 
+// MARK: - FormPickerStyle
+
+/// Platform-independent picker style hint for `SingleValueRow`.
+///
+/// Not all styles are available on every platform. `SingleValueRowView` maps
+/// each case to the closest supported SwiftUI `PickerStyle` for the current platform:
+///
+/// | Case          | iOS / iPadOS     | tvOS             |
+/// |---------------|------------------|------------------|
+/// | `.automatic`  | `.automatic`     | `.automatic`     |
+/// | `.segmented`  | `.segmented`     | `.segmented`     |
+/// | `.menu`       | `.menu`          | `.automatic`*    |
+/// | `.navigationLink` | `.navigationLink` | `.automatic`* |
+///
+/// *Styles marked with `*` are not available on tvOS and fall back to `.automatic`.
+public enum FormPickerStyle: Sendable {
+    /// The default picker style for the current platform and context.
+    case automatic
+    /// A segmented control. Best for 2–5 short options. Available on iOS and tvOS.
+    case segmented
+    /// A menu button that reveals options when pressed. iOS / iPadOS only; falls back to `.automatic` on tvOS.
+    case menu
+    /// A navigation link that pushes a picker list. iOS / iPadOS only; falls back to `.automatic` on tvOS.
+    case navigationLink
+}
+
 // MARK: - SingleValueRowRepresentable
 
 /// Marker protocol that lets views work with SingleValueRow<T> without knowing T.
@@ -225,6 +251,8 @@ public protocol SingleValueRowRepresentable: FormRow {
     var optionDescriptions: [String] { get }
     /// The description of the currently selected option, or nil.
     var selectedDescription: String? { get }
+    /// The preferred picker style for this row.
+    var pickerStyle: FormPickerStyle { get }
 }
 
 // MARK: - MultiValueRowRepresentable
@@ -294,6 +322,10 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
     /// All available options. Defaults to `T.allCases` if not provided.
     public let options: [T]
 
+    /// The preferred picker style. Defaults to `.automatic`.
+    /// Styles unavailable on the current platform fall back to `.automatic`.
+    public let pickerStyle: FormPickerStyle
+
     private let _defaultValue: T?
 
     public var defaultValue: AnyCodableValue? {
@@ -315,6 +347,7 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
                 subtitle: String? = nil,
                 options: [T]? = nil,
                 defaultValue: T? = nil,
+                pickerStyle: FormPickerStyle = .automatic,
                 validators: [SelectionValidator] = [],
                 onChange: [FormRowAction] = []) {
         self.id = id
@@ -322,6 +355,7 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
         self.subtitle = subtitle
         self.options = options ?? Array(T.allCases)
         _defaultValue = defaultValue
+        self.pickerStyle = pickerStyle
         self.validators = validators.map(\.asFormValidator)
         self.onChange = onChange
     }

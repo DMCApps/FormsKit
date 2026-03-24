@@ -18,6 +18,7 @@ public extension SingleValueRow {
                                subtitle: String? = nil,
                                options: [T]? = nil,
                                defaultValue: T? = nil,
+                               pickerStyle: FormPickerStyle = .automatic,
                                validators: [SelectionValidator] = [],
                                onChange: [FormRowAction] = []) where ID.RawValue == String {
         self.init(
@@ -26,6 +27,7 @@ public extension SingleValueRow {
             subtitle: subtitle,
             options: options,
             defaultValue: defaultValue,
+            pickerStyle: pickerStyle,
             validators: validators,
             onChange: onChange
         )

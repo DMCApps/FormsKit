@@ -237,17 +237,20 @@ where RowID.RawValue == String {
 
     /// Validate and persist the current values.
     /// - Returns: `true` if validation passed and persistence succeeded (or no persistence).
+    @MainActor
     @discardableResult
     public func save() async -> Bool {
         await viewModel.save()
     }
 
     /// Load persisted values, merging over row defaults.
+    @MainActor
     public func loadFromPersistence() async {
         await viewModel.loadFromPersistence()
     }
 
     /// Clear persisted data for this form.
+    @MainActor
     public func clearPersistence() async {
         await viewModel.clearPersistence()
     }

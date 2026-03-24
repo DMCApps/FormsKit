@@ -431,6 +431,64 @@ final class FormKitUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
         XCTAssertEqual(header.value as? String, "collapsed")
     }
+
+    // MARK: - 10. Picker styles (SingleValueRow)
+
+    /// Returns the Picker control for a given row ID.
+    private func picker(_ rowId: String) -> XCUIElement {
+        app.descendants(matching: .any)["formkit.picker.\(rowId)"]
+    }
+
+    func testSegmentedPickerIsVisibleInRowTypes() throws {
+        openForm(titled: "Row Types")
+
+        // Scroll down until the segmented picker appears.
+        let segmentedPicker = picker("colourSegmented")
+        let list = app.collectionViews.firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+
+        var attempts = 0
+        while !segmentedPicker.exists, attempts < 10 {
+            list.swipeUp(velocity: .slow)
+            attempts += 1
+        }
+
+        XCTAssertTrue(segmentedPicker.waitForExistence(timeout: 5), "Segmented picker for 'colourSegmented' should exist in Row Types form")
+    }
+
+    func testSegmentedPickerRendersLabelAboveControl() throws {
+        openForm(titled: "Row Types")
+
+        // Scroll until the segmented picker label text is visible.
+        let list = app.collectionViews.firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+
+        // The segmented picker style renders the title as a separate Text above the Picker.
+        // We look for the static text label that is rendered explicitly for .segmented style.
+        let titleLabel = app.staticTexts["Colour (Segmented)"]
+        var attempts = 0
+        while !titleLabel.exists, attempts < 10 {
+            list.swipeUp(velocity: .slow)
+            attempts += 1
+        }
+        XCTAssertTrue(titleLabel.waitForExistence(timeout: 5), "Segmented picker title should be rendered as a static text above the control")
+    }
+
+    func testMenuPickerIsVisibleInRowTypes() throws {
+        openForm(titled: "Row Types")
+
+        let menuPicker = picker("sizeMenu")
+        let list = app.collectionViews.firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+
+        var attempts = 0
+        while !menuPicker.exists, attempts < 10 {
+            list.swipeUp(velocity: .slow)
+            attempts += 1
+        }
+
+        XCTAssertTrue(menuPicker.waitForExistence(timeout: 5), "Menu picker for 'sizeMenu' should exist in Row Types form")
+    }
 }
 
 // MARK: - XCUIElement helpers

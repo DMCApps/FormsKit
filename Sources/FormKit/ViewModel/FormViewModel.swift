@@ -463,6 +463,7 @@ public final class FormViewModel {
 
     /// Validate and persist the current values.
     /// - Returns: `true` if validation passed and persistence succeeded (or no persistence).
+    @MainActor
     @discardableResult
     public func save() async -> Bool {
         guard status == .ready else { return false }
@@ -509,58 +510,50 @@ public final class FormViewModel {
     /// Load persisted values, merging over row defaults.
     /// Transitions `status` from `.needsLoad` → `.loading` → `.ready` (or `.loadFailed`).
     ///
-    /// Concurrent calls are safely deduplicated: only the caller that observes
-    /// `status == .needsLoad` proceeds; any racing caller bails out because the
-    /// transition to `.loading` happens atomically inside `MainActor.run`.
+    /// Must be called from the `@MainActor`. Concurrent calls are safely deduplicated:
+    /// only the caller that observes `status == .needsLoad` proceeds; any racing caller
+    /// bails out immediately because the status check and transition happen synchronously
+    /// before the first suspension point.
     ///
-    /// The persistence I/O runs on whatever executor the backend requires
-    /// (e.g. a background thread for network calls). All state mutations
-    /// are then dispatched back to the `@MainActor` so SwiftUI's
-    /// `@Observable` callbacks fire correctly on the main thread.
+    /// Persistence I/O suspends off the main actor for the duration of the backend call,
+    /// then resumes on the main actor to write state — keeping SwiftUI `@Observable`
+    /// callbacks on the main thread.
+    @MainActor
     public func loadFromPersistence() async {
-        // Atomically claim the load on the MainActor. Because MainActor.run
-        // is serialised, only the first concurrent caller that observes
-        // `.needsLoad` or `.loadFailed` can transition to `.loading`;
-        // any racing caller already sees `.loading` and bails out,
-        // preventing a double-load race.
-        let shouldLoad: Bool = await MainActor.run {
-            guard status == .needsLoad || status.isLoadFailed else { return false }
-            status = .loading
-            return true
-        }
-        guard shouldLoad else { return }
+        // Check and claim the load synchronously before any suspension.
+        // Because we're on the MainActor, this is race-free: only the caller
+        // that sees `.needsLoad` or `.loadFailed` transitions to `.loading`;
+        // any concurrent caller bails out without suspending.
+        guard status == .needsLoad || status.isLoadFailed else { return }
+        status = .loading
 
         guard let persistence else {
-            await MainActor.run { status = .ready }
+            status = .ready
             return
         }
         do {
-            // I/O runs off the main thread — safe for network-backed backends.
+            // Hop off the main actor for the I/O call — safe for network-backed backends.
             let loaded = try await persistence.load(formId: formDefinition.id)
-            // All state mutations back on the main thread.
-            await MainActor.run {
-                // Cancel pending timers before replacing values so stale tasks
-                // don't overwrite errors or trigger actions on the freshly loaded state.
-                debounceTimers.values.forEach { $0.cancel() }
-                debounceTimers = [:]
-                actionDebounceTimers.values.forEach { $0.cancel() }
-                actionDebounceTimers = [:]
-                var store = FormValueStore()
-                for row in allRows {
-                    if let defaultValue = row.defaultValue {
-                        store[row.id] = defaultValue
-                    }
+            // Back on the main actor (implicit after await on @MainActor func).
+            // Cancel pending timers before replacing values so stale tasks
+            // don't overwrite errors or trigger actions on the freshly loaded state.
+            debounceTimers.values.forEach { $0.cancel() }
+            debounceTimers = [:]
+            actionDebounceTimers.values.forEach { $0.cancel() }
+            actionDebounceTimers = [:]
+            var store = FormValueStore()
+            for row in allRows {
+                if let defaultValue = row.defaultValue {
+                    store[row.id] = defaultValue
                 }
-                store.merge(loaded)
-                values = store
-                isDirty = false
-                errors = [:]
-                status = .ready
             }
+            store.merge(loaded)
+            values = store
+            isDirty = false
+            errors = [:]
+            status = .ready
         } catch {
-            await MainActor.run {
-                status = .loadFailed(error)
-            }
+            status = .loadFailed(error)
         }
     }
 

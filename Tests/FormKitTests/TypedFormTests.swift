@@ -104,6 +104,7 @@ struct TypedFormDefinitionTests {
 // MARK: - TypedFormViewModel Tests
 
 @Suite("TypedFormViewModel")
+@MainActor
 struct TypedFormViewModelTests {
     private func makeTypedForm(saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                                persistence: (any FormPersistence)? = nil) -> TypedFormDefinition<SettingsRowID> {

@@ -1283,6 +1283,154 @@ struct NumberInputRowTests {
     }
 }
 
+// MARK: - FormPickerStyle Tests
+
+@Suite("FormPickerStyle")
+struct FormPickerStyleTests {
+    enum Option: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+        case yes, no
+        var description: String { rawValue }
+    }
+
+    // MARK: Default
+
+    @Test("SingleValueRow defaults pickerStyle to .automatic")
+    func singleValueRowDefaultPickerStyleIsAutomatic() {
+        let row = SingleValueRow<Option>(id: "opt", title: "Option")
+        if case .automatic = row.pickerStyle {
+            // pass
+        } else {
+            Issue.record("Expected .automatic pickerStyle by default")
+        }
+    }
+
+    // MARK: All cases stored
+
+    @Test("SingleValueRow stores .segmented pickerStyle")
+    func singleValueRowStoresSegmentedPickerStyle() {
+        let row = SingleValueRow<Option>(id: "opt", title: "Option", pickerStyle: .segmented)
+        if case .segmented = row.pickerStyle {
+            // pass
+        } else {
+            Issue.record("Expected .segmented pickerStyle")
+        }
+    }
+
+    @Test("SingleValueRow stores .menu pickerStyle")
+    func singleValueRowStoresMenuPickerStyle() {
+        let row = SingleValueRow<Option>(id: "opt", title: "Option", pickerStyle: .menu)
+        if case .menu = row.pickerStyle {
+            // pass
+        } else {
+            Issue.record("Expected .menu pickerStyle")
+        }
+    }
+
+    @Test("SingleValueRow stores .navigationLink pickerStyle")
+    func singleValueRowStoresNavigationLinkPickerStyle() {
+        let row = SingleValueRow<Option>(id: "opt", title: "Option", pickerStyle: .navigationLink)
+        if case .navigationLink = row.pickerStyle {
+            // pass
+        } else {
+            Issue.record("Expected .navigationLink pickerStyle")
+        }
+    }
+
+    // MARK: Protocol exposure
+
+    @Test("SingleValueRowRepresentable exposes pickerStyle correctly")
+    func singleValueRepresentableExposesPickerStyle() {
+        let row = SingleValueRow<Option>(id: "opt", title: "Option", pickerStyle: .segmented)
+        let representable: any SingleValueRowRepresentable = row
+        if case .segmented = representable.pickerStyle {
+            // pass
+        } else {
+            Issue.record("Expected .segmented on representable")
+        }
+    }
+
+    @Test("AnyFormRow asSingleValueRepresentable exposes pickerStyle")
+    func anyFormRowSingleValueRepresentableExposesPickerStyle() {
+        let row = SingleValueRow<Option>(id: "opt", title: "Option", pickerStyle: .menu)
+        let anyRow = AnyFormRow(row)
+        if case .menu = anyRow.asSingleValueRepresentable?.pickerStyle {
+            // pass
+        } else {
+            Issue.record("Expected .menu from AnyFormRow.asSingleValueRepresentable")
+        }
+    }
+
+    // MARK: RawRepresentable overload forwards pickerStyle
+
+    @Test("SingleValueRow RawRepresentable overload forwards pickerStyle .automatic")
+    func rawRepresentableOverloadForwardsAutomaticPickerStyle() {
+        enum RowID: String { case opt = "option" }
+        let row = SingleValueRow<Option>(id: RowID.opt, title: "Option", pickerStyle: .automatic)
+        if case .automatic = row.pickerStyle {
+            // pass
+        } else {
+            Issue.record("Expected .automatic pickerStyle from RawRepresentable overload")
+        }
+    }
+
+    @Test("SingleValueRow RawRepresentable overload forwards pickerStyle .segmented")
+    func rawRepresentableOverloadForwardsSegmentedPickerStyle() {
+        enum RowID: String { case opt = "option" }
+        let row = SingleValueRow<Option>(id: RowID.opt, title: "Option", pickerStyle: .segmented)
+        if case .segmented = row.pickerStyle {
+            // pass
+        } else {
+            Issue.record("Expected .segmented pickerStyle from RawRepresentable overload")
+        }
+    }
+
+    @Test("SingleValueRow RawRepresentable overload forwards pickerStyle .menu")
+    func rawRepresentableOverloadForwardsMenuPickerStyle() {
+        enum RowID: String { case opt = "option" }
+        let row = SingleValueRow<Option>(id: RowID.opt, title: "Option", pickerStyle: .menu)
+        if case .menu = row.pickerStyle {
+            // pass
+        } else {
+            Issue.record("Expected .menu pickerStyle from RawRepresentable overload")
+        }
+    }
+
+    @Test("SingleValueRow RawRepresentable overload forwards pickerStyle .navigationLink")
+    func rawRepresentableOverloadForwardsNavigationLinkPickerStyle() {
+        enum RowID: String { case opt = "option" }
+        let row = SingleValueRow<Option>(id: RowID.opt, title: "Option", pickerStyle: .navigationLink)
+        if case .navigationLink = row.pickerStyle {
+            // pass
+        } else {
+            Issue.record("Expected .navigationLink pickerStyle from RawRepresentable overload")
+        }
+    }
+
+    // MARK: pickerStyle does not affect other properties
+
+    @Test("Changing pickerStyle does not affect other row properties")
+    func pickerStyleDoesNotAffectOtherProperties() {
+        let row = SingleValueRow<Option>(
+            id: "opt",
+            title: "My Option",
+            subtitle: "A subtitle",
+            defaultValue: .yes,
+            pickerStyle: .segmented
+        )
+        #expect(row.id == "opt")
+        #expect(row.title == "My Option")
+        #expect(row.subtitle == "A subtitle")
+        if case .segmented = row.pickerStyle { } else {
+            Issue.record("Expected .segmented pickerStyle")
+        }
+        if case let .string(val) = row.defaultValue {
+            #expect(val == "yes")
+        } else {
+            Issue.record("Expected .string defaultValue")
+        }
+    }
+}
+
 // MARK: - FormLoadingStyle Tests
 
 @Suite("FormLoadingStyle")

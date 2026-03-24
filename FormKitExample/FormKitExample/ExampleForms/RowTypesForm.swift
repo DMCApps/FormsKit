@@ -114,13 +114,36 @@ enum RowTypesForm {
             SingleValueRow<Colour>(
                 id: "colour",
                 title: "Favourite Colour",
-                subtitle: "Pick exactly one"
+                subtitle: "pickerStyle: .automatic (default)"
             )
 
             SingleValueRow<Size>(
                 id: "size",
                 title: "T-Shirt Size",
+                subtitle: "pickerStyle: .automatic, defaultValue: .medium",
                 defaultValue: .medium
+            )
+
+            SingleValueRow<Colour>(
+                id: "colourSegmented",
+                title: "Colour (Segmented)",
+                subtitle: "pickerStyle: .segmented — label rendered above",
+                pickerStyle: .segmented
+            )
+
+            SingleValueRow<Size>(
+                id: "sizeMenu",
+                title: "Size (Menu)",
+                subtitle: "pickerStyle: .menu",
+                defaultValue: .small,
+                pickerStyle: .menu
+            )
+
+            SingleValueRow<Colour>(
+                id: "colourNavLink",
+                title: "Colour (Nav Link)",
+                subtitle: "pickerStyle: .navigationLink",
+                pickerStyle: .navigationLink
             )
         }
 

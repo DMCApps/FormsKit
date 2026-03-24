@@ -30,6 +30,7 @@ private struct FailingPersistence: FormPersistence {
 // MARK: - FormViewModel Tests
 
 @Suite("FormViewModel")
+@MainActor
 struct FormViewModelTests {
     @Test("Default values are loaded on init")
     func defaultValuesLoaded() {
@@ -1431,8 +1432,14 @@ struct FormViewModelTests {
         // reset() immediately sets .needsLoad and fires a background Task to reload.
         #expect(vm.status == .needsLoad)
 
-        // Await until the background reload completes.
-        await vm.loadFromPersistence()
+        // Yield to let the background Task spawned by reset() proceed, then
+        // wait for it to complete by polling until status transitions away from .loading.
+        // We yield multiple times to allow the Swift concurrency scheduler to
+        // run the background task to completion.
+        for _ in 0 ..< 20 {
+            await Task.yield()
+            if vm.status == .ready { break }
+        }
         #expect(vm.status == .ready)
     }
 
