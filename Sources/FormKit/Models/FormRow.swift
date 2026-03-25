@@ -245,24 +245,73 @@ public enum FormPickerStyle: Sendable {
 
 // MARK: - SingleValueRowRepresentable
 
-/// Marker protocol that lets views work with SingleValueRow<T> without knowing T.
+/// Marker protocol that lets views work with `SingleValueRow<T>` without knowing `T`.
+///
+/// The protocol separates two concerns deliberately:
+///
+/// **Display** — `optionDescriptions` / `selectedDescription`
+/// Human-readable labels used only for rendering in the picker UI. May contain
+/// spaces, punctuation, or any presentation-friendly string. Never written to
+/// persistence.
+///
+/// **Storage** — `optionStorageKeys` / `selectedStorageKey`
+/// Stable keys written to `UserDefaults` (or whatever backing store the form
+/// uses). For `Codable`/`RawRepresentable` types these are the Codable rawValues,
+/// so storage keys survive description renames without corrupting saved data.
+/// The picker's `selection` binding tracks the storage key, not the description.
+///
+/// Default implementations delegate storage to description (backwards-compatible
+/// for types that don't override). `SingleValueRow<T>` overrides both storage
+/// properties to derive the rawValue via `AnyCodableValue.from(_:)`.
 public protocol SingleValueRowRepresentable: FormRow {
-    /// Descriptions of all available options, in order. Used for display only.
+    /// Human-readable labels for every option, in display order.
+    ///
+    /// Sourced from `T.description` and used exclusively for UI rendering —
+    /// shown as picker option labels, never written to the backing store.
+    /// Parallel in index to `optionStorageKeys`.
     var optionDescriptions: [String] { get }
-    /// The description of the currently selected option, or nil. Used for display only.
+
+    /// The human-readable label of the currently selected option, or `nil` when
+    /// no default is set.
+    ///
+    /// Sourced from `T.description`. Used only to pre-select the displayed option
+    /// before any persisted value is loaded. Not written to storage.
     var selectedDescription: String? { get }
-    /// Stable storage keys for each option, parallel to `optionDescriptions`.
-    /// Defaults to `optionDescriptions` for types that do not provide rawValues.
+
+    /// Stable persistence keys for every option, parallel to `optionDescriptions`.
+    ///
+    /// For `Codable`/`RawRepresentable` types, each key is the Codable-encoded
+    /// rawValue (e.g. `"us-west"` for a `String`-backed enum), derived via
+    /// `AnyCodableValue.from(_:).displayString`. Using rawValues instead of
+    /// descriptions means renaming a case's display string does not invalidate
+    /// previously saved selections.
+    ///
+    /// Falls back to `optionDescriptions` for types whose Codable representation
+    /// is a JSON object or array (where a unique scalar key cannot be derived).
+    ///
+    /// The default implementation returns `optionDescriptions` — override in
+    /// `SingleValueRow<T>` (and any custom conforming type) to supply rawValues.
     var optionStorageKeys: [String] { get }
-    /// The storage key for the currently selected option, or nil.
-    /// Defaults to `selectedDescription` for types that do not provide rawValues.
+
+    /// The persistence key of the currently selected option, or `nil` when no
+    /// default is set.
+    ///
+    /// Mirrors `optionStorageKeys`: for `Codable` types this is the Codable
+    /// rawValue of the default, used to write the initial value into the store
+    /// and to drive the picker's `selection` binding.
+    ///
+    /// The default implementation returns `selectedDescription`. Override in
+    /// `SingleValueRow<T>` (and any custom conforming type) to supply the rawValue.
     var selectedStorageKey: String? { get }
+
     /// The preferred picker style for this row.
     var pickerStyle: FormPickerStyle { get }
 }
 
 public extension SingleValueRowRepresentable {
+    /// Default: storage key == display description (safe fallback for non-Codable types).
     var optionStorageKeys: [String] { optionDescriptions }
+    /// Default: storage key == display description (safe fallback for non-Codable types).
     var selectedStorageKey: String? { selectedDescription }
 }
 
@@ -345,10 +394,14 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
 
     // MARK: SingleValueRowRepresentable
 
+    /// Display labels for each option. Sourced from `T.description`.
+    /// Used only for picker labels — never written to the backing store.
     public var optionDescriptions: [String] {
         options.map(\.description)
     }
 
+    /// Display label of the default option. Sourced from `T.description`.
+    /// Used only for pre-selecting the displayed option — not written to storage.
     public var selectedDescription: String? {
         _defaultValue?.description
     }
@@ -371,6 +424,9 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
         }
     }
 
+    /// The Codable rawValue of the default option, used to seed the picker's `selection`
+    /// binding and the initial store entry. Falls back to `description` when the type
+    /// encodes to a JSON object/array (see `optionStorageKeys` for details).
     public var selectedStorageKey: String? {
         _defaultValue.map { option in
             let encoded = AnyCodableValue.from(option)
