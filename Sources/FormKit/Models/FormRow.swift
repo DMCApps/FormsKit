@@ -239,7 +239,7 @@ public enum FormPickerStyle: Sendable {
     case segmented
     /// A menu button that reveals options when pressed. iOS / iPadOS only; falls back to `.automatic` on tvOS.
     case menu
-    /// A navigation link that pushes a picker list. iOS / iPadOS only; falls back to `.automatic` on tvOS.
+    /// A navigation link that pushes a picker list. iOS / iPadOS only; falls back to `.automatic` on tvOS and macOS.
     case navigationLink
 }
 

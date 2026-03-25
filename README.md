@@ -163,7 +163,7 @@ SingleValueRow<Environment>(
 
 **`FormPickerStyle` cases:** `.automatic` (default), `.segmented`, `.menu`, `.navigationLink`
 
-> **Note:** `.menu` and `.navigationLink` are iOS/iPadOS only; they fall back to `.automatic` on tvOS.
+> **Note:** `.menu` falls back to `.automatic` on tvOS. `.navigationLink` falls back to `.automatic` on tvOS and macOS.
 
 ---
 
@@ -417,6 +417,8 @@ SingleValueRow<Environment>(
 .isTrue(rowId: "showAdvanced")
 .isFalse(rowId: "isGuest")
 ```
+
+> **Note on `.isFalse`:** A row that has never been filled in (`nil`) or has been explicitly cleared (`.null`) also satisfies `.isFalse`. This means a freshly presented form where a boolean row has no stored value will match `.isFalse` conditions by default.
 
 ### Comparisons
 
