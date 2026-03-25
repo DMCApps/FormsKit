@@ -347,8 +347,11 @@ public final class FormViewModel {
     }
 
     /// All rows from the form definition that are currently visible.
+    ///
+    /// Uses the pre-flattened `allRows` so that children of `FormSection` and
+    /// `CollapsibleSection` are included, not just top-level rows.
     public var visibleRows: [AnyFormRow] {
-        formDefinition.rows.filter { isRowVisible($0) }
+        allRows.filter { isRowVisible($0) }
     }
 
     /// Returns true if the given row is currently disabled.
