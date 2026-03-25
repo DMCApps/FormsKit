@@ -247,12 +247,23 @@ public enum FormPickerStyle: Sendable {
 
 /// Marker protocol that lets views work with SingleValueRow<T> without knowing T.
 public protocol SingleValueRowRepresentable: FormRow {
-    /// Descriptions of all available options, in order.
+    /// Descriptions of all available options, in order. Used for display only.
     var optionDescriptions: [String] { get }
-    /// The description of the currently selected option, or nil.
+    /// The description of the currently selected option, or nil. Used for display only.
     var selectedDescription: String? { get }
+    /// Stable storage keys for each option, parallel to `optionDescriptions`.
+    /// Defaults to `optionDescriptions` for types that do not provide rawValues.
+    var optionStorageKeys: [String] { get }
+    /// The storage key for the currently selected option, or nil.
+    /// Defaults to `selectedDescription` for types that do not provide rawValues.
+    var selectedStorageKey: String? { get }
     /// The preferred picker style for this row.
     var pickerStyle: FormPickerStyle { get }
+}
+
+public extension SingleValueRowRepresentable {
+    var optionStorageKeys: [String] { optionDescriptions }
+    var selectedStorageKey: String? { selectedDescription }
 }
 
 // MARK: - MultiValueRowRepresentable
@@ -329,7 +340,7 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
     private let _defaultValue: T?
 
     public var defaultValue: AnyCodableValue? {
-        _defaultValue.map { .string($0.description) }
+        _defaultValue.map { AnyCodableValue.from($0) }
     }
 
     // MARK: SingleValueRowRepresentable
@@ -340,6 +351,17 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
 
     public var selectedDescription: String? {
         _defaultValue?.description
+    }
+
+    /// Storage keys derived from `AnyCodableValue.from(_:)`, which uses the type's
+    /// Codable representation (e.g. `rawValue` for `RawRepresentable` enums).
+    /// These are stable identifiers that survive description renames.
+    public var optionStorageKeys: [String] {
+        options.map { AnyCodableValue.from($0).displayString }
+    }
+
+    public var selectedStorageKey: String? {
+        _defaultValue.map { AnyCodableValue.from($0).displayString }
     }
 
     public init(id: String,

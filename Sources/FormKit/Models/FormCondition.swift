@@ -122,6 +122,10 @@ public extension FormCondition {
 
         case let .isFalse(rowId):
             let value = store[rowId]
+            // Nil and .null both evaluate as true here: an unset (nil) row or an
+            // explicitly cleared (.null) row is treated as falsy. This means newly
+            // presented forms where a row has never been filled in will satisfy an
+            // `.isFalse` condition. Document this so callers are not surprised.
             return value == .bool(false) || value == nil || value == .null
 
         case let .custom(predicate):

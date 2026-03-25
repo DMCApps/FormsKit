@@ -292,6 +292,40 @@ struct SingleValueRowTests {
         #expect(row.selectedDescription == "blue")
     }
 
+    @Test("SingleValueRow optionStorageKeys use rawValue, not description")
+    func singleValueRowOptionStorageKeysUseRawValue() {
+        // Colour.description == Colour.rawValue, so verify stable keys equal rawValues.
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        #expect(row.optionStorageKeys == ["red", "green", "blue"])
+
+        // A type where description differs from rawValue to confirm keys are rawValue-based.
+        enum Status: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            case active = "active_status"
+            case inactive = "inactive_status"
+            var description: String {
+                switch self {
+                case .active: "Active"
+                case .inactive: "Inactive"
+                }
+            }
+        }
+        let statusRow = SingleValueRow<Status>(id: "status", title: "Status")
+        #expect(statusRow.optionDescriptions == ["Active", "Inactive"])
+        #expect(statusRow.optionStorageKeys == ["active_status", "inactive_status"])
+    }
+
+    @Test("SingleValueRow selectedStorageKey returns nil when no default")
+    func singleValueRowSelectedStorageKeyNilWhenNoDefault() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        #expect(row.selectedStorageKey == nil)
+    }
+
+    @Test("SingleValueRow selectedStorageKey returns rawValue of default")
+    func singleValueRowSelectedStorageKeyMatchesRawValue() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour", defaultValue: .blue)
+        #expect(row.selectedStorageKey == "blue")
+    }
+
     @Test("SingleValueRow stores validators")
     func singleValueRowStoresValidators() {
         let v = SelectionValidator.required()

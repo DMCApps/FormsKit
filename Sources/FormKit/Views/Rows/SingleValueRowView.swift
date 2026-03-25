@@ -10,8 +10,9 @@ struct SingleValueRowView: View {
     let rowId: String
     @Bindable var viewModel: FormViewModel
 
-    private var selectedDescription: String {
-        viewModel.value(for: rowId) ?? row.selectedDescription ?? ""
+    /// The storage key (rawValue for Codable enums) of the currently selected option.
+    private var selectedStorageKey: String {
+        viewModel.value(for: rowId) ?? row.selectedStorageKey ?? ""
     }
 
     var body: some View {
@@ -43,12 +44,14 @@ struct SingleValueRowView: View {
     }
 
     private var pickerView: some View {
+        let storageKeys = row.optionStorageKeys
+        let descriptions = row.optionDescriptions
         let picker = Picker(row.title, selection: Binding(
-            get: { selectedDescription },
+            get: { selectedStorageKey },
             set: { viewModel.setString($0, for: rowId) }
         )) {
-            ForEach(row.optionDescriptions, id: \.self) { description in
-                Text(description).tag(description)
+            ForEach(storageKeys.indices, id: \.self) { index in
+                Text(descriptions[index]).tag(storageKeys[index])
             }
         }
         .accessibilityIdentifier("formkit.picker.\(rowId)")
