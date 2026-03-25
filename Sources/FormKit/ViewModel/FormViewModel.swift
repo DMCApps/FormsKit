@@ -216,7 +216,7 @@ public final class FormViewModel {
     // MARK: - Value Reading
 
     /// Returns a typed value for the given row ID.
-    public func value<T>(for rowId: String) -> T? {
+    public func value<T: Decodable>(for rowId: String) -> T? {
         values.value(for: rowId)
     }
 

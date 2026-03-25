@@ -76,6 +76,47 @@ struct AnyCodableValueTests {
         #expect(AnyCodableValue.int(3).typed(Double.self) == 3.0)
     }
 
+    @Test("typed() and from(_:) round-trip String-backed enums")
+    func roundTripStringBackedEnum() {
+        enum Fruit: String, Codable, Sendable { case apple, banana, cherry }
+
+        // Storage side: from(_:) encodes via JSONEncoder, producing .string("banana")
+        #expect(AnyCodableValue.from(Fruit.banana) == .string("banana"))
+
+        // Retrieval side: typed<T> decodes via JSONDecoder from the stored .string
+        let result = AnyCodableValue.string("banana").typed(Fruit.self)
+        #expect(result == .banana)
+    }
+
+    @Test("typed() and from(_:) round-trip Int-backed enums")
+    func roundTripIntBackedEnum() {
+        enum Priority: Int, Codable, Sendable { case low = 1, medium = 2, high = 3 }
+
+        // Storage side: from(_:) encodes via JSONEncoder, producing .int(2)
+        #expect(AnyCodableValue.from(Priority.medium) == .int(2))
+
+        // Retrieval side: typed<T> decodes via JSONDecoder from the stored .int
+        let result = AnyCodableValue.int(2).typed(Priority.self)
+        #expect(result == .medium)
+    }
+
+    @Test("typed() and from(_:) round-trip Double-backed enums")
+    func roundTripDoubleBackedEnum() {
+        enum Scale: Double, Codable, Sendable { case half = 0.5, full = 1.0, double = 2.0 }
+
+        // JSONDecoder decodes whole-number doubles as .int when there is no fractional
+        // part (AnyCodableValue tries Int before Double in its Decodable init).
+        // The important contract is the round-trip: from → typed recovers the original value.
+        let stored = AnyCodableValue.from(Scale.full)
+        let result = stored.typed(Scale.self)
+        #expect(result == .full)
+
+        // A value with a fractional part cannot be decoded as Int, so it is stored as .double.
+        let storedHalf = AnyCodableValue.from(Scale.half)
+        #expect(storedHalf == .double(0.5))
+        #expect(storedHalf.typed(Scale.self) == .half)
+    }
+
     @Test("from(_:) factory method")
     func fromFactory() {
         #expect(AnyCodableValue.from(true) == .bool(true))
@@ -83,6 +124,39 @@ struct AnyCodableValueTests {
         #expect(AnyCodableValue.from(3.14) == .double(3.14))
         #expect(AnyCodableValue.from("hello") == .string("hello"))
         #expect(AnyCodableValue.from(referenceDate) == .date(referenceDate))
+    }
+
+    @Test("from(_:) converts Float to .double")
+    func fromFloat() {
+        // Float has a dedicated branch: Float → Double to avoid the JSON slow path.
+        let value = AnyCodableValue.from(Float(1.5))
+        #expect(value == .double(Double(Float(1.5))))
+        #expect(value.typed(Double.self) == Double(Float(1.5)))
+    }
+
+    @Test("from(_:) calls failure handler and returns .null for unencodable types")
+    func fromUnencodableType() {
+        // A Codable type whose encode(to:) always throws — exercises the catch branch
+        // and verifies the injected failure handler fires instead of assertionFailure.
+        struct AlwaysFails: Codable, Sendable {
+            func encode(to encoder: Encoder) throws {
+                struct Boom: Error { }
+                throw Boom()
+            }
+
+            init(from decoder: Decoder) throws { }
+            init() { }
+        }
+
+        var capturedMessage: String?
+        let previous = anyCodableValueEncodingFailure
+        anyCodableValueEncodingFailure = { capturedMessage = $0 }
+        defer { anyCodableValueEncodingFailure = previous }
+
+        let result = AnyCodableValue.from(AlwaysFails())
+
+        #expect(result == .null)
+        #expect(capturedMessage?.contains("AlwaysFails") == true)
     }
 
     @Test("displayString output")

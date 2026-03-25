@@ -22,6 +22,9 @@ private enum TagRowID: String, Sendable {
     case tags
 }
 
+/// A String-backed enum used to test storing and retrieving enum *values* (not row IDs).
+private enum Theme: String, Codable, Sendable { case light, dark, system }
+
 // MARK: - TypedFormDefinition Tests
 
 @Suite("TypedFormDefinition")
@@ -154,6 +157,20 @@ struct TypedFormViewModelTests {
         #expect(notifications == false)
         #expect(count == 42)
         #expect(score == 9.9)
+    }
+
+    @Test("Custom enum value write and read round-trip via value(for:)")
+    func enumValueRoundTrip() {
+        // This tests that TypedFormViewModel.value<T>(for:) correctly recovers a
+        // String-backed enum *value* (not just a row ID) via the JSON slow path.
+        let form = TypedFormDefinition<SettingsRowID>(id: "t", title: "T") {
+            TextInputRow(id: SettingsRowID.username.rawValue, title: "Theme")
+        }
+        let vm = TypedFormViewModel(form: form)
+
+        vm.setValue(AnyCodableValue.from(Theme.dark), for: .username)
+        let result: Theme? = vm.value(for: .username)
+        #expect(result == .dark)
     }
 
     @Test("rawValue(for:) returns the AnyCodableValue")

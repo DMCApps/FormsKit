@@ -157,7 +157,7 @@ where RowID.RawValue == String {
     // MARK: - Value Reading
 
     /// Returns a typed value for the given row ID.
-    public func value<T>(for rowId: RowID) -> T? {
+    public func value<T: Decodable>(for rowId: RowID) -> T? {
         viewModel.value(for: rowId.rawValue)
     }
 

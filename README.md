@@ -19,6 +19,7 @@ A declarative, type-safe form building framework for SwiftUI on iOS 17+. FormKit
 - [Loading States](#loading-states)
 - [Type-Safe API](#type-safe-api)
 - [FormViewModel](#formviewmodel)
+- [Value Model](#value-model)
 - [Example App](#example-app)
 - [Accessibility Identifiers](#accessibility-identifiers)
 
@@ -911,6 +912,107 @@ case .saving:              // Save in progress
 case .loadFailed(let err): // Load failed — defaults shown
 }
 ```
+
+---
+
+## Value Model
+
+FormKit uses two types to represent form state at every layer of the stack: `AnyCodableValue` (a single value) and `FormValueStore` (the full form dictionary).
+
+### AnyCodableValue
+
+`AnyCodableValue` is a type-erased enum that can hold any primitive a form row might need:
+
+```swift
+public enum AnyCodableValue {
+    case bool(Bool)
+    case int(Int)
+    case double(Double)
+    case string(String)
+    case date(Date)            // stored as TimeInterval — calendar-independent
+    case array([AnyCodableValue])  // used by MultiValueRow
+    case null
+}
+```
+
+It is `Codable`, `Sendable`, `Equatable`, `Hashable`, and `Comparable`. All persistence backends, validators, and conditions work exclusively with this type, so none of them need to know which concrete row type produced a value.
+
+#### Converting to/from AnyCodableValue
+
+`AnyCodableValue.from(_:)` converts any `Codable & Sendable` value into the matching case. Primitives map directly; any other `Codable` type (such as a `String`- or `Int`-backed enum) is encoded through `JSONEncoder` and decoded back, guaranteeing a symmetric round-trip with `typed<T>(_:)`.
+
+```swift
+AnyCodableValue.from(true)          // → .bool(true)
+AnyCodableValue.from(42)            // → .int(42)
+AnyCodableValue.from("hello")       // → .string("hello")
+AnyCodableValue.from(Date())        // → .date(...)
+
+enum Status: String, Codable, Sendable { case active, inactive }
+AnyCodableValue.from(Status.active) // → .string("active")
+```
+
+`typed<T: Decodable>(_:)` is the inverse. It tries direct casts first (fast path), then falls back to `JSONEncoder → JSONDecoder` for custom `Codable` types like enums:
+
+```swift
+AnyCodableValue.string("active").typed(Status.self) // → Status.active
+AnyCodableValue.int(3).typed(Double.self)            // → 3.0  (Int widened to Double)
+AnyCodableValue.bool(true).typed(Bool.self)          // → true
+```
+
+> **Note on Double-backed enums:** `AnyCodableValue`'s own `Decodable` init tries `Int` before `Double`, so a whole-number double raw value (e.g. `1.0`) is stored as `.int(1)`. `typed<T>` recovers the correct enum case via the JSON slow path — the round-trip contract is always maintained.
+
+#### Conditions use AnyCodableValue directly
+
+Conditions compare stored values with `AnyCodableValue` literals:
+
+```swift
+.equals(rowId: "env", string: "production")  // store["env"] == .string("production")
+.greaterThan(rowId: "qty", value: .int(0))
+.contains(rowId: "tags", value: .string("urgent"))
+```
+
+#### Error handling
+
+If `from(_:)` cannot encode a value (programmer error — should never happen with well-formed `Codable` types), it calls the injectable `anyCodableValueEncodingFailure` handler, which defaults to `assertionFailure` in debug builds and returns `.null`. Tests can replace the handler to assert on the failure message without crashing:
+
+```swift
+let previous = anyCodableValueEncodingFailure
+anyCodableValueEncodingFailure = { message in
+    // capture or assert on message
+}
+defer { anyCodableValueEncodingFailure = previous }
+```
+
+---
+
+### FormValueStore
+
+`FormValueStore` is a `[String: AnyCodableValue]` dictionary wrapped in a `Codable`, `Sendable`, `Equatable` struct, keyed by row ID. It is the type passed to persistence backends, validators, conditions, and `onSave` callbacks.
+
+```swift
+var store = FormValueStore()
+
+// Raw subscript access
+store["name"] = .string("Alice")
+let raw: AnyCodableValue? = store["name"]
+
+// Typed convenience
+store.setValue("Alice", for: "name")          // wraps via AnyCodableValue.from(_:)
+let name: String? = store.value(for: "name")  // extracts via typed<T>(_:)
+
+// Optional — sets .null
+store.setValue(nil as String?, for: "name")
+store.hasValue(for: "name") // → false (.null treated as absent)
+
+// Arrays (MultiValueRow)
+store["tags"] = .array([.string("swift"), .string("ios")])
+store.arrayContains(key: "tags", value: .string("swift")) // → true
+
+// Merge (later values win)
+store.merge(otherStore)
+```
+
+`FormValueStore` is fully `Codable`, so all three persistence backends (`FormPersistenceMemory`, `FormPersistenceUserDefaults`, `FormPersistenceFile`) encode and decode it as JSON without any additional configuration.
 
 ---
 

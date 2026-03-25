@@ -1,5 +1,14 @@
 import Foundation
 
+// MARK: - AnyCodableValue Failure Handler
+
+/// Called when `AnyCodableValue.from(_:)` cannot encode a value.
+/// Defaults to `assertionFailure` so bugs surface immediately in debug builds.
+/// Tests can replace this with a closure that records the failure without crashing.
+var anyCodableValueEncodingFailure: (_ message: String) -> Void = { message in
+    assertionFailure(message)
+}
+
 // MARK: - AnyCodableValue
 
 /// A type-erased Codable value that can hold any primitive or array of primitives.
@@ -95,7 +104,11 @@ extension AnyCodableValue: Comparable {
 
 public extension AnyCodableValue {
     /// Create an AnyCodableValue from any supported Swift type.
-    /// Falls back to a string description for types that don't map directly.
+    ///
+    /// Primitives are mapped directly to their corresponding cases. Any other
+    /// `Codable` type (e.g. `String`- or `Int`-backed enums) is encoded via
+    /// `JSONEncoder` and decoded back into an `AnyCodableValue`, ensuring
+    /// full round-trip symmetry with `typed<T>(_:)`.
     static func from(_ value: some Codable & Sendable) -> AnyCodableValue {
         if let v = value as? Bool { return .bool(v) }
         if let v = value as? Int { return .int(v) }
@@ -103,21 +116,57 @@ public extension AnyCodableValue {
         if let v = value as? Float { return .double(Double(v)) }
         if let v = value as? String { return .string(v) }
         if let v = value as? Date { return .date(v) }
-        // For CaseIterable / CustomStringConvertible enums, use their description.
-        return .string(String(describing: value))
+        // For any other Codable type (enums backed by String, Int, Double, etc.)
+        // encode through JSON so that typed<T>(_:) can recover the value via
+        // the same Decodable path — guaranteeing a symmetric round-trip.
+        do {
+            let data = try JSONEncoder().encode(value)
+            return try JSONDecoder().decode(AnyCodableValue.self, from: data)
+        } catch {
+            anyCodableValueEncodingFailure("AnyCodableValue.from(_:) failed to encode \(type(of: value)): \(error)")
+            return .null
+        }
     }
 
-    /// Attempt to extract a typed value from this AnyCodableValue.
-    func typed<T>(_ type: T.Type) -> T? {
+    /// Attempt to extract a typed value from this `AnyCodableValue`.
+    ///
+    /// Primitives are returned via direct cast. For any other `Decodable` type
+    /// (e.g. enums backed by `String`, `Int`, `Double`, etc.) the stored value
+    /// is encoded back to JSON and decoded as `T`, providing full symmetry with
+    /// `from(_:)` without requiring callers to adopt additional protocols.
+    func typed<T: Decodable>(_ type: T.Type) -> T? {
+        // Fast path: direct primitive casts.
         switch self {
         case let .bool(v): return v as? T
-        case let .int(v): return (v as? T) ?? (Double(v) as? T)
-        case let .double(v): return (v as? T) ?? (Int(v) as? T)
-        case let .string(v): return v as? T
-        case let .date(v): return v as? T
-        case let .array(v): return v as? T
-        case .null: return nil
+        case let .int(v):
+            if let direct = v as? T { return direct }
+            // Widen Int → Double so callers requesting Double from an int-stored value
+            // (e.g. `.int(3).typed(Double.self) == 3.0`) get a result without hitting
+            // the JSON slow path.
+            if let coerced = Double(v) as? T { return coerced }
+        case let .double(v):
+            if let direct = v as? T { return direct }
+            // Narrow Double → Int for whole-number values. This handles the case where
+            // a Double-backed enum with a whole-number raw value (e.g. `1.0`) gets stored
+            // as `.int(1)` by AnyCodableValue's own Decodable init (which tries Int before
+            // Double for whole-number JSON numbers). The coercion recovers those values on
+            // the fast path before falling through to the JSON slow path.
+            if let coerced = Int(v) as? T { return coerced }
+        case let .string(v):
+            if let direct = v as? T { return direct }
+        case let .date(v):
+            if let direct = v as? T { return direct }
+        case let .array(v):
+            if let direct = v as? T { return direct }
+        case .null:
+            return nil
         }
+        // Slow path: Decodable type (enum, struct, etc.) that didn't match a primitive
+        // cast. Re-encode self to JSON and decode as T — T is statically Decodable.
+        guard let data = try? JSONEncoder().encode(self),
+              let value = try? JSONDecoder().decode(T.self, from: data)
+        else { return nil }
+        return value
     }
 
     /// Returns the string representation for display purposes.
@@ -156,7 +205,7 @@ public struct FormValueStore: Codable, Sendable, Equatable {
     // MARK: Typed Access
 
     /// Get a typed value for a key, attempting a type-cast from AnyCodableValue.
-    public func value<T>(for key: String) -> T? {
+    public func value<T: Decodable>(for key: String) -> T? {
         storage[key]?.typed(T.self)
     }
 

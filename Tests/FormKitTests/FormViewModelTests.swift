@@ -9,6 +9,8 @@ private enum Env: String, CaseIterable, CustomStringConvertible, Hashable, Senda
     var description: String { rawValue }
 }
 
+private enum EnvRowID: String { case environment }
+
 private func makeForm(rows: [AnyFormRow],
                       persistence: (any FormPersistence)? = nil,
                       saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
@@ -81,6 +83,27 @@ struct FormViewModelTests {
         #expect(int == 42)
         #expect(dbl == 3.14)
         #expect(bool == true)
+    }
+
+    @Test("String-backed enum value round-trips through value(for:)")
+    func enumValueRoundTripString() {
+        let form = makeForm(rows: [AnyFormRow(TextInputRow(id: "env", title: "Env"))])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setValue(AnyCodableValue.from(Env.staging), for: "env")
+        let result: Env? = vm.value(for: "env")
+        #expect(result == .staging)
+    }
+
+    @Test("String-backed enum value round-trips via RawRepresentable row ID overload")
+    func enumValueRoundTripRawRepresentableRowID() {
+        // Uses FormViewModel+RawRepresentable.value<T, ID>(for:) — enum row ID AND enum value.
+        let form = makeForm(rows: [AnyFormRow(TextInputRow(id: EnvRowID.environment.rawValue, title: "Env"))])
+        let vm = FormViewModel(formDefinition: form)
+
+        vm.setValue(AnyCodableValue.from(Env.prod), for: EnvRowID.environment.rawValue)
+        let result: Env? = vm.value(for: EnvRowID.environment)
+        #expect(result == .prod)
     }
 
     @Test("toggleArrayValue adds and removes")

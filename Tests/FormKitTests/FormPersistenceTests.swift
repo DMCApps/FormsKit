@@ -8,6 +8,14 @@ private func makeStore(_ values: [String: AnyCodableValue]) -> FormValueStore {
     FormValueStore(values)
 }
 
+// Shared enum types used across persistence round-trip tests.
+private enum Status: String, Codable, Sendable { case active, inactive, pending }
+private enum Priority: Int, Codable, Sendable { case low = 1, medium = 2, high = 3 }
+// Scale exercises the Double-backed enum edge case where raw value 1.0 is stored as
+// .int(1) by AnyCodableValue's decoder (Int is tried before Double). The round-trip
+// must still recover the correct enum case via the JSON slow path in typed<T>.
+private enum Scale: Double, Codable, Sendable { case off = 0.0, normal = 1.0, high = 2.5 }
+
 // MARK: - FormPersistenceMemory Tests
 
 @Suite("FormPersistenceMemory")
@@ -65,6 +73,42 @@ struct FormPersistenceMemoryTests {
 
         #expect(loaded1["a"] == .string("form1"))
         #expect(loaded2["a"] == .string("form2"))
+    }
+
+    @Test("String- and Int-backed enum values survive memory round-trip")
+    func enumRoundTrip() async throws {
+        let persistence = FormPersistenceMemory()
+        var store = FormValueStore()
+        store.setValue(Status.active, for: "status")
+        store.setValue(Priority.high, for: "priority")
+
+        try await persistence.save(store, formId: "enums")
+        let loaded = try await persistence.load(formId: "enums")
+
+        let status: Status? = loaded.value(for: "status")
+        let priority: Priority? = loaded.value(for: "priority")
+        #expect(status == .active)
+        #expect(priority == .high)
+    }
+
+    @Test("Double-backed enum with raw value 1.0 survives memory round-trip")
+    func doubleBackedEnumRoundTrip() async throws {
+        let persistence = FormPersistenceMemory()
+        var store = FormValueStore()
+        store.setValue(Scale.normal, for: "scale") // raw value 1.0
+
+        // AnyCodableValue.from(Scale.normal) stores .int(1) because the decoder
+        // tries Int before Double for whole-number JSON numbers. Verify this
+        // intermediate representation explicitly so a future decoder-order change
+        // is caught early.
+        #expect(store["scale"] == .int(1))
+
+        try await persistence.save(store, formId: "scaleEnums")
+        let loaded = try await persistence.load(formId: "scaleEnums")
+
+        // The round-trip must still recover the correct case via the JSON slow path.
+        let scale: Scale? = loaded.value(for: "scale")
+        #expect(scale == .normal)
     }
 }
 
@@ -158,6 +202,45 @@ struct FormPersistenceFileTests {
         #expect(loaded["array"] == .array([.string("a"), .int(1)]))
         #expect(loaded["null"] == .null)
     }
+
+    @Test("String- and Int-backed enum values survive file round-trip")
+    func enumRoundTrip() async throws {
+        let dir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let persistence = FormPersistenceFile(directory: dir)
+        var store = FormValueStore()
+        store.setValue(Status.pending, for: "status")
+        store.setValue(Priority.medium, for: "priority")
+
+        try await persistence.save(store, formId: "enums")
+        let loaded = try await persistence.load(formId: "enums")
+
+        let status: Status? = loaded.value(for: "status")
+        let priority: Priority? = loaded.value(for: "priority")
+        #expect(status == .pending)
+        #expect(priority == .medium)
+    }
+
+    @Test("Double-backed enum with raw value 1.0 survives file round-trip")
+    func doubleBackedEnumRoundTrip() async throws {
+        let dir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let persistence = FormPersistenceFile(directory: dir)
+        var store = FormValueStore()
+        store.setValue(Scale.normal, for: "scale") // raw value 1.0
+
+        // AnyCodableValue.from(Scale.normal) stores .int(1) — whole-number doubles
+        // are decoded as Int first. Pin this to catch any future decoder-order change.
+        #expect(store["scale"] == .int(1))
+
+        try await persistence.save(store, formId: "scaleEnums")
+        let loaded = try await persistence.load(formId: "scaleEnums")
+
+        let scale: Scale? = loaded.value(for: "scale")
+        #expect(scale == .normal)
+    }
 }
 
 // MARK: - FormPersistenceUserDefaults Tests
@@ -226,5 +309,46 @@ struct FormPersistenceUserDefaultsTests {
 
         #expect(loaded1["val"] == .int(1))
         #expect(loaded2["val"] == .int(2))
+    }
+
+    @Test("String- and Int-backed enum values survive UserDefaults round-trip")
+    func enumRoundTrip() async throws {
+        let suiteName = makeSuiteName()
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let persistence = FormPersistenceUserDefaults(defaults: defaults)
+        var store = FormValueStore()
+        store.setValue(Status.inactive, for: "status")
+        store.setValue(Priority.low, for: "priority")
+
+        try await persistence.save(store, formId: "enums")
+        let loaded = try await persistence.load(formId: "enums")
+
+        let status: Status? = loaded.value(for: "status")
+        let priority: Priority? = loaded.value(for: "priority")
+        #expect(status == .inactive)
+        #expect(priority == .low)
+    }
+
+    @Test("Double-backed enum with raw value 1.0 survives UserDefaults round-trip")
+    func doubleBackedEnumRoundTrip() async throws {
+        let suiteName = makeSuiteName()
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let persistence = FormPersistenceUserDefaults(defaults: defaults)
+        var store = FormValueStore()
+        store.setValue(Scale.normal, for: "scale") // raw value 1.0
+
+        // AnyCodableValue.from(Scale.normal) stores .int(1) — whole-number doubles
+        // are decoded as Int first. Pin this to catch any future decoder-order change.
+        #expect(store["scale"] == .int(1))
+
+        try await persistence.save(store, formId: "scaleEnums")
+        let loaded = try await persistence.load(formId: "scaleEnums")
+
+        let scale: Scale? = loaded.value(for: "scale")
+        #expect(scale == .normal)
     }
 }
