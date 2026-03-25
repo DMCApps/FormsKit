@@ -353,15 +353,30 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
         _defaultValue?.description
     }
 
-    /// Storage keys derived from `AnyCodableValue.from(_:)`, which uses the type's
-    /// Codable representation (e.g. `rawValue` for `RawRepresentable` enums).
-    /// These are stable identifiers that survive description renames.
+    /// Storage keys for each option, derived from `AnyCodableValue.from(_:)`.
+    ///
+    /// For types that encode to a JSON primitive (e.g. `String`- or `Int`-backed enums),
+    /// this produces the Codable `rawValue` — a stable key that survives description renames.
+    ///
+    /// For types that encode to a JSON object or array (unusual given `CaseIterable` + `Codable`,
+    /// but theoretically possible with custom `Codable` implementations), `AnyCodableValue.from`
+    /// returns `.null` and `displayString` would be `""`, which would make all options
+    /// indistinguishable. The fallback to `description` guards against this: such types
+    /// get the same description-based behaviour as before L2.
     public var optionStorageKeys: [String] {
-        options.map { AnyCodableValue.from($0).displayString }
+        options.map { option in
+            let encoded = AnyCodableValue.from(option)
+            guard encoded != .null else { return option.description }
+            return encoded.displayString
+        }
     }
 
     public var selectedStorageKey: String? {
-        _defaultValue.map { AnyCodableValue.from($0).displayString }
+        _defaultValue.map { option in
+            let encoded = AnyCodableValue.from(option)
+            guard encoded != .null else { return option.description }
+            return encoded.displayString
+        }
     }
 
     public init(id: String,

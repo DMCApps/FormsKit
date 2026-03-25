@@ -326,6 +326,45 @@ struct SingleValueRowTests {
         #expect(row.selectedStorageKey == "blue")
     }
 
+    @Test("SingleValueRow optionStorageKeys fall back to description when AnyCodableValue encodes to .null")
+    func singleValueRowStorageKeyFallsBackToDescriptionForUnencodableType() {
+        // A CaseIterable type whose encode(to:) always throws — AnyCodableValue.from returns
+        // .null, so optionStorageKeys must fall back to description rather than returning "".
+        // This guards the path where T encodes to a JSON object/array that AnyCodableValue
+        // cannot represent as a primitive.
+        enum Broken: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            case alpha, beta
+            var description: String { "display_\(rawValue)" }
+            func encode(to encoder: Encoder) throws {
+                // Encode as a JSON object — AnyCodableValue has no .object case,
+                // so from(_:) will return .null via its error handler.
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(rawValue, forKey: .value)
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                let raw = try container.decode(String.self, forKey: .value)
+                guard let value = Self(rawValue: raw) else { throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "")) }
+                self = value
+            }
+
+            enum CodingKeys: String, CodingKey { case value }
+        }
+
+        // Suppress the assertionFailure from anyCodableValueEncodingFailure during this test.
+        let previous = anyCodableValueEncodingFailure
+        anyCodableValueEncodingFailure = { _ in }
+        defer { anyCodableValueEncodingFailure = previous }
+
+        let row = SingleValueRow<Broken>(id: "broken", title: "Broken")
+        // Falls back to description when encoding produces .null.
+        #expect(row.optionStorageKeys == ["display_alpha", "display_beta"])
+
+        let rowWithDefault = SingleValueRow<Broken>(id: "broken", title: "Broken", defaultValue: .alpha)
+        #expect(rowWithDefault.selectedStorageKey == "display_alpha")
+    }
+
     @Test("SingleValueRow stores validators")
     func singleValueRowStoresValidators() {
         let v = SelectionValidator.required()
