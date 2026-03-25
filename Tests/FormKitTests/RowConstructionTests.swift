@@ -274,31 +274,15 @@ struct SingleValueRowTests {
         #expect(row.defaultValue == nil)
     }
 
-    @Test("SingleValueRow optionDescriptions matches option descriptions")
-    func singleValueRowOptionDescriptions() {
+    @Test("SingleValueRow pickerOptions labels match descriptions and storedValues match rawValues")
+    func singleValueRowPickerOptions() {
+        // Colour.description == Colour.rawValue — labels and storedValues are the same.
         let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
-        #expect(row.optionDescriptions == ["red", "green", "blue"])
-    }
+        let opts = row.pickerOptions
+        #expect(opts.map(\.label) == ["red", "green", "blue"])
+        #expect(opts.map(\.storedValue) == ["red", "green", "blue"])
 
-    @Test("SingleValueRow selectedDescription returns nil when no default")
-    func singleValueRowSelectedDescriptionNilWhenNoDefault() {
-        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
-        #expect(row.selectedDescription == nil)
-    }
-
-    @Test("SingleValueRow selectedDescription returns description of default value")
-    func singleValueRowSelectedDescriptionMatchesDefault() {
-        let row = SingleValueRow<Colour>(id: "colour", title: "Colour", defaultValue: .blue)
-        #expect(row.selectedDescription == "blue")
-    }
-
-    @Test("SingleValueRow optionStorageKeys use rawValue, not description")
-    func singleValueRowOptionStorageKeysUseRawValue() {
-        // Colour.description == Colour.rawValue, so verify stable keys equal rawValues.
-        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
-        #expect(row.optionStorageKeys == ["red", "green", "blue"])
-
-        // A type where description differs from rawValue to confirm keys are rawValue-based.
+        // A type where description differs from rawValue to confirm storedValues are rawValue-based.
         enum Status: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
             case active = "active_status"
             case inactive = "inactive_status"
@@ -310,28 +294,26 @@ struct SingleValueRowTests {
             }
         }
         let statusRow = SingleValueRow<Status>(id: "status", title: "Status")
-        #expect(statusRow.optionDescriptions == ["Active", "Inactive"])
-        #expect(statusRow.optionStorageKeys == ["active_status", "inactive_status"])
+        #expect(statusRow.pickerOptions.map(\.label) == ["Active", "Inactive"])
+        #expect(statusRow.pickerOptions.map(\.storedValue) == ["active_status", "inactive_status"])
     }
 
-    @Test("SingleValueRow selectedStorageKey returns nil when no default")
-    func singleValueRowSelectedStorageKeyNilWhenNoDefault() {
+    @Test("SingleValueRow defaultStoredValue returns nil when no default")
+    func singleValueRowDefaultStoredValueNilWhenNoDefault() {
         let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
-        #expect(row.selectedStorageKey == nil)
+        #expect(row.defaultStoredValue == nil)
     }
 
-    @Test("SingleValueRow selectedStorageKey returns rawValue of default")
-    func singleValueRowSelectedStorageKeyMatchesRawValue() {
+    @Test("SingleValueRow defaultStoredValue returns rawValue of default")
+    func singleValueRowDefaultStoredValueMatchesRawValue() {
         let row = SingleValueRow<Colour>(id: "colour", title: "Colour", defaultValue: .blue)
-        #expect(row.selectedStorageKey == "blue")
+        #expect(row.defaultStoredValue == "blue")
     }
 
-    @Test("SingleValueRow optionStorageKeys fall back to description when AnyCodableValue encodes to .null")
-    func singleValueRowStorageKeyFallsBackToDescriptionForUnencodableType() {
+    @Test("SingleValueRow pickerOptions fall back to description when AnyCodableValue encodes to .null")
+    func singleValueRowPickerOptionsFallBackToDescriptionForUnencodableType() {
         // A CaseIterable type whose encode(to:) always throws — AnyCodableValue.from returns
-        // .null, so optionStorageKeys must fall back to description rather than returning "".
-        // This guards the path where T encodes to a JSON object/array that AnyCodableValue
-        // cannot represent as a primitive.
+        // .null, so pickerOptions must fall back to description for storedValue.
         enum Broken: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
             case alpha, beta
             var description: String { "display_\(rawValue)" }
@@ -358,11 +340,10 @@ struct SingleValueRowTests {
         defer { anyCodableValueEncodingFailure = previous }
 
         let row = SingleValueRow<Broken>(id: "broken", title: "Broken")
-        // Falls back to description when encoding produces .null.
-        #expect(row.optionStorageKeys == ["display_alpha", "display_beta"])
+        #expect(row.pickerOptions.map(\.storedValue) == ["display_alpha", "display_beta"])
 
         let rowWithDefault = SingleValueRow<Broken>(id: "broken", title: "Broken", defaultValue: .alpha)
-        #expect(rowWithDefault.selectedStorageKey == "display_alpha")
+        #expect(rowWithDefault.defaultStoredValue == "display_alpha")
     }
 
     @Test("SingleValueRow stores validators")
@@ -398,7 +379,7 @@ struct SingleValueRowTests {
         let cast = anyRow.asType(SingleValueRow<Colour>.self)
         #expect(cast != nil)
         #expect(cast?.id == "colour")
-        #expect(cast?.selectedDescription == "red")
+        #expect(cast?.defaultStoredValue == "red")
     }
 
     @Test("AnyFormRow asSingleValueRepresentable returns non-nil for SingleValueRow")
@@ -408,11 +389,11 @@ struct SingleValueRowTests {
         #expect(anyRow.asSingleValueRepresentable != nil)
     }
 
-    @Test("AnyFormRow asSingleValueRepresentable optionDescriptions match")
-    func anyFormRowSingleValueRepresentableOptionDescriptions() {
+    @Test("AnyFormRow asSingleValueRepresentable pickerOptions labels match")
+    func anyFormRowSingleValueRepresentablePickerOptionsLabels() {
         let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
         let anyRow = AnyFormRow(row)
-        #expect(anyRow.asSingleValueRepresentable?.optionDescriptions == ["red", "green", "blue"])
+        #expect(anyRow.asSingleValueRepresentable?.pickerOptions.map(\.label) == ["red", "green", "blue"])
     }
 
     @Test("AnyFormRow asMultiValueRepresentable returns nil for SingleValueRow")

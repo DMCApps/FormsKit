@@ -10,9 +10,9 @@ struct SingleValueRowView: View {
     let rowId: String
     @Bindable var viewModel: FormViewModel
 
-    /// The storage key (rawValue for Codable enums) of the currently selected option.
-    private var selectedStorageKey: String {
-        viewModel.value(for: rowId) ?? row.selectedStorageKey ?? ""
+    /// The stored value of the currently selected option.
+    private var currentStoredValue: String {
+        viewModel.value(for: rowId) ?? row.defaultStoredValue ?? ""
     }
 
     var body: some View {
@@ -44,14 +44,13 @@ struct SingleValueRowView: View {
     }
 
     private var pickerView: some View {
-        let storageKeys = row.optionStorageKeys
-        let descriptions = row.optionDescriptions
+        let options = row.pickerOptions
         let picker = Picker(row.title, selection: Binding(
-            get: { selectedStorageKey },
+            get: { currentStoredValue },
             set: { viewModel.setString($0, for: rowId) }
         )) {
-            ForEach(storageKeys.indices, id: \.self) { index in
-                Text(descriptions[index]).tag(storageKeys[index])
+            ForEach(options.indices, id: \.self) { index in
+                Text(options[index].label).tag(options[index].storedValue)
             }
         }
         .accessibilityIdentifier("formkit.picker.\(rowId)")
@@ -68,8 +67,8 @@ struct SingleValueRowView: View {
                 picker.pickerStyle(.menu)
 #endif
             case .navigationLink:
-#if os(tvOS)
-                // .navigationLink is unavailable on tvOS — fall back to automatic
+#if os(tvOS) || os(macOS)
+                // .navigationLink is unavailable on tvOS and macOS — fall back to automatic
                 picker.pickerStyle(.automatic)
 #else
                 picker.pickerStyle(.navigationLink)
