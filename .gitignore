@@ -17,3 +17,7 @@ Tuist/.build/
 
 # macOS
 .DS_Store
+
+# Claude
+.claude
+Claude.md
