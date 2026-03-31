@@ -17,7 +17,7 @@ let project = Project(
             ]),
             sources: ["FormKitExample/**/*.swift"],
             dependencies: [
-                .package(product: "FormKit", type: .runtime)
+                .package(product: "FormsKit", type: .runtime)
             ]
         ),
         .target(
@@ -32,14 +32,14 @@ let project = Project(
             ]
         ),
         .target(
-            name: "FormKitTests",
+            name: "FormsKitTests",
             destinations: .iOS,
             product: .unitTests,
-            bundleId: "com.example.FormKitExample.FormKitTests",
+            bundleId: "com.example.FormKitExample.FormsKitTests",
             deploymentTargets: .iOS("17.0"),
-            sources: ["../Tests/FormKitTests/**/*.swift"],
+            sources: ["../Tests/FormsKitTests/**/*.swift"],
             dependencies: [
-                .package(product: "FormKit", type: .runtime)
+                .package(product: "FormsKit", type: .runtime)
             ]
         )
     ]

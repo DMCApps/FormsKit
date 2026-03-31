@@ -1,4 +1,4 @@
-import FormKit
+import FormsKit
 
 // MARK: - CollapsibleSectionForm
 

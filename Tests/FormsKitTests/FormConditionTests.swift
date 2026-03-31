@@ -1,4 +1,4 @@
-@testable import FormKit
+@testable import FormsKit
 import Testing
 
 @Suite("FormCondition")

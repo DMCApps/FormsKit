@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "FormKit",
+    name: "FormsKit",
     platforms: [
         .iOS(.v16),
         .tvOS(.v16),
@@ -12,20 +12,20 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "FormKit",
+            name: "FormsKit",
             type: .static,
-            targets: ["FormKit"]
+            targets: ["FormsKit"]
         )
     ],
     dependencies: [],
     targets: [
         .target(
-            name: "FormKit",
+            name: "FormsKit",
             dependencies: []
         ),
         .testTarget(
-            name: "FormKitTests",
-            dependencies: ["FormKit"],
+            name: "FormsKitTests",
+            dependencies: ["FormsKit"],
             swiftSettings: [
                 // FormKit requires iOS 17 / tvOS 17 (for @Observable), but the library
                 // minimum is set to iOS 16 to match the host app. Tests run on macOS 14+

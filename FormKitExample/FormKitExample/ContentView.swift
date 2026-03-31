@@ -1,4 +1,4 @@
-import FormKit
+import FormsKit
 import SwiftUI
 
 // MARK: - Catalogue Entry
