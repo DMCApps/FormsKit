@@ -9,6 +9,11 @@ struct MultiValueRowView: View {
     let row: any MultiValueRowRepresentable
     let rowId: String
     @Bindable var viewModel: FormViewModel
+    @Environment(\.formTheme) private var theme
+
+    private var style: MultiValueRowStyle? {
+        theme.rowOverrides[rowId] as? MultiValueRowStyle
+    }
 
     private var selectedDescriptions: Set<String> {
         guard case let .array(arr) = viewModel.rawValue(for: rowId) else {
@@ -22,7 +27,7 @@ struct MultiValueRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
             headerView
 
             // Snapshot to avoid ambiguous ForEach overload resolution.
@@ -39,12 +44,15 @@ struct MultiValueRowView: View {
 
     @ViewBuilder
     private var headerView: some View {
+        let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
+        let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
+
         if let subtitle = row.subtitle {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
                 Text(row.title)
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(subtitleFont)
+                    .foregroundStyle(subtitleColor)
             }
         } else {
             Text(row.title)
@@ -52,16 +60,20 @@ struct MultiValueRowView: View {
     }
 
     private func optionRow(description: String, isSelected: Bool) -> some View {
-        Button {
+        let optionColor = style?.optionTextColor ?? theme.colors.optionText
+        let indicatorColor = style?.selectionIndicatorColor ?? theme.colors.selectionIndicator
+        let indicatorIcon = style?.selectionIcon ?? theme.icons.selectionCheckmark
+
+        return Button {
             viewModel.toggleArrayValue(.string(description), for: rowId)
         } label: {
             HStack {
                 Text(description)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(optionColor)
                 Spacer()
                 if isSelected {
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(Color.accentColor)
+                    Image(systemName: indicatorIcon)
+                        .foregroundStyle(indicatorColor)
                 }
             }
         }

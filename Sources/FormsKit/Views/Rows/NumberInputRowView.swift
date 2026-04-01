@@ -11,9 +11,14 @@ struct NumberInputRowView: View {
     // Use a local string buffer so the user can type freely.
     @State private var textBuffer: String = ""
     @FocusState private var isFocused: Bool
+    @Environment(\.formTheme) private var theme
+
+    private var style: NumberInputRowStyle? {
+        theme.rowOverrides[row.id] as? NumberInputRowStyle
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
             rowHeader
             TextField(row.placeholder ?? "", text: $textBuffer)
                 .focused($isFocused)
@@ -40,19 +45,24 @@ struct NumberInputRowView: View {
 
     @ViewBuilder
     private var rowHeader: some View {
+        let titleColor = style?.titleColor ?? theme.colors.rowTitle
+        let titleFont = style?.titleFont ?? theme.fonts.rowTitle
+        let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
+        let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
+
         if let subtitle = row.subtitle {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
                 Text(row.title)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(titleFont)
+                    .foregroundStyle(titleColor)
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(subtitleFont)
+                    .foregroundStyle(subtitleColor)
             }
         } else {
             Text(row.title)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(titleFont)
+                .foregroundStyle(titleColor)
         }
     }
 

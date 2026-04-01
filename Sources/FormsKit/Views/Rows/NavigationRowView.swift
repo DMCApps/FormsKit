@@ -7,17 +7,25 @@ import SwiftUI
 struct NavigationRowView: View {
     let row: NavigationRow
     @Bindable var viewModel: FormViewModel
+    @Environment(\.formTheme) private var theme
+
+    private var style: NavigationRowStyle? {
+        theme.rowOverrides[row.id] as? NavigationRowStyle
+    }
 
     var body: some View {
+        let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
+        let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
+
         NavigationLink {
             DynamicFormView(formDefinition: row.destination)
         } label: {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
                 Text(row.title)
                 if let subtitle = row.subtitle {
                     Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(subtitleFont)
+                        .foregroundStyle(subtitleColor)
                 }
             }
         }

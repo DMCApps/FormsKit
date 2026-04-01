@@ -9,6 +9,11 @@ struct SingleValueRowView: View {
     let row: any SingleValueRowRepresentable
     let rowId: String
     @Bindable var viewModel: FormViewModel
+    @Environment(\.formTheme) private var theme
+
+    private var style: SingleValueRowStyle? {
+        theme.rowOverrides[rowId] as? SingleValueRowStyle
+    }
 
     /// The stored value of the currently selected option, or `nil` when nothing is selected.
     private var currentStoredValue: String? {
@@ -16,25 +21,28 @@ struct SingleValueRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
+        let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
+
+        VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
             if row.pickerStyle == .segmented {
                 // .segmented picker style suppresses the Picker's built-in label,
                 // so we render the title (and optional subtitle) explicitly above the control.
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
                     Text(row.title)
                     if let subtitle = row.subtitle {
                         Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(subtitleFont)
+                            .foregroundStyle(subtitleColor)
                     }
                     styledPicker
                 }
             } else if let subtitle = row.subtitle {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
                     styledPicker
                     Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(subtitleFont)
+                        .foregroundStyle(subtitleColor)
                 }
             } else {
                 styledPicker

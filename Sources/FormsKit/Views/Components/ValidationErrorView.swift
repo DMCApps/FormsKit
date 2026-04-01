@@ -7,19 +7,28 @@ import SwiftUI
 struct ValidationErrorView: View {
     let errors: [String]
     var rowId: String = ""
+    @Environment(\.formTheme) private var theme
+
+    private var style: ValidationErrorStyle? {
+        theme.rowOverrides[FormTheme.validationErrorOverrideKey] as? ValidationErrorStyle
+    }
 
     var body: some View {
         if !errors.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
+            let color = style?.color ?? theme.colors.error
+            let font = style?.font ?? theme.fonts.error
+            let icon = style?.icon ?? theme.icons.validationError
+
+            VStack(alignment: .leading, spacing: theme.spacing.errorSpacing) {
                 ForEach(errors, id: \.self) { error in
                     Label {
                         Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.red)
+                            .font(font)
+                            .foregroundStyle(color)
                     } icon: {
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundStyle(.red)
-                            .font(.caption)
+                        Image(systemName: icon)
+                            .foregroundStyle(color)
+                            .font(font)
                     }
                 }
             }

@@ -8,27 +8,39 @@ struct SaveButtonView: View {
     let isLoading: Bool
     let isDisabled: Bool
     let action: () -> Void
+    @Environment(\.formTheme) private var theme
+
+    private var style: SaveButtonStyle? {
+        theme.rowOverrides[FormTheme.saveButtonOverrideKey] as? SaveButtonStyle
+    }
 
     var body: some View {
+        let bgColor = isDisabled
+            ? (style?.disabledBackgroundColor ?? theme.colors.saveButtonDisabledBackground)
+            : (style?.backgroundColor ?? theme.colors.saveButtonBackground)
+        let fgColor = style?.foregroundColor ?? theme.colors.saveButtonForeground
+        let radius = style?.cornerRadius ?? theme.spacing.saveButtonCornerRadius
+        let font = style?.font ?? theme.fonts.saveButton
+
         Button(action: action) {
             HStack {
                 Spacer()
                 if isLoading {
                     ProgressView()
-                        .tint(.white)
+                        .tint(fgColor)
                 } else {
                     Text(title)
-                        .fontWeight(.semibold)
+                        .font(font)
                 }
                 Spacer()
             }
         }
         .disabled(isDisabled)
         .listRowBackground(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(isDisabled ? Color.secondary : Color.accentColor)
+            RoundedRectangle(cornerRadius: radius)
+                .fill(bgColor)
         )
-        .foregroundStyle(.white)
+        .foregroundStyle(fgColor)
     }
 }
 
@@ -42,8 +54,20 @@ struct StickyBottomSaveButtonView: View {
     let isLoading: Bool
     let isDisabled: Bool
     let action: () -> Void
+    @Environment(\.formTheme) private var theme
+
+    private var style: SaveButtonStyle? {
+        theme.rowOverrides[FormTheme.saveButtonOverrideKey] as? SaveButtonStyle
+    }
 
     var body: some View {
+        let bgColor = isDisabled
+            ? (style?.disabledBackgroundColor ?? theme.colors.saveButtonDisabledBackground)
+            : (style?.backgroundColor ?? theme.colors.saveButtonBackground)
+        let fgColor = style?.foregroundColor ?? theme.colors.saveButtonForeground
+        let font = style?.font ?? theme.fonts.saveButton
+        let vertPadding = theme.spacing.stickyButtonVerticalPadding
+
         VStack(spacing: 0) {
             Divider()
             Button(action: action) {
@@ -51,19 +75,19 @@ struct StickyBottomSaveButtonView: View {
                     Spacer()
                     if isLoading {
                         ProgressView()
-                            .tint(.white)
+                            .tint(fgColor)
                     } else {
                         Text(title)
-                            .fontWeight(.semibold)
+                            .font(font)
                     }
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .padding(.vertical, vertPadding)
             }
             .disabled(isDisabled)
-            .background(isDisabled ? Color.secondary : Color.accentColor)
-            .foregroundStyle(.white)
+            .background(bgColor)
+            .foregroundStyle(fgColor)
         }
         .background(.background)
     }

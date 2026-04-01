@@ -117,6 +117,11 @@ struct TextInputRowView: View {
     @FocusState private var isFocused: Bool
     /// Tracks whether a secure field is currently revealed via the eye toggle.
     @State private var isRevealed = false
+    @Environment(\.formTheme) private var theme
+
+    private var style: TextInputRowStyle? {
+        theme.rowOverrides[row.id] as? TextInputRowStyle
+    }
 
     private var text: String {
         if let mask = row.mask,
@@ -133,7 +138,7 @@ struct TextInputRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
             rowHeader
             inputField
             ValidationErrorView(errors: viewModel.errorsForRow(row.id), rowId: row.id)
@@ -147,19 +152,24 @@ struct TextInputRowView: View {
 
     @ViewBuilder
     private var rowHeader: some View {
+        let titleColor = style?.titleColor ?? theme.colors.rowTitle
+        let titleFont = style?.titleFont ?? theme.fonts.rowTitle
+        let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
+        let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
+
         if let subtitle = row.subtitle {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
                 Text(row.title)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(titleFont)
+                    .foregroundStyle(titleColor)
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(subtitleFont)
+                    .foregroundStyle(subtitleColor)
             }
         } else {
             Text(row.title)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(titleFont)
+                .foregroundStyle(titleColor)
         }
     }
 

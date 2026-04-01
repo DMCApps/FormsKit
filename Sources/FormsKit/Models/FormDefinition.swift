@@ -64,6 +64,12 @@ public struct FormDefinition: Sendable, Identifiable {
     /// Defaults to `.activityIndicator` (a centered spinner).
     public let loadingStyle: FormLoadingStyle
 
+    /// Optional theme to apply to this form. When set, `DynamicFormView` injects it into
+    /// the SwiftUI environment for all child views. When `nil`, the ambient environment
+    /// theme (or `FormTheme.default`) is used. A `.formTheme(_:)` modifier applied
+    /// directly to `DynamicFormView` takes lower priority than this property.
+    public let theme: FormTheme?
+
     // MARK: Initialiser — Array of AnyFormRow
 
     public init(id: String,
@@ -72,7 +78,8 @@ public struct FormDefinition: Sendable, Identifiable {
                 persistence: (any FormPersistence)? = nil,
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                 onSave: [FormSaveAction] = [],
-                loadingStyle: FormLoadingStyle = .activityIndicator) {
+                loadingStyle: FormLoadingStyle = .activityIndicator,
+                theme: FormTheme? = nil) {
         self.id = id
         self.title = title
         self.rows = rows
@@ -80,6 +87,7 @@ public struct FormDefinition: Sendable, Identifiable {
         self.saveBehaviour = saveBehaviour
         self.onSave = onSave
         self.loadingStyle = loadingStyle
+        self.theme = theme
     }
 
     // MARK: Initialiser — Result Builder DSL
@@ -98,6 +106,7 @@ public struct FormDefinition: Sendable, Identifiable {
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                 onSave: [FormSaveAction] = [],
                 loadingStyle: FormLoadingStyle = .activityIndicator,
+                theme: FormTheme? = nil,
                 @FormRowBuilder rows: () -> [AnyFormRow]) {
         self.id = id
         self.title = title
@@ -106,6 +115,7 @@ public struct FormDefinition: Sendable, Identifiable {
         self.saveBehaviour = saveBehaviour
         self.onSave = onSave
         self.loadingStyle = loadingStyle
+        self.theme = theme
     }
 }
 

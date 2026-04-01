@@ -7,6 +7,11 @@ import SwiftUI
 struct BooleanSwitchRowView: View {
     let row: BooleanSwitchRow
     @Bindable var viewModel: FormViewModel
+    @Environment(\.formTheme) private var theme
+
+    private var style: BooleanSwitchRowStyle? {
+        theme.rowOverrides[row.id] as? BooleanSwitchRowStyle
+    }
 
     private var isOn: Bool {
         if let stored: Bool = viewModel.value(for: row.id) { return stored }
@@ -15,7 +20,7 @@ struct BooleanSwitchRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
             Toggle(isOn: Binding(
                 get: { isOn },
                 set: { viewModel.setBool($0, for: row.id) }
@@ -30,12 +35,15 @@ struct BooleanSwitchRowView: View {
 
     @ViewBuilder
     private var rowLabel: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
+        let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
+
+        VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
             Text(row.title)
             if let subtitle = row.subtitle {
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(subtitleFont)
+                    .foregroundStyle(subtitleColor)
             }
         }
     }

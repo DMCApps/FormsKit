@@ -11,12 +11,20 @@ import SwiftUI
 struct CollapsibleSectionView: View {
     let section: CollapsibleSection
     @Bindable var viewModel: FormViewModel
+    @Environment(\.formTheme) private var theme
+
+    private var style: CollapsibleSectionStyle? {
+        theme.rowOverrides[section.id] as? CollapsibleSectionStyle
+    }
 
     private var isExpanded: Bool {
         viewModel.isSectionExpanded(section.id)
     }
 
     var body: some View {
+        let disclosureIcon = style?.disclosureIcon ?? theme.icons.collapsibleDisclosure
+        let animationDuration = style?.animationDuration ?? theme.animations.collapsibleDuration
+
         Section {
             if isExpanded {
                 ForEach(section.rows) { row in
@@ -28,16 +36,16 @@ struct CollapsibleSectionView: View {
             }
         } header: {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: animationDuration)) {
                     viewModel.toggleSection(section.id)
                 }
             } label: {
                 HStack {
                     Text(section.title)
                     Spacer()
-                    Image(systemName: "chevron.right")
+                    Image(systemName: disclosureIcon)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .animation(.easeInOut(duration: 0.2), value: isExpanded)
+                        .animation(.easeInOut(duration: animationDuration), value: isExpanded)
                 }
                 .contentShape(Rectangle())
             }
