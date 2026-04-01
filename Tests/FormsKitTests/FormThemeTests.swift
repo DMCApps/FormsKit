@@ -1354,4 +1354,160 @@ struct FormThemeTests {
         let row = TextInputRow(id: "name", title: "Name")
         #expect(row.rowStyle == nil)
     }
+
+    // MARK: - mergeRowStyles — flat rows
+
+    @Test("mergeRowStyles merges style from a flat row into rowOverrides")
+    func mergeRowStylesFlatRow() {
+        var theme = FormTheme()
+        let rows = [AnyFormRow(TextInputRow(id: "email", title: "Email",
+                                            style: TextInputRowStyle(titleColor: .blue)))]
+        theme.mergeRowStyles(from: rows)
+
+        let style = theme.rowStyle(for: "email", as: TextInputRowStyle.self)
+        #expect(style?.titleColor == .blue)
+    }
+
+    @Test("mergeRowStyles does not overwrite an explicit rowOverride with a row style:")
+    func mergeRowStylesDoesNotOverwriteExplicitOverride() {
+        var theme = FormTheme()
+        theme["email"] = TextInputRowStyle(titleColor: .red)
+
+        let rows = [AnyFormRow(TextInputRow(id: "email", title: "Email",
+                                            style: TextInputRowStyle(titleColor: .blue)))]
+        theme.mergeRowStyles(from: rows)
+
+        // Explicit override (.red) must win over the style: param (.blue).
+        let style = theme.rowStyle(for: "email", as: TextInputRowStyle.self)
+        #expect(style?.titleColor == .red)
+    }
+
+    // MARK: - mergeRowStyles — rows inside FormSection
+
+    @Test("mergeRowStyles merges style from a row nested inside FormSection")
+    func mergeRowStylesInsideFormSection() {
+        var theme = FormTheme()
+        let section = FormSection(id: "profile", title: "Profile") {
+            TextInputRow(id: "name", title: "Name",
+                         style: TextInputRowStyle(titleColor: .green))
+            BooleanSwitchRow(id: "notifications", title: "Notifications",
+                             style: BooleanSwitchRowStyle(tintColor: .orange))
+        }
+        theme.mergeRowStyles(from: [AnyFormRow(section)])
+
+        let nameStyle = theme.rowStyle(for: "name", as: TextInputRowStyle.self)
+        #expect(nameStyle?.titleColor == .green)
+
+        let toggleStyle = theme.rowStyle(for: "notifications", as: BooleanSwitchRowStyle.self)
+        #expect(toggleStyle?.tintColor == .orange)
+    }
+
+    @Test("mergeRowStyles does not overwrite explicit override for row inside FormSection")
+    func mergeRowStylesFormSectionDoesNotOverwriteExplicitOverride() {
+        var theme = FormTheme()
+        theme["name"] = TextInputRowStyle(titleColor: .red)
+
+        let section = FormSection(id: "profile", title: "Profile") {
+            TextInputRow(id: "name", title: "Name",
+                         style: TextInputRowStyle(titleColor: .green))
+        }
+        theme.mergeRowStyles(from: [AnyFormRow(section)])
+
+        // Explicit override (.red) must win.
+        let style = theme.rowStyle(for: "name", as: TextInputRowStyle.self)
+        #expect(style?.titleColor == .red)
+    }
+
+    @Test("mergeRowStyles skips rows without a style: inside FormSection")
+    func mergeRowStylesFormSectionSkipsRowsWithoutStyle() {
+        var theme = FormTheme()
+        let section = FormSection(id: "profile", title: "Profile") {
+            TextInputRow(id: "name", title: "Name")  // no style:
+        }
+        theme.mergeRowStyles(from: [AnyFormRow(section)])
+
+        #expect(theme.rowOverrides["name"] == nil)
+    }
+
+    // MARK: - mergeRowStyles — rows inside CollapsibleSection
+
+    @Test("mergeRowStyles merges style from a row nested inside CollapsibleSection")
+    func mergeRowStylesInsideCollapsibleSection() {
+        enum Size: String, CaseIterable, CustomStringConvertible, Hashable, Sendable, Codable {
+            case small, large
+            var description: String { rawValue }
+        }
+        var theme = FormTheme()
+        let section = CollapsibleSection(id: "advanced", title: "Advanced") {
+            SingleValueRow<Size>(id: "picker", title: "Picker",
+                                 style: SingleValueRowStyle(tintColor: .pink))
+            InfoRow(id: "info", title: "Info",
+                    style: InfoRowStyle(valueColor: .indigo)) { "v1" }
+        }
+        theme.mergeRowStyles(from: [AnyFormRow(section)])
+
+        let pickerStyle = theme.rowStyle(for: "picker", as: SingleValueRowStyle.self)
+        #expect(pickerStyle?.tintColor == .pink)
+
+        let infoStyle = theme.rowStyle(for: "info", as: InfoRowStyle.self)
+        #expect(infoStyle?.valueColor == .indigo)
+    }
+
+    @Test("mergeRowStyles does not overwrite explicit override for row inside CollapsibleSection")
+    func mergeRowStylesCollapsibleSectionDoesNotOverwriteExplicitOverride() {
+        enum Size: String, CaseIterable, CustomStringConvertible, Hashable, Sendable, Codable {
+            case small, large
+            var description: String { rawValue }
+        }
+        var theme = FormTheme()
+        theme["picker"] = SingleValueRowStyle(tintColor: .purple)
+
+        let section = CollapsibleSection(id: "advanced", title: "Advanced") {
+            SingleValueRow<Size>(id: "picker", title: "Picker",
+                                 style: SingleValueRowStyle(tintColor: .pink))
+        }
+        theme.mergeRowStyles(from: [AnyFormRow(section)])
+
+        // Explicit override (.purple) must win.
+        let style = theme.rowStyle(for: "picker", as: SingleValueRowStyle.self)
+        #expect(style?.tintColor == .purple)
+    }
+
+    // MARK: - mergeRowStyles — mixed flat and nested
+
+    @Test("mergeRowStyles handles mix of flat and section-nested rows in one pass")
+    func mergeRowStylesMixedFlatAndNested() {
+        var theme = FormTheme()
+        let rows: [AnyFormRow] = [
+            AnyFormRow(TextInputRow(id: "topLevel", title: "Top",
+                                    style: TextInputRowStyle(titleColor: .blue))),
+            AnyFormRow(FormSection(id: "sec", title: "Sec") {
+                BooleanSwitchRow(id: "inSection", title: "Toggle",
+                                  style: BooleanSwitchRowStyle(tintColor: .orange))
+            }),
+            AnyFormRow(CollapsibleSection(id: "col", title: "Col") {
+                NumberInputRow(id: "inCollapsible", title: "Age",
+                               style: NumberInputRowStyle(titleFont: .caption))
+            })
+        ]
+        theme.mergeRowStyles(from: rows)
+
+        #expect(theme.rowStyle(for: "topLevel", as: TextInputRowStyle.self)?.titleColor == .blue)
+        #expect(theme.rowStyle(for: "inSection", as: BooleanSwitchRowStyle.self)?.tintColor == .orange)
+        #expect(theme.rowStyle(for: "inCollapsible", as: NumberInputRowStyle.self)?.titleFont == .caption)
+    }
+
+    @Test("mergeRowStyles leaves rowOverrides empty when no rows have a style:")
+    func mergeRowStylesNoStylesLeaveOverridesEmpty() {
+        var theme = FormTheme()
+        let rows: [AnyFormRow] = [
+            AnyFormRow(TextInputRow(id: "a", title: "A")),
+            AnyFormRow(FormSection(id: "sec", title: "Sec") {
+                BooleanSwitchRow(id: "b", title: "B")
+            })
+        ]
+        theme.mergeRowStyles(from: rows)
+
+        #expect(theme.rowOverrides.isEmpty)
+    }
 }

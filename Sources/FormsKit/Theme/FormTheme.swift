@@ -165,6 +165,27 @@ extension FormTheme {
     func rowStyle<S: FormRowStyle>(for id: String, as type: S.Type) -> S? {
         rowOverrides[id] as? S
     }
+
+    /// Merges row-level `style:` init-parameter styles from a row array into `rowOverrides`.
+    ///
+    /// Rows nested inside `FormSection` and `CollapsibleSection` are visited recursively.
+    /// Explicit `rowOverrides` already present in the theme are never overwritten — the theme
+    /// always takes priority over the `style:` parameter.
+    ///
+    /// Called by `DynamicFormView` when resolving the theme to inject into the environment.
+    mutating func mergeRowStyles(from rows: [AnyFormRow]) {
+        for row in rows {
+            if let style = row.rowStyle, rowOverrides[row.id] == nil {
+                rowOverrides[row.id] = style
+            }
+            // Recurse into section children.
+            if let section = row.asType(FormSection.self) {
+                mergeRowStyles(from: section.rows)
+            } else if let collapsible = row.asType(CollapsibleSection.self) {
+                mergeRowStyles(from: collapsible.rows)
+            }
+        }
+    }
 }
 
 // MARK: - FormTheme.Colors

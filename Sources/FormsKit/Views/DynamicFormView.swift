@@ -36,14 +36,11 @@ public struct DynamicFormView: View {
     }
 
     /// The resolved theme: `formDefinition.theme` takes precedence over the ambient environment theme.
-    /// Row-level styles attached via `.style(_:)` are merged into `rowOverrides` as defaults —
+    /// Row-level styles attached via `style:` are merged into `rowOverrides` as defaults —
     /// explicit `rowOverrides` set on the theme take priority over row-level styles.
     private var theme: FormTheme {
         var base = formDefinition.theme ?? environmentTheme
-        for row in formDefinition.rows {
-            guard let style = row.rowStyle, base.rowOverrides[row.id] == nil else { continue }
-            base.rowOverrides[row.id] = style
-        }
+        base.mergeRowStyles(from: formDefinition.rows)
         return base
     }
 

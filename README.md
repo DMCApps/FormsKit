@@ -17,6 +17,11 @@ A declarative, type-safe form building framework for SwiftUI on iOS 17+. FormKit
 - [Persistence](#persistence)
 - [Error Positions](#error-positions)
 - [Loading States](#loading-states)
+- [Theming](#theming)
+  - [Semantic Tokens](#semantic-tokens)
+  - [Applying a Theme](#applying-a-theme)
+  - [Per-Row Style Overrides](#per-row-style-overrides)
+  - [Row Style Reference](#row-style-reference)
 - [Type-Safe API](#type-safe-api)
 - [FormViewModel](#formviewmodel)
 - [Value Model](#value-model)
@@ -809,6 +814,252 @@ FormDefinition(id: "form", title: "Form",
 // Fully custom loading view
 FormDefinition(id: "form", title: "Form",
                loadingStyle: .custom { AnyView(MyLoadingView()) }) { ... }
+```
+
+---
+
+## Theming
+
+FormsKit ships a `FormTheme` system that controls colors, fonts, spacing, icons, and animations across every form view. All defaults match the original hardcoded appearance, so existing usage is unaffected.
+
+### Applying a Theme
+
+**Via `.formTheme(_:)` view modifier** — applies to the entire SwiftUI subtree:
+
+```swift
+DynamicFormView(formDefinition: myForm)
+    .formTheme(myTheme)
+```
+
+**Via `FormDefinition(theme:)`** — the theme is injected into the environment automatically when `DynamicFormView` renders the form:
+
+```swift
+let form = FormDefinition(
+    id: "settings",
+    title: "Settings",
+    saveBehaviour: .buttonStickyBottom(),
+    theme: myTheme
+) { ... }
+```
+
+Both approaches are equivalent. When both a modifier and a `FormDefinition` theme are present, the `FormDefinition` theme takes precedence for that form.
+
+### Semantic Tokens
+
+`FormTheme` organises its tokens into five nested structs. All properties have sensible defaults.
+
+#### Colors (`FormTheme.Colors`)
+
+| Property | Default | What it styles |
+|---|---|---|
+| `rowTitle` | `.secondary` | Title labels on all row types |
+| `subtitle` | `.secondary` | Subtitle text across all row types |
+| `error` | `.red` | Validation error text and icons |
+| `saveButtonBackground` | `.accentColor` | Save button background (enabled) |
+| `saveButtonDisabledBackground` | `.secondary` | Save button background (disabled) |
+| `saveButtonForeground` | `.white` | Save button text/icon |
+| `optionText` | `.primary` | Option labels in `MultiValueRow` |
+| `selectionIndicator` | `.accentColor` | Selection checkmark in `MultiValueRow` |
+| `sectionHeader` | `.primary` | Section header title text |
+| `placeholder` | `nil` (system default) | Placeholder text in `TextInputRow` / `NumberInputRow` |
+| `switchTint` | `nil` (system accent) | Toggle fill color in `BooleanSwitchRow` |
+| `pickerTint` | `nil` (system accent) | Picker tint in `SingleValueRow` |
+| `secureFieldToggle` | `.secondary` | Show/hide toggle button in secure `TextInputRow` |
+| `skeletonDark` | `Color(r:30 g:30 b:30).opacity(0.4)` | Shimmer dark stop |
+| `skeletonLight` | `Color(r:64 g:64 b:64).opacity(0.4)` | Shimmer light stop |
+
+#### Fonts (`FormTheme.Fonts`)
+
+| Property | Default | What it styles |
+|---|---|---|
+| `rowTitle` | `.subheadline` | Row title labels |
+| `subtitle` | `.caption` | Subtitle text |
+| `error` | `.caption` | Validation error messages |
+| `saveButton` | `.body.weight(.semibold)` | Save button text |
+| `infoValue` | `.caption` | `InfoRow` trailing value |
+| `sectionHeader` | `.headline` | Section header titles |
+| `loadFailedTitle` | `.headline` | "Failed to Load" heading |
+| `loadFailedSubtitle` | `.subheadline` | Load failure description |
+
+#### Spacing (`FormTheme.Spacing`)
+
+| Property | Default | What it styles |
+|---|---|---|
+| `rowContentSpacing` | `4` | Vertical spacing inside row content wrappers |
+| `headerSpacing` | `2` | Spacing between title and subtitle |
+| `errorSpacing` | `2` | Spacing between stacked error messages |
+| `saveButtonCornerRadius` | `10` | Save button corner radius |
+| `stickyButtonVerticalPadding` | `16` | Sticky bottom save button padding |
+
+#### Icons (`FormTheme.Icons`)
+
+| Property | Default | What it styles |
+|---|---|---|
+| `collapsibleDisclosure` | `"chevron.right"` | `CollapsibleSection` disclosure arrow |
+| `validationError` | `"exclamationmark.circle.fill"` | Inline error icon |
+| `selectionCheckmark` | `"checkmark"` | `MultiValueRow` selection indicator |
+| `secureFieldReveal` | `"eye"` | Secure field show button |
+| `secureFieldHide` | `"eye.slash"` | Secure field hide button |
+
+#### Animations (`FormTheme.Animations`)
+
+| Property | Default | What it styles |
+|---|---|---|
+| `collapsibleDuration` | `0.2` | `CollapsibleSection` expand/collapse duration (seconds) |
+| `skeletonDuration` | `1` | Skeleton shimmer cycle duration (seconds) |
+
+### Component Styles
+
+Use dedicated typed properties on `FormTheme` to style the save button and validation errors independently of the row system:
+
+```swift
+var theme = FormTheme()
+
+// Save button
+theme.saveButtonStyle = SaveButtonStyle(
+    backgroundColor: .indigo,
+    disabledBackgroundColor: Color.indigo.opacity(0.4),
+    foregroundColor: .white,
+    cornerRadius: 16,
+    font: .headline
+)
+
+// Validation errors
+theme.validationErrorStyle = ValidationErrorStyle(
+    color: .orange,
+    font: .caption,
+    icon: "exclamationmark.triangle.fill"
+)
+```
+
+Each property on these structs falls back to the corresponding semantic token when `nil`.
+
+### Per-Row Style Overrides
+
+FormsKit supports three ways to override the style of individual rows.
+
+#### 1. `style:` init parameter (preferred)
+
+Pass a typed style struct directly in the row's initialiser. The compiler enforces the correct style type for each row:
+
+```swift
+TextInputRow(
+    id: "email",
+    title: "Email",
+    style: TextInputRowStyle(
+        titleColor: .blue,
+        titleFont: .headline,
+        placeholderColor: .blue.opacity(0.5)
+    )
+)
+
+BooleanSwitchRow(
+    id: "notifications",
+    title: "Push Notifications",
+    style: BooleanSwitchRowStyle(titleColor: .indigo, tintColor: .teal)
+)
+
+MultiValueRow<Tag>(
+    id: "interests",
+    title: "Interests",
+    style: MultiValueRowStyle(
+        optionTextColor: .indigo,
+        selectionIndicatorColor: .teal
+    )
+)
+```
+
+#### 2. `theme[rowId] = Style(...)` — string subscript
+
+Use when you want to apply overrides programmatically without modifying the form definition:
+
+```swift
+var theme = FormTheme()
+theme["email"] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
+```
+
+#### 3. `theme[RowID.row] = Style(...)` — typed enum subscript
+
+Preferred when you have a `RawRepresentable` row ID enum (eliminates stringly-typed access):
+
+```swift
+enum ProfileRow: String {
+    case name, email, notifications
+}
+
+var theme = FormTheme()
+theme[ProfileRow.email] = TextInputRowStyle(titleColor: .blue)
+theme[ProfileRow.notifications] = BooleanSwitchRowStyle(tintColor: .teal)
+```
+
+> **Priority:** `theme.rowOverrides` entries take precedence over the `style:` init parameter when both exist for the same row ID. In normal usage, choose one approach per row.
+
+### Row Style Reference
+
+All row style structs conform to `FormRowStyle`, which provides common optional properties (`titleColor`, `titleFont`, `subtitleColor`, `subtitleFont`). Every property defaults to `nil` — a `nil` property falls back to the corresponding semantic token in `FormTheme`.
+
+| Style Struct | Row Type | Extra Properties |
+|---|---|---|
+| `TextInputRowStyle` | `TextInputRow` | `placeholderColor: Color?` |
+| `NumberInputRowStyle` | `NumberInputRow` | — |
+| `BooleanSwitchRowStyle` | `BooleanSwitchRow` | `tintColor: Color?` |
+| `SingleValueRowStyle` | `SingleValueRow<T>` | `tintColor: Color?` |
+| `MultiValueRowStyle` | `MultiValueRow<T>` | `optionTextColor: Color?`, `selectionIndicatorColor: Color?`, `selectionIcon: String?` |
+| `InfoRowStyle` | `InfoRow` | `valueFont: Font?`, `valueColor: Color?` |
+| `ButtonRowStyle` | `ButtonRow` | — |
+| `NavigationRowStyle` | `NavigationRow` | — |
+| `CollapsibleSectionStyle` | `CollapsibleSection` | `disclosureIcon: String?`, `animationDuration: Double?` |
+
+`tintColor` on `BooleanSwitchRowStyle` falls back to `theme.colors.switchTint`, then to the system accent color. `tintColor` on `SingleValueRowStyle` falls back to `theme.colors.pickerTint`, then to the system accent color.
+
+### Full Example
+
+```swift
+let brandTheme = FormTheme(
+    colors: .init(
+        error: .orange,
+        saveButtonBackground: .indigo,
+        saveButtonDisabledBackground: Color.indigo.opacity(0.4),
+        selectionIndicator: .teal,
+        placeholder: Color.indigo.opacity(0.4),
+        switchTint: .teal,
+        pickerTint: .indigo
+    ),
+    fonts: .init(
+        rowTitle: .body.weight(.medium),
+        saveButton: .headline
+    ),
+    spacing: .init(saveButtonCornerRadius: 16),
+    icons: .init(collapsibleDisclosure: "chevron.down"),
+    saveButtonStyle: SaveButtonStyle(backgroundColor: .indigo, cornerRadius: 16),
+    validationErrorStyle: ValidationErrorStyle(color: .orange, icon: "exclamationmark.triangle.fill")
+)
+
+let form = FormDefinition(
+    id: "profile",
+    title: "Brand Theme",
+    saveBehaviour: .buttonStickyBottom(),
+    theme: brandTheme
+) {
+    TextInputRow(
+        id: "email",
+        title: "Email",
+        placeholder: "jane@example.com",
+        style: TextInputRowStyle(titleColor: .blue, placeholderColor: .blue.opacity(0.5))
+    )
+    BooleanSwitchRow(
+        id: "notifications",
+        title: "Push Notifications",
+        defaultValue: true,
+        style: BooleanSwitchRowStyle(tintColor: .orange)  // per-row tint override
+    )
+    SingleValueRow<TextSize>(
+        id: "textSize",
+        title: "Text Size",
+        defaultValue: .medium,
+        style: SingleValueRowStyle(tintColor: .pink)       // per-row picker tint override
+    )
+}
 ```
 
 ---
