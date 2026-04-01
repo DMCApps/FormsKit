@@ -22,6 +22,8 @@ struct FormThemeTests {
         #expect(theme.colors.selectionIndicator == .accentColor)
         #expect(theme.colors.sectionHeader == .primary)
         #expect(theme.colors.placeholder == nil)
+        #expect(theme.colors.switchTint == nil)
+        #expect(theme.colors.pickerTint == nil)
         #expect(theme.colors.secureFieldToggle == .secondary)
         #expect(theme.colors.skeletonDark == Color(red: 30/255, green: 30/255, blue: 30/255).opacity(0.4))
         #expect(theme.colors.skeletonLight == Color(red: 64/255, green: 64/255, blue: 64/255).opacity(0.4))
@@ -389,7 +391,8 @@ struct FormThemeTests {
         var theme = FormTheme()
         theme["notifications"] = BooleanSwitchRowStyle(
             subtitleColor: .gray,
-            subtitleFont: .footnote
+            subtitleFont: .footnote,
+            tintColor: .green
         )
 
         let style = theme["notifications"] as? BooleanSwitchRowStyle
@@ -397,6 +400,7 @@ struct FormThemeTests {
         #expect(style?.titleColor == nil)
         #expect(style?.subtitleColor == .gray)
         #expect(style?.subtitleFont == .footnote)
+        #expect(style?.tintColor == .green)
     }
 
     @Test("SingleValueRowStyle override is stored and retrieved correctly")
@@ -404,7 +408,8 @@ struct FormThemeTests {
         var theme = FormTheme()
         theme["country"] = SingleValueRowStyle(
             titleColor: .purple,
-            titleFont: .body
+            titleFont: .body,
+            tintColor: .teal
         )
 
         let style = theme["country"] as? SingleValueRowStyle
@@ -412,6 +417,7 @@ struct FormThemeTests {
         #expect(style?.titleColor == .purple)
         #expect(style?.titleFont == .body)
         #expect(style?.subtitleColor == nil)
+        #expect(style?.tintColor == .teal)
     }
 
     @Test("ButtonRowStyle override is stored and retrieved correctly")
@@ -753,6 +759,20 @@ struct FormThemeTests {
     func booleanSwitchRowStyleNotEquatable() {
         let a = BooleanSwitchRowStyle(subtitleColor: .gray)
         let b = BooleanSwitchRowStyle(subtitleColor: .secondary)
+        #expect(a != b)
+    }
+
+    @Test("BooleanSwitchRowStyle Equatable detects inequality via tintColor")
+    func booleanSwitchRowStyleTintColorNotEquatable() {
+        let a = BooleanSwitchRowStyle(tintColor: .green)
+        let b = BooleanSwitchRowStyle(tintColor: .purple)
+        #expect(a != b)
+    }
+
+    @Test("SingleValueRowStyle Equatable detects inequality via tintColor")
+    func singleValueRowStyleTintColorNotEquatable() {
+        let a = SingleValueRowStyle(tintColor: .teal)
+        let b = SingleValueRowStyle(tintColor: .orange)
         #expect(a != b)
     }
 
@@ -1126,6 +1146,62 @@ struct FormThemeTests {
         let style = theme.rowStyle(for: "country", as: SingleValueRowStyle.self)
         let resolved = style?.titleFont ?? theme.fonts.rowTitle
         #expect(resolved == .callout)
+    }
+
+    // MARK: BooleanSwitchRowStyle — tintColor token resolution
+
+    @Test("BooleanSwitchRowStyle tintColor override takes precedence over theme.colors.switchTint")
+    func booleanSwitchRowStyleTintColorOverrideTakesPrecedence() {
+        var theme = FormTheme(colors: .init(switchTint: .green))
+        theme["notifications"] = BooleanSwitchRowStyle(tintColor: .purple)
+
+        let style = theme.rowStyle(for: "notifications", as: BooleanSwitchRowStyle.self)
+        let resolved = style?.tintColor ?? theme.colors.switchTint
+        #expect(resolved == .purple)
+    }
+
+    @Test("BooleanSwitchRowStyle tintColor falls back to theme.colors.switchTint when no override")
+    func booleanSwitchRowStyleTintColorFallsBackToSwitchTintToken() {
+        let theme = FormTheme(colors: .init(switchTint: .indigo))
+        let style = theme.rowStyle(for: "notifications", as: BooleanSwitchRowStyle.self)
+        let resolved = style?.tintColor ?? theme.colors.switchTint
+        #expect(resolved == .indigo)
+    }
+
+    @Test("BooleanSwitchRowStyle tintColor is nil in default theme (falls through to system accent)")
+    func booleanSwitchRowStyleTintColorIsNilByDefault() {
+        let theme = FormTheme()
+        let style = theme.rowStyle(for: "notifications", as: BooleanSwitchRowStyle.self)
+        let resolved = style?.tintColor ?? theme.colors.switchTint
+        #expect(resolved == nil)
+    }
+
+    // MARK: SingleValueRowStyle — tintColor token resolution
+
+    @Test("SingleValueRowStyle tintColor override takes precedence over theme.colors.pickerTint")
+    func singleValueRowStyleTintColorOverrideTakesPrecedence() {
+        var theme = FormTheme(colors: .init(pickerTint: .green))
+        theme["country"] = SingleValueRowStyle(tintColor: .orange)
+
+        let style = theme.rowStyle(for: "country", as: SingleValueRowStyle.self)
+        let resolved = style?.tintColor ?? theme.colors.pickerTint
+        #expect(resolved == .orange)
+    }
+
+    @Test("SingleValueRowStyle tintColor falls back to theme.colors.pickerTint when no override")
+    func singleValueRowStyleTintColorFallsBackToPickerTintToken() {
+        let theme = FormTheme(colors: .init(pickerTint: .teal))
+        let style = theme.rowStyle(for: "country", as: SingleValueRowStyle.self)
+        let resolved = style?.tintColor ?? theme.colors.pickerTint
+        #expect(resolved == .teal)
+    }
+
+    @Test("SingleValueRowStyle tintColor is nil in default theme (falls through to system accent)")
+    func singleValueRowStyleTintColorIsNilByDefault() {
+        let theme = FormTheme()
+        let style = theme.rowStyle(for: "country", as: SingleValueRowStyle.self)
+        let resolved = style?.tintColor ?? theme.colors.pickerTint
+        #expect(resolved == nil)
     }
 
     @Test("MultiValueRowStyle titleColor override takes precedence over theme.colors.rowTitle")

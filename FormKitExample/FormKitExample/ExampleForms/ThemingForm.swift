@@ -29,7 +29,9 @@ enum ThemingForm {
             saveButtonDisabledBackground: Color.indigo.opacity(0.4),
             saveButtonForeground: .white,
             selectionIndicator: .teal,
-            placeholder: Color.indigo.opacity(0.4)
+            placeholder: Color.indigo.opacity(0.4),
+            switchTint: .teal,
+            pickerTint: .indigo
         ),
         fonts: .init(
             rowTitle: .body.weight(.medium),
@@ -97,9 +99,16 @@ enum ThemingForm {
             BooleanSwitchRow(
                 id: "themingNotifications",
                 title: "Push Notifications",
-                subtitle: "Indigo title via row-level style: — compiler-checked",
+                subtitle: "Teal toggle via global colors.switchTint; indigo title via row-level style:",
                 defaultValue: true,
                 style: BooleanSwitchRowStyle(titleColor: .indigo)
+            )
+            BooleanSwitchRow(
+                id: "themingMarketing",
+                title: "Marketing Emails",
+                subtitle: "Orange toggle via per-row tintColor override",
+                defaultValue: false,
+                style: BooleanSwitchRowStyle(tintColor: .orange)
             )
             MultiValueRow<ThemingTag>(
                 id: "themingTags",
@@ -121,7 +130,15 @@ enum ThemingForm {
             SingleValueRow<ThemingSize>(
                 id: "themingSize",
                 title: "Text Size",
+                subtitle: "Indigo picker tint via global colors.pickerTint",
                 defaultValue: .medium
+            )
+            SingleValueRow<ThemingSize>(
+                id: "themingSizeOverride",
+                title: "Text Size (per-row tint)",
+                subtitle: "Pink picker tint via per-row tintColor override",
+                defaultValue: .medium,
+                style: SingleValueRowStyle(tintColor: .pink)
             )
         }
     }

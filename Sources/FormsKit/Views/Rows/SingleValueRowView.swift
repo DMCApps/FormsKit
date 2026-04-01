@@ -23,6 +23,7 @@ struct SingleValueRowView: View {
         let titleFont = style?.titleFont ?? theme.fonts.rowTitle
         let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
         let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
+        let tint = style?.tintColor ?? theme.colors.pickerTint
 
         VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
             if row.pickerStyle == .segmented {
@@ -37,17 +38,17 @@ struct SingleValueRowView: View {
                             .font(subtitleFont)
                             .foregroundStyle(subtitleColor)
                     }
-                    styledPicker
+                    styledPickerView(tint: tint)
                 }
             } else if let subtitle = row.subtitle {
                 VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
-                    styledPicker
+                    styledPickerView(tint: tint)
                     Text(subtitle)
                         .font(subtitleFont)
                         .foregroundStyle(subtitleColor)
                 }
             } else {
-                styledPicker
+                styledPickerView(tint: tint)
             }
             ValidationErrorView(errors: viewModel.errorsForRow(rowId), rowId: rowId)
         }
@@ -63,6 +64,15 @@ struct SingleValueRowView: View {
             .flatMap { sv in options.first(where: { $0.storedValue == sv })?.label }
             ?? row.placeholder
             ?? ""
+    }
+
+    @ViewBuilder
+    private func styledPickerView(tint: Color?) -> some View {
+        if let tint {
+            styledPicker.tint(tint)
+        } else {
+            styledPicker
+        }
     }
 
     /// A single picker using `Binding<String?>` with every option tagged as `String?`.

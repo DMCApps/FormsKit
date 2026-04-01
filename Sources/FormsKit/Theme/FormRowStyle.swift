@@ -96,16 +96,22 @@ public struct BooleanSwitchRowStyle: FormRowStyle, Equatable {
     public var subtitleColor: Color?
     public var subtitleFont: Font?
 
+    /// Override for the toggle tint (fill) color. Falls back to `theme.colors.switchTint` when `nil`,
+    /// then to the system accent color when that is also `nil`.
+    public var tintColor: Color?
+
     public init(
         titleColor: Color? = nil,
         titleFont: Font? = nil,
         subtitleColor: Color? = nil,
-        subtitleFont: Font? = nil
+        subtitleFont: Font? = nil,
+        tintColor: Color? = nil
     ) {
         self.titleColor = titleColor
         self.titleFont = titleFont
         self.subtitleColor = subtitleColor
         self.subtitleFont = subtitleFont
+        self.tintColor = tintColor
     }
 }
 
@@ -118,16 +124,23 @@ public struct SingleValueRowStyle: FormRowStyle, Equatable {
     public var subtitleColor: Color?
     public var subtitleFont: Font?
 
+    /// Override for the picker tint color (affects selected-value label in `.menu` style,
+    /// and selection highlight in `.navigationLink` style). Falls back to `theme.colors.pickerTint`
+    /// when `nil`, then to the system accent color when that is also `nil`.
+    public var tintColor: Color?
+
     public init(
         titleColor: Color? = nil,
         titleFont: Font? = nil,
         subtitleColor: Color? = nil,
-        subtitleFont: Font? = nil
+        subtitleFont: Font? = nil,
+        tintColor: Color? = nil
     ) {
         self.titleColor = titleColor
         self.titleFont = titleFont
         self.subtitleColor = subtitleColor
         self.subtitleFont = subtitleFont
+        self.tintColor = tintColor
     }
 }
 

@@ -216,6 +216,17 @@ extension FormTheme {
         /// When `nil`, the system default placeholder color is used.
         public var placeholder: Color?
 
+        // MARK: Toggle / Picker tint
+
+        /// Tint (fill) color for `Toggle` controls in `BooleanSwitchRow`.
+        /// When `nil`, the system accent color is used.
+        public var switchTint: Color?
+
+        /// Tint color for `Picker` controls in `SingleValueRow` (affects selected-value
+        /// label in `.menu` style and selection highlight in `.navigationLink` style).
+        /// When `nil`, the system accent color is used.
+        public var pickerTint: Color?
+
         // MARK: Secure field
 
         /// Foreground color for the secure field reveal/hide toggle button.
@@ -240,6 +251,8 @@ extension FormTheme {
             selectionIndicator: Color = .accentColor,
             sectionHeader: Color = .primary,
             placeholder: Color? = nil,
+            switchTint: Color? = nil,
+            pickerTint: Color? = nil,
             secureFieldToggle: Color = .secondary,
             skeletonDark: Color = Color(red: 30/255, green: 30/255, blue: 30/255).opacity(0.4),
             skeletonLight: Color = Color(red: 64/255, green: 64/255, blue: 64/255).opacity(0.4)
@@ -254,6 +267,8 @@ extension FormTheme {
             self.selectionIndicator = selectionIndicator
             self.sectionHeader = sectionHeader
             self.placeholder = placeholder
+            self.switchTint = switchTint
+            self.pickerTint = pickerTint
             self.secureFieldToggle = secureFieldToggle
             self.skeletonDark = skeletonDark
             self.skeletonLight = skeletonLight

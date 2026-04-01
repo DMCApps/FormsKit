@@ -18,14 +18,21 @@ struct BooleanSwitchRowView: View {
     }
 
     var body: some View {
+        let tint = style?.tintColor ?? theme.colors.switchTint
         VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
-            Toggle(isOn: Binding(
+            let toggle = Toggle(isOn: Binding(
                 get: { isOn },
                 set: { viewModel.setBool($0, for: row.id) }
             )) {
                 rowLabel
             }
             .accessibilityIdentifier("formkit.toggle.\(row.id)")
+
+            if let tint {
+                toggle.tint(tint)
+            } else {
+                toggle
+            }
 
             ValidationErrorView(errors: viewModel.errorsForRow(row.id), rowId: row.id)
         }
