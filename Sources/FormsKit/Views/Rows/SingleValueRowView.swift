@@ -19,38 +19,52 @@ struct SingleValueRowView: View {
     }
 
     var body: some View {
+        let tint = style?.tintColor ?? theme.colors.pickerTint
+
+        VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
+            switch row.pickerStyle {
+            case .segmented:
+                // .segmented fills the full width — label sits above the control.
+                VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
+                    rowLabel
+                    styledPickerView(tint: tint)
+                }
+            case .navigationLink:
+                // .navigationLink ignores .labelsHidden() and renders its own full-row
+                // layout (label left, value + chevron right). Pass rowLabel directly as
+                // the Picker label so title and subtitle both appear natively.
+                styledPickerView(tint: tint)
+            default:
+                // .menu and .automatic: explicit HStack so title+subtitle are always
+                // vertically centred against the picker value regardless of label length.
+                HStack(alignment: .center) {
+                    rowLabel
+                    Spacer()
+                    styledPickerView(tint: tint).labelsHidden()
+                }
+            }
+            ValidationErrorView(errors: viewModel.errorsForRow(rowId), rowId: rowId)
+        }
+    }
+
+    /// Title + subtitle stack — the left side of the HStack for non-segmented styles,
+    /// and the explicit header for .segmented pickers.
+    @ViewBuilder
+    private var rowLabel: some View {
         let titleColor = style?.titleColor ?? theme.colors.rowTitle
         let titleFont = style?.titleFont ?? theme.fonts.rowTitle
         let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
         let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
-        let tint = style?.tintColor ?? theme.colors.pickerTint
 
-        VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
-            if row.pickerStyle == .segmented {
-                // .segmented picker style suppresses the Picker's built-in label,
-                // so we render the title (and optional subtitle) explicitly above the control.
-                VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
-                    Text(row.title)
-                        .font(titleFont)
-                        .foregroundStyle(titleColor)
-                    if let subtitle = row.subtitle {
-                        Text(subtitle)
-                            .font(subtitleFont)
-                            .foregroundStyle(subtitleColor)
-                    }
-                    styledPickerView(tint: tint)
-                }
-            } else if let subtitle = row.subtitle {
-                VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
-                    styledPickerView(tint: tint)
-                    Text(subtitle)
-                        .font(subtitleFont)
-                        .foregroundStyle(subtitleColor)
-                }
-            } else {
-                styledPickerView(tint: tint)
+        VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
+            Text(row.title)
+                .font(titleFont)
+                .foregroundStyle(titleColor)
+            if let subtitle = row.subtitle {
+                Text(subtitle)
+                    .font(subtitleFont)
+                    .foregroundStyle(subtitleColor)
             }
-            ValidationErrorView(errors: viewModel.errorsForRow(rowId), rowId: rowId)
         }
     }
 
@@ -101,13 +115,17 @@ struct SingleValueRowView: View {
             }
         }
         if #available(iOS 18, tvOS 18, macOS 15, visionOS 2, *) {
-            Picker(row.title, selection: binding, content: content) {
+            Picker(selection: binding, content: content) {
+                rowLabel
+            } currentValueLabel: {
                 Text(currentValueText)
             }
             .accessibilityIdentifier("formkit.picker.\(rowId)")
         } else {
-            Picker(row.title, selection: binding, content: content)
-                .accessibilityIdentifier("formkit.picker.\(rowId)")
+            Picker(selection: binding, content: content) {
+                rowLabel
+            }
+            .accessibilityIdentifier("formkit.picker.\(rowId)")
         }
     }
 
