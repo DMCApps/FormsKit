@@ -49,6 +49,7 @@ struct FormThemeTests {
         #expect(theme.spacing.headerSpacing == 2)
         #expect(theme.spacing.errorSpacing == 2)
         #expect(theme.spacing.saveButtonCornerRadius == 10)
+        #expect(theme.spacing.optionRowVerticalPadding == 4)
         #expect(theme.spacing.stickyButtonVerticalPadding == 16)
     }
 

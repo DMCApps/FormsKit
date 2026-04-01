@@ -34,6 +34,7 @@ struct MultiValueRowView: View {
 
             ForEach(options, id: \.self) { description in
                 optionRow(description: description, isSelected: selected.contains(description))
+                    .padding(.vertical, theme.spacing.optionRowVerticalPadding)
             }
 
             ValidationErrorView(errors: viewModel.errorsForRow(rowId), rowId: rowId)
@@ -80,6 +81,7 @@ struct MultiValueRowView: View {
                         .foregroundStyle(indicatorColor)
                 }
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

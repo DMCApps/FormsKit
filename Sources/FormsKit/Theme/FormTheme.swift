@@ -271,6 +271,9 @@ extension FormTheme {
         /// Corner radius of the save button background.
         public var saveButtonCornerRadius: CGFloat
 
+        /// Vertical padding applied to each option row in a MultiValueRow list.
+        public var optionRowVerticalPadding: CGFloat
+
         /// Vertical padding inside the sticky bottom save button.
         public var stickyButtonVerticalPadding: CGFloat
 
@@ -279,12 +282,14 @@ extension FormTheme {
             headerSpacing: CGFloat = 2,
             errorSpacing: CGFloat = 2,
             saveButtonCornerRadius: CGFloat = 10,
+            optionRowVerticalPadding: CGFloat = 4,
             stickyButtonVerticalPadding: CGFloat = 16
         ) {
             self.rowContentSpacing = rowContentSpacing
             self.headerSpacing = headerSpacing
             self.errorSpacing = errorSpacing
             self.saveButtonCornerRadius = saveButtonCornerRadius
+            self.optionRowVerticalPadding = optionRowVerticalPadding
             self.stickyButtonVerticalPadding = stickyButtonVerticalPadding
         }
     }
