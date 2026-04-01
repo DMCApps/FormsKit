@@ -65,6 +65,15 @@ struct MaskedTextField: UIViewRepresentable {
         if uiView.text != expected {
             uiView.text = expected
         }
+        // Re-sync placeholder appearance in case placeholderColor changed (e.g. theme update).
+        if let color = placeholderColor {
+            uiView.attributedPlaceholder = NSAttributedString(
+                string: placeholder,
+                attributes: [.foregroundColor: UIColor(color)]
+            )
+        } else {
+            uiView.placeholder = placeholder
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -239,6 +248,7 @@ struct TextInputRowView: View {
             TextField(text: binding, prompt: maskedPrompt) { EmptyView() }
                 .textContentType(.none)
                 .autocorrectionDisabled()
+                .accessibilityLabel(row.title)
                 .accessibilityIdentifier("formkit.field.\(row.id)")
 #endif
         } else {
@@ -257,6 +267,7 @@ struct TextInputRowView: View {
                             .focused($isFocused)
                             .textContentType(.none)
                             .autocorrectionDisabled()
+                            .accessibilityLabel(row.title)
                             .accessibilityIdentifier("formkit.field.\(row.id)")
 #if os(iOS)
                             .textInputAutocapitalization(.never)
@@ -282,6 +293,7 @@ struct TextInputRowView: View {
                     .focused($isFocused)
                     .textContentType(.none)
                     .autocorrectionDisabled()
+                    .accessibilityLabel(row.title)
                     .accessibilityIdentifier("formkit.field.\(row.id)")
 #if os(iOS)
                     .keyboardType(row.keyboardType.uiKeyboardType)

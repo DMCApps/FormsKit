@@ -689,4 +689,30 @@ struct FormThemeTests {
         let row = TextInputRow(id: "name", title: "Name")
         #expect(row.rowStyle == nil)
     }
+
+    @Test("SingleValueRow style: init parameter stores correct style type")
+    func singleValueRowStyleAttachesCorrectly() {
+        enum Color: String, CaseIterable, CustomStringConvertible, Hashable, Sendable, Codable {
+            case red, blue
+            var description: String { rawValue }
+        }
+        let row = SingleValueRow<Color>(id: "color", title: "Color",
+                                        style: SingleValueRowStyle(titleColor: .purple, tintColor: .teal))
+        let style = row.rowStyle as? SingleValueRowStyle
+        #expect(style?.titleColor == .purple)
+        #expect(style?.tintColor == .teal)
+    }
+
+    @Test("MultiValueRow style: init parameter stores correct style type")
+    func multiValueRowStyleAttachesCorrectly() {
+        enum Tag: String, CaseIterable, CustomStringConvertible, Hashable, Sendable, Codable {
+            case swift, ios
+            var description: String { rawValue }
+        }
+        let row = MultiValueRow<Tag>(id: "tags", title: "Tags",
+                                     style: MultiValueRowStyle(optionTextColor: .indigo, selectionIcon: "star.fill"))
+        let style = row.rowStyle as? MultiValueRowStyle
+        #expect(style?.optionTextColor == .indigo)
+        #expect(style?.selectionIcon == "star.fill")
+    }
 }
