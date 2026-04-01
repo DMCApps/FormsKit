@@ -114,7 +114,14 @@ enum RowTypesForm {
             SingleValueRow<Colour>(
                 id: "colour",
                 title: "Favourite Colour",
-                subtitle: "pickerStyle: .automatic (default)"
+                subtitle: "No placeholder — picker starts blank"
+            )
+
+            SingleValueRow<Colour>(
+                id: "colourWithPlaceholder",
+                title: "Favourite Colour",
+                subtitle: "placeholder: \"Choose a colour…\"",
+                placeholder: "Choose a colour…"
             )
 
             SingleValueRow<Size>(
@@ -123,27 +130,36 @@ enum RowTypesForm {
                 subtitle: "pickerStyle: .automatic, defaultValue: .medium",
                 defaultValue: .medium
             )
-
+            
             SingleValueRow<Colour>(
                 id: "colourSegmented",
                 title: "Colour (Segmented)",
-                subtitle: "pickerStyle: .segmented — label rendered above",
+                subtitle: "pickerStyle: .segmented — placeholder never shown",
                 pickerStyle: .segmented
+            )
+            
+            SingleValueRow<Colour>(
+                id: "colourSegmentedWithPlaceholder",
+                title: "Colour (Segmented w/ placeholder)",
+                subtitle: "pickerStyle: .segmented — placeholder never shown",
+                pickerStyle: .segmented,
+                placeholder: "Select ..."
             )
 
             SingleValueRow<Size>(
                 id: "sizeMenu",
                 title: "Size (Menu)",
-                subtitle: "pickerStyle: .menu",
-                defaultValue: .small,
-                pickerStyle: .menu
+                subtitle: "pickerStyle: .menu, placeholder set",
+                pickerStyle: .menu,
+                placeholder: "Pick a size…"
             )
 
             SingleValueRow<Colour>(
                 id: "colourNavLink",
                 title: "Colour (Nav Link)",
-                subtitle: "pickerStyle: .navigationLink",
-                pickerStyle: .navigationLink
+                subtitle: "pickerStyle: .navigationLink, placeholder set",
+                pickerStyle: .navigationLink,
+                placeholder: "Select…"
             )
         }
 

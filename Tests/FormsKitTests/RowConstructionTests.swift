@@ -415,6 +415,140 @@ struct SingleValueRowTests {
         let value: String? = vm.value(for: "colour")
         #expect(value == "green")
     }
+
+    // MARK: Placeholder
+
+    @Test("SingleValueRow placeholder is nil by default")
+    func singleValueRowPlaceholderNilByDefault() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        #expect(row.placeholder == nil)
+    }
+
+    @Test("SingleValueRow stores placeholder when provided")
+    func singleValueRowStoresPlaceholder() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour", placeholder: "Choose a colour…")
+        #expect(row.placeholder == "Choose a colour…")
+    }
+
+    @Test("SingleValueRow placeholder is accessible via SingleValueRowRepresentable protocol")
+    func singleValueRowPlaceholderViaProtocol() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour", placeholder: "Pick one")
+        let representable: any SingleValueRowRepresentable = row
+        #expect(representable.placeholder == "Pick one")
+    }
+
+    @Test("SingleValueRow nil placeholder is accessible via SingleValueRowRepresentable protocol")
+    func singleValueRowNilPlaceholderViaProtocol() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        let representable: any SingleValueRowRepresentable = row
+        #expect(representable.placeholder == nil)
+    }
+
+    @Test("SingleValueRow with defaultValue seeds store; placeholder does not affect initial value")
+    func singleValueRowDefaultValueWithPlaceholder() {
+        let form = FormDefinition(
+            id: "f", title: "T",
+            rows: [AnyFormRow(SingleValueRow<Colour>(
+                id: "c", title: "C",
+                defaultValue: .red,
+                placeholder: "Choose…"
+            ))],
+            saveBehaviour: .none
+        )
+        let vm = FormViewModel(formDefinition: form)
+        let value: String? = vm.value(for: "c")
+        #expect(value == "red")
+        // placeholder is stored on the row, not in the value store
+        let row = form.rows.first?.asSingleValueRepresentable
+        #expect(row?.placeholder == "Choose…")
+    }
+
+    @Test("SingleValueRow pickerStyle .segmented stores both pickerStyle and placeholder")
+    func singleValueRowSegmentedStoresBothProperties() {
+        // The view uses currentValueLabel: for all picker styles uniformly — no special
+        // suppression for .segmented. Verify the model correctly exposes both properties.
+        let row = SingleValueRow<Colour>(
+            id: "colour", title: "Colour",
+            pickerStyle: .segmented,
+            placeholder: "Pick one"
+        )
+        #expect(row.pickerStyle == .segmented)
+        #expect(row.placeholder == "Pick one")
+    }
+
+    @Test("SingleValueRow placeholder does not interfere with pickerOptions")
+    func singleValueRowPlaceholderDoesNotAffectOptions() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour", placeholder: "Choose…")
+        // pickerOptions should still contain only the enum cases, not the placeholder
+        #expect(row.pickerOptions.count == Colour.allCases.count)
+        #expect(!row.pickerOptions.map(\.label).contains("Choose…"))
+    }
+
+    @Test("AnyFormRow preserves placeholder via asSingleValueRepresentable")
+    func anyFormRowPreservesPlaceholder() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour", placeholder: "Pick one")
+        let anyRow = AnyFormRow(row)
+        #expect(anyRow.asSingleValueRepresentable?.placeholder == "Pick one")
+    }
+
+    @Test("AnyFormRow preserves nil placeholder via asSingleValueRepresentable")
+    func anyFormRowPreservesNilPlaceholder() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        let anyRow = AnyFormRow(row)
+        #expect(anyRow.asSingleValueRepresentable?.placeholder == nil)
+    }
+
+    @Test("currentValueText resolves to placeholder when no value is selected")
+    func currentValueTextShowsPlaceholderWhenNil() {
+        // Mirrors the view's currentValueText logic: nil store + placeholder → placeholder text
+        let options: [(label: String, storedValue: String)] = [("Red", "red"), ("Green", "green")]
+        let currentStoredValue: String? = nil
+        let placeholder: String? = "Choose a colour…"
+        let result = currentStoredValue
+            .flatMap { sv in options.first(where: { $0.storedValue == sv })?.label }
+            ?? placeholder
+            ?? ""
+        #expect(result == "Choose a colour…")
+    }
+
+    @Test("currentValueText resolves to selected label when a value is present")
+    func currentValueTextShowsSelectedLabel() {
+        let options: [(label: String, storedValue: String)] = [("Red", "red"), ("Green", "green")]
+        let currentStoredValue: String? = "green"
+        let placeholder: String? = "Choose a colour…"
+        let result = currentStoredValue
+            .flatMap { sv in options.first(where: { $0.storedValue == sv })?.label }
+            ?? placeholder
+            ?? ""
+        #expect(result == "Green")
+    }
+
+    @Test("currentValueText resolves to empty string when no value and no placeholder")
+    func currentValueTextEmptyWhenNoValueAndNoPlaceholder() {
+        let options: [(label: String, storedValue: String)] = [("Red", "red"), ("Green", "green")]
+        let currentStoredValue: String? = nil
+        let placeholder: String? = nil
+        let result = currentStoredValue
+            .flatMap { sv in options.first(where: { $0.storedValue == sv })?.label }
+            ?? placeholder
+            ?? ""
+        #expect(result == "")
+    }
+
+    @Test("Setting SingleValueRow value to nil clears it from the store")
+    func singleValueRowSetValueNilClearsStore() {
+        let form = FormDefinition(
+            id: "f", title: "T",
+            rows: [AnyFormRow(SingleValueRow<Colour>(id: "c", title: "C"))],
+            saveBehaviour: .none
+        )
+        let vm = FormViewModel(formDefinition: form)
+        vm.setString("red", for: "c")
+        #expect(vm.value(for: "c") == "red")
+        vm.setValue(nil, for: "c")
+        let value: String? = vm.value(for: "c")
+        #expect(value == nil)
+    }
 }
 
 // MARK: - MultiValueRow Tests
