@@ -9,7 +9,7 @@ struct BooleanSwitchRowView: View {
     @Bindable var viewModel: FormViewModel
     @Environment(\.formTheme) private var theme
 
-    private var style: BooleanSwitchRowStyle? { theme.rowStyle(for: row.id, as: BooleanSwitchRowStyle.self) }
+    private var style: BooleanSwitchRowStyle? { row.rowStyle as? BooleanSwitchRowStyle }
 
     private var isOn: Bool {
         if let stored: Bool = viewModel.value(for: row.id) { return stored }

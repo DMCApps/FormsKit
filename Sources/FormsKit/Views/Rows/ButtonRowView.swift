@@ -5,7 +5,7 @@ struct ButtonRowView: View {
     let row: ButtonRow
     @Environment(\.formTheme) private var theme
 
-    private var style: ButtonRowStyle? { theme.rowStyle(for: row.id, as: ButtonRowStyle.self) }
+    private var style: ButtonRowStyle? { row.rowStyle as? ButtonRowStyle }
 
     var body: some View {
         let titleColor = style?.titleColor ?? theme.colors.rowTitle

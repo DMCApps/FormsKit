@@ -210,7 +210,7 @@ public protocol FormRow: Sendable, Identifiable where ID == String {
     /// An optional per-row style override attached directly to this row at definition time.
     ///
     /// Passed as the `style:` parameter in the row's initialiser.
-    /// `DynamicFormView` reads this and merges it into `theme.rowOverrides` automatically.
+    /// Row views read this directly to resolve per-row style overrides.
     var rowStyle: (any FormRowStyle)? { get }
 }
 

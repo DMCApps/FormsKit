@@ -127,7 +127,7 @@ struct TextInputRowView: View {
     @State private var isRevealed = false
     @Environment(\.formTheme) private var theme
 
-    private var style: TextInputRowStyle? { theme.rowStyle(for: row.id, as: TextInputRowStyle.self) }
+    private var style: TextInputRowStyle? { row.rowStyle as? TextInputRowStyle }
 
     /// Builds a `Text` prompt for `TextField`/`SecureField`, applying the resolved placeholder color.
     /// Resolution order: per-row override → global token → system default (nil = plain Text).

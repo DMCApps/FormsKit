@@ -7,7 +7,7 @@ struct InfoRowView: View {
     let row: InfoRow
     @Environment(\.formTheme) private var theme
 
-    private var style: InfoRowStyle? { theme.rowStyle(for: row.id, as: InfoRowStyle.self) }
+    private var style: InfoRowStyle? { row.rowStyle as? InfoRowStyle }
 
     var body: some View {
         let labelColor = style?.titleColor ?? theme.colors.rowTitle

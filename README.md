@@ -936,10 +936,6 @@ Each property on these structs falls back to the corresponding semantic token wh
 
 ### Per-Row Style Overrides
 
-FormsKit supports three ways to override the style of individual rows.
-
-#### 1. `style:` init parameter (preferred)
-
 Pass a typed style struct directly in the row's initialiser. The compiler enforces the correct style type for each row:
 
 ```swift
@@ -968,31 +964,6 @@ MultiValueRow<Tag>(
     )
 )
 ```
-
-#### 2. `theme[rowId] = Style(...)` — string subscript
-
-Use when you want to apply overrides programmatically without modifying the form definition:
-
-```swift
-var theme = FormTheme()
-theme["email"] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
-```
-
-#### 3. `theme[RowID.row] = Style(...)` — typed enum subscript
-
-Preferred when you have a `RawRepresentable` row ID enum (eliminates stringly-typed access):
-
-```swift
-enum ProfileRow: String {
-    case name, email, notifications
-}
-
-var theme = FormTheme()
-theme[ProfileRow.email] = TextInputRowStyle(titleColor: .blue)
-theme[ProfileRow.notifications] = BooleanSwitchRowStyle(tintColor: .teal)
-```
-
-> **Priority:** `theme.rowOverrides` entries take precedence over the `style:` init parameter when both exist for the same row ID. In normal usage, choose one approach per row.
 
 ### Row Style Reference
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - FormRowStyle
 
-/// A protocol for per-row-ID style overrides within a `FormTheme`.
+/// A protocol for per-row style overrides passed via the `style:` parameter in a row's initialiser.
 ///
 /// Conforming types carry optional styling properties. Any property set to `nil`
 /// falls back to the corresponding semantic token in `FormTheme`.
@@ -11,13 +11,11 @@ import SwiftUI
 /// are defined here and shared across all row style types. Row-type-specific extras
 /// are defined on the concrete structs.
 ///
-/// Register a style override using the theme's subscript API keyed by the row's `id`:
+/// Pass a style directly to a row at definition time:
 ///
 /// ```swift
-/// var theme = FormTheme()
-/// theme["email"] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
-/// // Or with a typed enum:
-/// theme[Row.email] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
+/// TextInputRow(id: "email", title: "Email",
+///     style: TextInputRowStyle(titleColor: .blue, titleFont: .headline))
 /// ```
 public protocol FormRowStyle: Sendable {
     /// Override for the row title color. Falls back to `theme.colors.rowTitle` when `nil`.

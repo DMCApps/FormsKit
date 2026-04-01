@@ -13,7 +13,7 @@ struct NumberInputRowView: View {
     @FocusState private var isFocused: Bool
     @Environment(\.formTheme) private var theme
 
-    private var style: NumberInputRowStyle? { theme.rowStyle(for: row.id, as: NumberInputRowStyle.self) }
+    private var style: NumberInputRowStyle? { row.rowStyle as? NumberInputRowStyle }
 
     var body: some View {
         let placeholderPrompt: Text? = {

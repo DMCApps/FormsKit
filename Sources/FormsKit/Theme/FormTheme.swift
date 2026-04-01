@@ -20,9 +20,8 @@ import SwiftUI
 /// let form = FormDefinition(id: "x", title: "X", theme: myTheme) { ... }
 /// ```
 ///
-/// For per-row overrides, the preferred approach is to pass the style as the `style:`
-/// parameter directly in the row's initialiser. The compiler enforces the correct style
-/// type — no need to know which style struct goes with which row type:
+/// For per-row style overrides, pass the style as the `style:` parameter directly in
+/// the row's initialiser. The compiler enforces the correct style type for each row:
 ///
 /// ```swift
 /// TextInputRow(id: "email", title: "Email",
@@ -32,23 +31,8 @@ import SwiftUI
 ///     style: BooleanSwitchRowStyle(titleColor: .indigo))
 /// ```
 ///
-/// For programmatic overrides (e.g. theming rows without modifying form definitions),
-/// use the subscript API. Each override property falls back to the corresponding
-/// semantic token when `nil`:
-///
-/// ```swift
-/// var theme = FormTheme()
-/// // String subscript — convenient when you don't have a typed enum:
-/// theme["email"] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
-/// // Typed subscript — preferred when you have a RawRepresentable row-ID enum:
-/// theme[Row.email] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
-/// ```
-///
-/// When both a row-level `style:` parameter and a theme `rowOverrides` entry exist for the
-/// same row ID, the theme's `rowOverrides` takes priority.
-///
 /// For form-level components (save button, validation errors), use the dedicated typed
-/// properties rather than `rowOverrides`:
+/// properties:
 ///
 /// ```swift
 /// var theme = FormTheme()
@@ -84,12 +68,6 @@ public struct FormTheme: Sendable {
     /// Each property falls back to the corresponding semantic token when `nil`.
     public var validationErrorStyle: ValidationErrorStyle?
 
-    // MARK: - Per-row Overrides
-
-    /// Storage for per-row-ID style overrides. Keyed by row ID string.
-    /// Access externally via the `theme["rowId"]` or `theme[RowID.row]` subscripts.
-    var rowOverrides: [String: any FormRowStyle]
-
     // MARK: - Init
 
     public init(
@@ -99,8 +77,7 @@ public struct FormTheme: Sendable {
         icons: Icons = Icons(),
         animations: Animations = Animations(),
         saveButtonStyle: SaveButtonStyle? = nil,
-        validationErrorStyle: ValidationErrorStyle? = nil,
-        rowOverrides: [String: any FormRowStyle] = [:]
+        validationErrorStyle: ValidationErrorStyle? = nil
     ) {
         self.colors = colors
         self.fonts = fonts
@@ -109,83 +86,10 @@ public struct FormTheme: Sendable {
         self.animations = animations
         self.saveButtonStyle = saveButtonStyle
         self.validationErrorStyle = validationErrorStyle
-        self.rowOverrides = rowOverrides
     }
 
     /// The default theme, matching the library's original hardcoded appearance.
     public static let `default` = FormTheme()
-}
-
-// MARK: - Typed Row Override Subscript
-
-extension FormTheme {
-    /// Accesses a per-row style override using any `RawRepresentable` key whose `RawValue` is `String`.
-    ///
-    /// This is the preferred way to interact with `rowOverrides` when you have a typed row-ID enum,
-    /// as it eliminates stringly-typed key access and provides autocomplete:
-    ///
-    /// ```swift
-    /// enum Row: String {
-    ///     case name, email
-    /// }
-    ///
-    /// var theme = FormTheme()
-    /// theme[Row.email] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
-    /// let style = theme[Row.email] as? TextInputRowStyle
-    /// ```
-    ///
-    /// Reading or writing through this subscript is equivalent to `theme["id.rawValue"]`.
-    public subscript<ID: RawRepresentable>(_ id: ID) -> (any FormRowStyle)?
-    where ID.RawValue == String {
-        get { rowOverrides[id.rawValue] }
-        set { rowOverrides[id.rawValue] = newValue }
-    }
-
-    /// Accesses a per-row style override using a plain `String` key.
-    ///
-    /// Use this when you don't have a typed `RawRepresentable` enum for your row IDs:
-    ///
-    /// ```swift
-    /// theme["email"] = TextInputRowStyle(titleColor: .blue)
-    /// let style = theme["email"] as? TextInputRowStyle
-    /// ```
-    public subscript(_ id: String) -> (any FormRowStyle)? {
-        get { rowOverrides[id] }
-        set { rowOverrides[id] = newValue }
-    }
-
-    /// Returns the per-row style override for the given row ID, cast to the requested type.
-    ///
-    /// Used internally by row views to look up their override in a single call:
-    ///
-    /// ```swift
-    /// let style = theme.rowStyle(for: row.id, as: TextInputRowStyle.self)
-    /// let titleColor = style?.titleColor ?? theme.colors.rowTitle
-    /// ```
-    func rowStyle<S: FormRowStyle>(for id: String, as type: S.Type) -> S? {
-        rowOverrides[id] as? S
-    }
-
-    /// Merges row-level `style:` init-parameter styles from a row array into `rowOverrides`.
-    ///
-    /// Rows nested inside `FormSection` and `CollapsibleSection` are visited recursively.
-    /// Explicit `rowOverrides` already present in the theme are never overwritten — the theme
-    /// always takes priority over the `style:` parameter.
-    ///
-    /// Called by `DynamicFormView` when resolving the theme to inject into the environment.
-    mutating func mergeRowStyles(from rows: [AnyFormRow]) {
-        for row in rows {
-            if let style = row.rowStyle, rowOverrides[row.id] == nil {
-                rowOverrides[row.id] = style
-            }
-            // Recurse into section children.
-            if let section = row.asType(FormSection.self) {
-                mergeRowStyles(from: section.rows)
-            } else if let collapsible = row.asType(CollapsibleSection.self) {
-                mergeRowStyles(from: collapsible.rows)
-            }
-        }
-    }
 }
 
 // MARK: - FormTheme.Colors
