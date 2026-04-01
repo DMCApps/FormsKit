@@ -295,15 +295,19 @@ struct FormThemeTests {
         #expect(style?.valueColor == .blue)
     }
 
-    @Test("CollapsibleSectionStyle override carries disclosure icon and duration")
+    @Test("CollapsibleSectionStyle override carries disclosure icon, duration, and title styling")
     func collapsibleSectionStyleOverride() {
         var theme = FormTheme()
         theme["advanced"] = CollapsibleSectionStyle(
+            titleColor: .blue,
+            titleFont: .headline,
             disclosureIcon: "chevron.down",
             animationDuration: 0.4
         )
 
         let style = theme["advanced"] as? CollapsibleSectionStyle
+        #expect(style?.titleColor == .blue)
+        #expect(style?.titleFont == .headline)
         #expect(style?.disclosureIcon == "chevron.down")
         #expect(style?.animationDuration == 0.4)
     }
@@ -975,5 +979,228 @@ struct FormThemeTests {
         enum Row: String { case name }
         let typed = TypedFormDefinition<Row>(id: "t", title: "T", rows: [])
         #expect(typed.definition.theme == nil)
+    }
+
+    // MARK: Title styling resolution — per-row override vs theme token fallback
+
+    @Test("ButtonRowStyle titleColor override takes precedence over theme.colors.rowTitle")
+    func buttonRowStyleTitleColorOverrideTakesPrecedence() {
+        var theme = FormTheme(colors: .init(rowTitle: .secondary))
+        theme["logout"] = ButtonRowStyle(titleColor: .red)
+
+        let style = theme.rowStyle(for: "logout", as: ButtonRowStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.rowTitle
+        #expect(resolved == .red)
+    }
+
+    @Test("ButtonRowStyle titleColor falls back to theme.colors.rowTitle when no override")
+    func buttonRowStyleTitleColorFallsBackToThemeToken() {
+        let theme = FormTheme(colors: .init(rowTitle: .purple))
+        // No override for "logout"
+        let style = theme.rowStyle(for: "logout", as: ButtonRowStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.rowTitle
+        #expect(resolved == .purple)
+    }
+
+    @Test("ButtonRowStyle titleFont override takes precedence over theme.fonts.rowTitle")
+    func buttonRowStyleTitleFontOverrideTakesPrecedence() {
+        var theme = FormTheme(fonts: .init(rowTitle: .subheadline))
+        theme["logout"] = ButtonRowStyle(titleFont: .headline)
+
+        let style = theme.rowStyle(for: "logout", as: ButtonRowStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.rowTitle
+        #expect(resolved == .headline)
+    }
+
+    @Test("ButtonRowStyle titleFont falls back to theme.fonts.rowTitle when no override")
+    func buttonRowStyleTitleFontFallsBackToThemeToken() {
+        let theme = FormTheme(fonts: .init(rowTitle: .body))
+        let style = theme.rowStyle(for: "logout", as: ButtonRowStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.rowTitle
+        #expect(resolved == .body)
+    }
+
+    @Test("NavigationRowStyle titleColor override takes precedence over theme.colors.rowTitle")
+    func navigationRowStyleTitleColorOverrideTakesPrecedence() {
+        var theme = FormTheme(colors: .init(rowTitle: .secondary))
+        theme["settings"] = NavigationRowStyle(titleColor: .blue)
+
+        let style = theme.rowStyle(for: "settings", as: NavigationRowStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.rowTitle
+        #expect(resolved == .blue)
+    }
+
+    @Test("NavigationRowStyle titleColor falls back to theme.colors.rowTitle when no override")
+    func navigationRowStyleTitleColorFallsBackToThemeToken() {
+        let theme = FormTheme(colors: .init(rowTitle: .green))
+        let style = theme.rowStyle(for: "settings", as: NavigationRowStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.rowTitle
+        #expect(resolved == .green)
+    }
+
+    @Test("NavigationRowStyle titleFont override takes precedence over theme.fonts.rowTitle")
+    func navigationRowStyleTitleFontOverrideTakesPrecedence() {
+        var theme = FormTheme(fonts: .init(rowTitle: .subheadline))
+        theme["settings"] = NavigationRowStyle(titleFont: .title3)
+
+        let style = theme.rowStyle(for: "settings", as: NavigationRowStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.rowTitle
+        #expect(resolved == .title3)
+    }
+
+    @Test("NavigationRowStyle titleFont falls back to theme.fonts.rowTitle when no override")
+    func navigationRowStyleTitleFontFallsBackToThemeToken() {
+        let theme = FormTheme(fonts: .init(rowTitle: .callout))
+        let style = theme.rowStyle(for: "settings", as: NavigationRowStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.rowTitle
+        #expect(resolved == .callout)
+    }
+
+    @Test("InfoRowStyle titleColor override takes precedence over theme.colors.rowTitle")
+    func infoRowStyleTitleColorOverrideTakesPrecedence() {
+        var theme = FormTheme(colors: .init(rowTitle: .secondary))
+        theme["status"] = InfoRowStyle(titleColor: .indigo)
+
+        let style = theme.rowStyle(for: "status", as: InfoRowStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.rowTitle
+        #expect(resolved == .indigo)
+    }
+
+    @Test("InfoRowStyle titleColor falls back to theme.colors.rowTitle when no override")
+    func infoRowStyleTitleColorFallsBackToThemeToken() {
+        let theme = FormTheme(colors: .init(rowTitle: .orange))
+        let style = theme.rowStyle(for: "status", as: InfoRowStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.rowTitle
+        #expect(resolved == .orange)
+    }
+
+    @Test("InfoRowStyle titleFont override takes precedence over theme.fonts.rowTitle")
+    func infoRowStyleTitleFontOverrideTakesPrecedence() {
+        var theme = FormTheme(fonts: .init(rowTitle: .subheadline))
+        theme["status"] = InfoRowStyle(titleFont: .caption)
+
+        let style = theme.rowStyle(for: "status", as: InfoRowStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.rowTitle
+        #expect(resolved == .caption)
+    }
+
+    @Test("InfoRowStyle titleFont falls back to theme.fonts.rowTitle when no override")
+    func infoRowStyleTitleFontFallsBackToThemeToken() {
+        let theme = FormTheme(fonts: .init(rowTitle: .footnote))
+        let style = theme.rowStyle(for: "status", as: InfoRowStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.rowTitle
+        #expect(resolved == .footnote)
+    }
+
+    @Test("SingleValueRowStyle titleColor override takes precedence over theme.colors.rowTitle")
+    func singleValueRowStyleTitleColorOverrideTakesPrecedence() {
+        var theme = FormTheme(colors: .init(rowTitle: .secondary))
+        theme["country"] = SingleValueRowStyle(titleColor: .mint)
+
+        let style = theme.rowStyle(for: "country", as: SingleValueRowStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.rowTitle
+        #expect(resolved == .mint)
+    }
+
+    @Test("SingleValueRowStyle titleColor falls back to theme.colors.rowTitle when no override")
+    func singleValueRowStyleTitleColorFallsBackToThemeToken() {
+        let theme = FormTheme(colors: .init(rowTitle: .teal))
+        let style = theme.rowStyle(for: "country", as: SingleValueRowStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.rowTitle
+        #expect(resolved == .teal)
+    }
+
+    @Test("SingleValueRowStyle titleFont override takes precedence over theme.fonts.rowTitle")
+    func singleValueRowStyleTitleFontOverrideTakesPrecedence() {
+        var theme = FormTheme(fonts: .init(rowTitle: .subheadline))
+        theme["country"] = SingleValueRowStyle(titleFont: .body)
+
+        let style = theme.rowStyle(for: "country", as: SingleValueRowStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.rowTitle
+        #expect(resolved == .body)
+    }
+
+    @Test("SingleValueRowStyle titleFont falls back to theme.fonts.rowTitle when no override")
+    func singleValueRowStyleTitleFontFallsBackToThemeToken() {
+        let theme = FormTheme(fonts: .init(rowTitle: .callout))
+        let style = theme.rowStyle(for: "country", as: SingleValueRowStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.rowTitle
+        #expect(resolved == .callout)
+    }
+
+    @Test("MultiValueRowStyle titleColor override takes precedence over theme.colors.rowTitle")
+    func multiValueRowStyleTitleColorOverrideTakesPrecedence() {
+        var theme = FormTheme(colors: .init(rowTitle: .secondary))
+        theme["tags"] = MultiValueRowStyle(titleColor: .cyan)
+
+        let style = theme.rowStyle(for: "tags", as: MultiValueRowStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.rowTitle
+        #expect(resolved == .cyan)
+    }
+
+    @Test("MultiValueRowStyle titleColor falls back to theme.colors.rowTitle when no override")
+    func multiValueRowStyleTitleColorFallsBackToThemeToken() {
+        let theme = FormTheme(colors: .init(rowTitle: .pink))
+        let style = theme.rowStyle(for: "tags", as: MultiValueRowStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.rowTitle
+        #expect(resolved == .pink)
+    }
+
+    @Test("MultiValueRowStyle titleFont override takes precedence over theme.fonts.rowTitle")
+    func multiValueRowStyleTitleFontOverrideTakesPrecedence() {
+        var theme = FormTheme(fonts: .init(rowTitle: .subheadline))
+        theme["tags"] = MultiValueRowStyle(titleFont: .title2)
+
+        let style = theme.rowStyle(for: "tags", as: MultiValueRowStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.rowTitle
+        #expect(resolved == .title2)
+    }
+
+    @Test("MultiValueRowStyle titleFont falls back to theme.fonts.rowTitle when no override")
+    func multiValueRowStyleTitleFontFallsBackToThemeToken() {
+        let theme = FormTheme(fonts: .init(rowTitle: .footnote))
+        let style = theme.rowStyle(for: "tags", as: MultiValueRowStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.rowTitle
+        #expect(resolved == .footnote)
+    }
+
+    // MARK: CollapsibleSectionStyle — sectionHeader token fallback
+
+    @Test("CollapsibleSectionStyle titleColor falls back to theme.colors.sectionHeader, not rowTitle")
+    func collapsibleSectionStyleTitleColorFallsBackToSectionHeaderToken() {
+        // sectionHeader and rowTitle are intentionally different here to verify correct fallback
+        let theme = FormTheme(colors: .init(rowTitle: .secondary, sectionHeader: .blue))
+        let style = theme.rowStyle(for: "advanced", as: CollapsibleSectionStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.sectionHeader
+        #expect(resolved == .blue)
+    }
+
+    @Test("CollapsibleSectionStyle titleColor override takes precedence over theme.colors.sectionHeader")
+    func collapsibleSectionStyleTitleColorOverrideTakesPrecedence() {
+        var theme = FormTheme(colors: .init(sectionHeader: .blue))
+        theme["advanced"] = CollapsibleSectionStyle(titleColor: .orange)
+
+        let style = theme.rowStyle(for: "advanced", as: CollapsibleSectionStyle.self)
+        let resolved = style?.titleColor ?? theme.colors.sectionHeader
+        #expect(resolved == .orange)
+    }
+
+    @Test("CollapsibleSectionStyle titleFont falls back to theme.fonts.sectionHeader, not rowTitle")
+    func collapsibleSectionStyleTitleFontFallsBackToSectionHeaderToken() {
+        // sectionHeader and rowTitle are intentionally different here to verify correct fallback
+        let theme = FormTheme(fonts: .init(rowTitle: .subheadline, sectionHeader: .headline))
+        let style = theme.rowStyle(for: "advanced", as: CollapsibleSectionStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.sectionHeader
+        #expect(resolved == .headline)
+    }
+
+    @Test("CollapsibleSectionStyle titleFont override takes precedence over theme.fonts.sectionHeader")
+    func collapsibleSectionStyleTitleFontOverrideTakesPrecedence() {
+        var theme = FormTheme(fonts: .init(sectionHeader: .headline))
+        theme["advanced"] = CollapsibleSectionStyle(titleFont: .title)
+
+        let style = theme.rowStyle(for: "advanced", as: CollapsibleSectionStyle.self)
+        let resolved = style?.titleFont ?? theme.fonts.sectionHeader
+        #expect(resolved == .title)
     }
 }

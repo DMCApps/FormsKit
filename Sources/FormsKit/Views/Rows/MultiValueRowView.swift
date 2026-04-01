@@ -42,18 +42,24 @@ struct MultiValueRowView: View {
 
     @ViewBuilder
     private var headerView: some View {
+        let titleColor = style?.titleColor ?? theme.colors.rowTitle
+        let titleFont = style?.titleFont ?? theme.fonts.rowTitle
         let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
         let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
 
         if let subtitle = row.subtitle {
             VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
                 Text(row.title)
+                    .font(titleFont)
+                    .foregroundStyle(titleColor)
                 Text(subtitle)
                     .font(subtitleFont)
                     .foregroundStyle(subtitleColor)
             }
         } else {
             Text(row.title)
+                .font(titleFont)
+                .foregroundStyle(titleColor)
         }
     }
 

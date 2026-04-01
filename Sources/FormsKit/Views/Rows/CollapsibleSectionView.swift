@@ -20,6 +20,8 @@ struct CollapsibleSectionView: View {
     }
 
     var body: some View {
+        let titleColor = style?.titleColor ?? theme.colors.sectionHeader
+        let titleFont = style?.titleFont ?? theme.fonts.sectionHeader
         let disclosureIcon = style?.disclosureIcon ?? theme.icons.collapsibleDisclosure
         let animationDuration = style?.animationDuration ?? theme.animations.collapsibleDuration
 
@@ -40,6 +42,8 @@ struct CollapsibleSectionView: View {
             } label: {
                 HStack {
                     Text(section.title)
+                        .font(titleFont)
+                        .foregroundStyle(titleColor)
                     Spacer()
                     Image(systemName: disclosureIcon)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))

@@ -19,6 +19,8 @@ struct SingleValueRowView: View {
     }
 
     var body: some View {
+        let titleColor = style?.titleColor ?? theme.colors.rowTitle
+        let titleFont = style?.titleFont ?? theme.fonts.rowTitle
         let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
         let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
 
@@ -28,6 +30,8 @@ struct SingleValueRowView: View {
                 // so we render the title (and optional subtitle) explicitly above the control.
                 VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
                     Text(row.title)
+                        .font(titleFont)
+                        .foregroundStyle(titleColor)
                     if let subtitle = row.subtitle {
                         Text(subtitle)
                             .font(subtitleFont)

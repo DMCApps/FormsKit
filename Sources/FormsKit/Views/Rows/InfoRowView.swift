@@ -11,11 +11,13 @@ struct InfoRowView: View {
 
     var body: some View {
         let labelColor = style?.titleColor ?? theme.colors.rowTitle
+        let labelFont = style?.titleFont ?? theme.fonts.rowTitle
         let valueFont = style?.valueFont ?? theme.fonts.infoValue
         let valueColor = style?.valueColor ?? theme.colors.rowTitle
 
         HStack {
             Text(row.title)
+                .font(labelFont)
                 .foregroundStyle(labelColor)
             Spacer()
             Text(row.value())
