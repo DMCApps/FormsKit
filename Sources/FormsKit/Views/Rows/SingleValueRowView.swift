@@ -15,6 +15,12 @@ struct SingleValueRowView: View {
         viewModel.value(for: rowId) ?? row.defaultStoredValue
     }
 
+    /// True when this row should use a nil-capable binding with a placeholder entry.
+    /// Only meaningful for non-segmented styles; segmented requires all tags to be non-nil.
+    private var showsPlaceholder: Bool {
+        row.placeholder != nil && row.pickerStyle != .segmented
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if row.pickerStyle == .segmented {
@@ -27,25 +33,30 @@ struct SingleValueRowView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    pickerView
+                    styledPicker
                 }
             } else if let subtitle = row.subtitle {
                 VStack(alignment: .leading, spacing: 2) {
-                    pickerView
+                    styledPicker
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                pickerView
+                styledPicker
             }
             ValidationErrorView(errors: viewModel.errorsForRow(rowId), rowId: rowId)
         }
     }
 
-    private var pickerView: some View {
+    // MARK: - Picker construction
+
+    /// A picker using `Binding<String?>` with a nil-tagged placeholder entry.
+    /// Only used when `showsPlaceholder` is true, ensuring nil is always matched by a tag.
+    @ViewBuilder
+    private var placeholderPicker: some View {
         let options = row.pickerOptions
-        let picker = Picker(row.title, selection: Binding<String?>(
+        Picker(row.title, selection: Binding<String?>(
             get: { currentStoredValue },
             set: { newValue in
                 if let newValue {
@@ -55,11 +66,9 @@ struct SingleValueRowView: View {
                 }
             }
         )) {
-            // Only include the placeholder entry when nothing is selected yet.
-            // Omitting it once a value is chosen prevents it from appearing as a
-            // tappable blank slot. Never shown for .segmented style.
-            if currentStoredValue == nil, let placeholder = row.placeholder,
-               row.pickerStyle != .segmented {
+            // Only include the placeholder entry while nothing is selected yet.
+            // Once a value is chosen the entry is omitted — no invisible tappable slot.
+            if currentStoredValue == nil, let placeholder = row.placeholder {
                 Text(placeholder).tag(nil as String?)
             }
             ForEach(options.indices, id: \.self) { index in
@@ -67,28 +76,46 @@ struct SingleValueRowView: View {
             }
         }
         .accessibilityIdentifier("formkit.picker.\(rowId)")
+    }
 
-        return Group {
-            switch row.pickerStyle {
-            case .segmented:
-                picker.pickerStyle(.segmented)
-            case .menu:
-#if os(tvOS)
-                // .menu is unavailable on tvOS — fall back to automatic
-                picker.pickerStyle(.automatic)
-#else
-                picker.pickerStyle(.menu)
-#endif
-            case .navigationLink:
-#if os(tvOS) || os(macOS)
-                // .navigationLink is unavailable on tvOS and macOS — fall back to automatic
-                picker.pickerStyle(.automatic)
-#else
-                picker.pickerStyle(.navigationLink)
-#endif
-            case .automatic:
-                picker.pickerStyle(.automatic)
+    /// A picker using `Binding<String>` where the selection is always a valid stored value.
+    /// Used for all cases where no placeholder is needed, avoiding nil-tag warnings.
+    @ViewBuilder
+    private var plainPicker: some View {
+        let options = row.pickerOptions
+        let selection = currentStoredValue ?? options.first?.storedValue ?? ""
+        Picker(row.title, selection: Binding<String>(
+            get: { selection },
+            set: { viewModel.setString($0, for: rowId) }
+        )) {
+            ForEach(options.indices, id: \.self) { index in
+                Text(options[index].label).tag(options[index].storedValue)
             }
+        }
+        .accessibilityIdentifier("formkit.picker.\(rowId)")
+    }
+
+    /// The picker with the appropriate style applied for the current platform.
+    @ViewBuilder
+    private var styledPicker: some View {
+        let base = showsPlaceholder ? AnyView(placeholderPicker) : AnyView(plainPicker)
+        switch row.pickerStyle {
+        case .segmented:
+            base.pickerStyle(.segmented)
+        case .menu:
+#if os(tvOS)
+            base.pickerStyle(.automatic)
+#else
+            base.pickerStyle(.menu)
+#endif
+        case .navigationLink:
+#if os(tvOS) || os(macOS)
+            base.pickerStyle(.automatic)
+#else
+            base.pickerStyle(.navigationLink)
+#endif
+        case .automatic:
+            base.pickerStyle(.automatic)
         }
     }
 }
