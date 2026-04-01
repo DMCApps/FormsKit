@@ -130,12 +130,20 @@ enum RowTypesForm {
                 subtitle: "pickerStyle: .automatic, defaultValue: .medium",
                 defaultValue: .medium
             )
-
+            
             SingleValueRow<Colour>(
                 id: "colourSegmented",
                 title: "Colour (Segmented)",
                 subtitle: "pickerStyle: .segmented — placeholder never shown",
                 pickerStyle: .segmented
+            )
+            
+            SingleValueRow<Colour>(
+                id: "colourSegmentedWithPlaceholder",
+                title: "Colour (Segmented w/ placeholder)",
+                subtitle: "pickerStyle: .segmented — placeholder never shown",
+                pickerStyle: .segmented,
+                placeholder: "Select ..."
             )
 
             SingleValueRow<Size>(

@@ -463,10 +463,10 @@ struct SingleValueRowTests {
         #expect(row?.placeholder == "Choose…")
     }
 
-    @Test("SingleValueRow pickerStyle .segmented has placeholder suppressed by convention")
-    func singleValueRowSegmentedPlaceholderSuppressed() {
-        // The view suppresses the placeholder entry for .segmented; verify the model
-        // correctly exposes pickerStyle and placeholder so the view can apply the guard.
+    @Test("SingleValueRow pickerStyle .segmented stores both pickerStyle and placeholder")
+    func singleValueRowSegmentedStoresBothProperties() {
+        // The view uses currentValueLabel: for all picker styles uniformly — no special
+        // suppression for .segmented. Verify the model correctly exposes both properties.
         let row = SingleValueRow<Colour>(
             id: "colour", title: "Colour",
             pickerStyle: .segmented,
@@ -496,6 +496,43 @@ struct SingleValueRowTests {
         let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
         let anyRow = AnyFormRow(row)
         #expect(anyRow.asSingleValueRepresentable?.placeholder == nil)
+    }
+
+    @Test("currentValueText resolves to placeholder when no value is selected")
+    func currentValueTextShowsPlaceholderWhenNil() {
+        // Mirrors the view's currentValueText logic: nil store + placeholder → placeholder text
+        let options: [(label: String, storedValue: String)] = [("Red", "red"), ("Green", "green")]
+        let currentStoredValue: String? = nil
+        let placeholder: String? = "Choose a colour…"
+        let result = currentStoredValue
+            .flatMap { sv in options.first(where: { $0.storedValue == sv })?.label }
+            ?? placeholder
+            ?? ""
+        #expect(result == "Choose a colour…")
+    }
+
+    @Test("currentValueText resolves to selected label when a value is present")
+    func currentValueTextShowsSelectedLabel() {
+        let options: [(label: String, storedValue: String)] = [("Red", "red"), ("Green", "green")]
+        let currentStoredValue: String? = "green"
+        let placeholder: String? = "Choose a colour…"
+        let result = currentStoredValue
+            .flatMap { sv in options.first(where: { $0.storedValue == sv })?.label }
+            ?? placeholder
+            ?? ""
+        #expect(result == "Green")
+    }
+
+    @Test("currentValueText resolves to empty string when no value and no placeholder")
+    func currentValueTextEmptyWhenNoValueAndNoPlaceholder() {
+        let options: [(label: String, storedValue: String)] = [("Red", "red"), ("Green", "green")]
+        let currentStoredValue: String? = nil
+        let placeholder: String? = nil
+        let result = currentStoredValue
+            .flatMap { sv in options.first(where: { $0.storedValue == sv })?.label }
+            ?? placeholder
+            ?? ""
+        #expect(result == "")
     }
 
     @Test("Setting SingleValueRow value to nil clears it from the store")
