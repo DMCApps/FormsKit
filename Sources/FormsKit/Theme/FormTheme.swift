@@ -20,8 +20,21 @@ import SwiftUI
 /// let form = FormDefinition(id: "x", title: "X", theme: myTheme) { ... }
 /// ```
 ///
-/// For per-row-ID overrides use the subscript API. Each override property falls back
-/// to the corresponding semantic token when `nil`:
+/// For per-row overrides, the preferred approach is to pass the style as the `style:`
+/// parameter directly in the row's initialiser. The compiler enforces the correct style
+/// type — no need to know which style struct goes with which row type:
+///
+/// ```swift
+/// TextInputRow(id: "email", title: "Email",
+///     style: TextInputRowStyle(titleColor: .blue, placeholderColor: .blue.opacity(0.5)))
+///
+/// BooleanSwitchRow(id: "notifications", title: "Push Notifications",
+///     style: BooleanSwitchRowStyle(titleColor: .indigo))
+/// ```
+///
+/// For programmatic overrides (e.g. theming rows without modifying form definitions),
+/// use the subscript API. Each override property falls back to the corresponding
+/// semantic token when `nil`:
 ///
 /// ```swift
 /// var theme = FormTheme()
@@ -30,6 +43,9 @@ import SwiftUI
 /// // Typed subscript — preferred when you have a RawRepresentable row-ID enum:
 /// theme[Row.email] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
 /// ```
+///
+/// When both a row-level `style:` parameter and a theme `rowOverrides` entry exist for the
+/// same row ID, the theme's `rowOverrides` takes priority.
 ///
 /// For form-level components (save button, validation errors), use the dedicated typed
 /// properties rather than `rowOverrides`:

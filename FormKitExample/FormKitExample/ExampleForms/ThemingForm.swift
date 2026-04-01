@@ -21,51 +21,37 @@ enum ThemingForm {
     // MARK: Brand theme
 
     /// A custom theme using an indigo/teal brand palette.
-    static let brandTheme: FormTheme = {
-        var theme = FormTheme(
-            colors: .init(
-                error: .orange,
-                saveButtonBackground: .indigo,
-                saveButtonDisabledBackground: Color.indigo.opacity(0.4),
-                saveButtonForeground: .white,
-                selectionIndicator: .teal,
-                placeholder: Color.indigo.opacity(0.4)
-            ),
-            fonts: .init(
-                rowTitle: .body.weight(.medium),
-                subtitle: .footnote,
-                saveButton: .headline
-            ),
-            spacing: .init(
-                saveButtonCornerRadius: 16
-            ),
-            icons: .init(
-                collapsibleDisclosure: "chevron.down",
-                selectionCheckmark: "checkmark.circle.fill"
-            ),
-            saveButtonStyle: SaveButtonStyle(
-                backgroundColor: .indigo,
-                cornerRadius: 16
-            ),
-            validationErrorStyle: ValidationErrorStyle(
-                color: .orange,
-                icon: "exclamationmark.triangle.fill"
-            )
+    /// Per-row styles are attached directly to rows via `.style(_:)` in `brandDefinition`.
+    static let brandTheme = FormTheme(
+        colors: .init(
+            error: .orange,
+            saveButtonBackground: .indigo,
+            saveButtonDisabledBackground: Color.indigo.opacity(0.4),
+            saveButtonForeground: .white,
+            selectionIndicator: .teal,
+            placeholder: Color.indigo.opacity(0.4)
+        ),
+        fonts: .init(
+            rowTitle: .body.weight(.medium),
+            subtitle: .footnote,
+            saveButton: .headline
+        ),
+        spacing: .init(
+            saveButtonCornerRadius: 16
+        ),
+        icons: .init(
+            collapsibleDisclosure: "chevron.down",
+            selectionCheckmark: "checkmark.circle.fill"
+        ),
+        saveButtonStyle: SaveButtonStyle(
+            backgroundColor: .indigo,
+            cornerRadius: 16
+        ),
+        validationErrorStyle: ValidationErrorStyle(
+            color: .orange,
+            icon: "exclamationmark.triangle.fill"
         )
-        // Highlight the email field using the typed subscript (no string literal needed)
-        theme[RowID.email] = TextInputRowStyle(
-            titleColor: .blue,
-            titleFont: .headline,
-            placeholderColor: .blue.opacity(0.5)
-        )
-        // Per-row overrides for other row types
-        theme["themingNotifications"] = BooleanSwitchRowStyle(titleColor: .indigo)
-        theme["themingTags"] = MultiValueRowStyle(
-            optionTextColor: .indigo,
-            selectionIndicatorColor: .teal
-        )
-        return theme
-    }()
+    )
 
     // MARK: Form definitions
 
@@ -84,13 +70,20 @@ enum ThemingForm {
                 placeholder: "Jane Doe",
                 validators: [.required(message: "Name is required")]
             )
+            // The style: parameter is type-checked at compile time — the compiler enforces
+            // that TextInputRow only accepts TextInputRowStyle here.
             TextInputRow(
                 id: "themingEmail",
                 title: "Email",
-                subtitle: "Blue placeholder via TextInputRowStyle override (beats global token)",
+                subtitle: "Blue title + placeholder via row-level style: — compiler-checked",
                 keyboardType: .emailAddress,
                 placeholder: "jane@example.com",
-                validators: [.required(message: "Email is required")]
+                validators: [.required(message: "Email is required")],
+                style: TextInputRowStyle(
+                    titleColor: .blue,
+                    titleFont: .headline,
+                    placeholderColor: .blue.opacity(0.5)
+                )
             )
             NumberInputRow(
                 id: "themingAge",
@@ -104,13 +97,18 @@ enum ThemingForm {
             BooleanSwitchRow(
                 id: "themingNotifications",
                 title: "Push Notifications",
-                subtitle: "Title in indigo via BooleanSwitchRowStyle per-row override",
-                defaultValue: true
+                subtitle: "Indigo title via row-level style: — compiler-checked",
+                defaultValue: true,
+                style: BooleanSwitchRowStyle(titleColor: .indigo)
             )
             MultiValueRow<ThemingTag>(
                 id: "themingTags",
                 title: "Interests",
-                subtitle: "Option text and checkmark colored via MultiValueRowStyle per-row override"
+                subtitle: "Option text and checkmark colored via row-level style:",
+                style: MultiValueRowStyle(
+                    optionTextColor: .indigo,
+                    selectionIndicatorColor: .teal
+                )
             )
         }
 
@@ -119,7 +117,7 @@ enum ThemingForm {
             title: "Advanced (uses chevron.down icon)",
             isExpandedByDefault: false
         ) {
-            InfoRow(id: "themingVersion", title: "Theme") { "Brand Theme" }
+            InfoRow(id: "themingVersion", title: "Theme", style: InfoRowStyle(valueColor: .indigo)) { "Brand Theme" }
             SingleValueRow<ThemingSize>(
                 id: "themingSize",
                 title: "Text Size",

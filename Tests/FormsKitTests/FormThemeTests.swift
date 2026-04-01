@@ -1203,4 +1203,79 @@ struct FormThemeTests {
         let resolved = style?.titleFont ?? theme.fonts.sectionHeader
         #expect(resolved == .title)
     }
+
+    // MARK: Row-level style: init parameter
+
+    @Test("TextInputRow style: init parameter stores style as rowStyle")
+    func textInputRowStyleAttachesCorrectly() {
+        let row = TextInputRow(id: "email", title: "Email",
+                               style: TextInputRowStyle(titleColor: .blue, titleFont: .headline))
+        let style = row.rowStyle as? TextInputRowStyle
+        #expect(style?.titleColor == .blue)
+        #expect(style?.titleFont == .headline)
+    }
+
+    @Test("TextInputRow style: is forwarded through AnyFormRow")
+    func textInputRowStyleForwardedThroughAnyFormRow() {
+        let row = AnyFormRow(
+            TextInputRow(id: "email", title: "Email",
+                         style: TextInputRowStyle(titleColor: .green))
+        )
+        let style = row.rowStyle as? TextInputRowStyle
+        #expect(style?.titleColor == .green)
+    }
+
+    @Test("BooleanSwitchRow style: init parameter stores correct style type")
+    func booleanSwitchRowStyleAttachesCorrectly() {
+        let row = BooleanSwitchRow(id: "notifications", title: "Notifications",
+                                   style: BooleanSwitchRowStyle(titleColor: .indigo))
+        let style = row.rowStyle as? BooleanSwitchRowStyle
+        #expect(style?.titleColor == .indigo)
+    }
+
+    @Test("NumberInputRow style: init parameter stores correct style type")
+    func numberInputRowStyleAttachesCorrectly() {
+        let row = NumberInputRow(id: "age", title: "Age",
+                                 style: NumberInputRowStyle(titleFont: .caption))
+        let style = row.rowStyle as? NumberInputRowStyle
+        #expect(style?.titleFont == .caption)
+    }
+
+    @Test("ButtonRow style: init parameter stores correct style type")
+    func buttonRowStyleAttachesCorrectly() {
+        let row = ButtonRow(id: "logout", title: "Log Out", style: ButtonRowStyle(titleColor: .red)) {}
+        let style = row.rowStyle as? ButtonRowStyle
+        #expect(style?.titleColor == .red)
+    }
+
+    @Test("InfoRow style: init parameter stores correct style type")
+    func infoRowStyleAttachesCorrectly() {
+        let row = InfoRow(id: "version", title: "Version", style: InfoRowStyle(valueColor: .secondary)) { "1.0" }
+        let style = row.rowStyle as? InfoRowStyle
+        #expect(style?.valueColor == .secondary)
+    }
+
+    @Test("NavigationRow style: init parameter stores correct style type")
+    func navigationRowStyleAttachesCorrectly() {
+        let sub = FormDefinition(id: "sub", title: "Sub") {}
+        let row = NavigationRow(id: "account", title: "Account", destination: sub,
+                                style: NavigationRowStyle(titleColor: .blue))
+        let style = row.rowStyle as? NavigationRowStyle
+        #expect(style?.titleColor == .blue)
+    }
+
+    @Test("CollapsibleSection style: init parameter stores correct style type")
+    func collapsibleSectionStyleAttachesCorrectly() {
+        let section = CollapsibleSection(id: "advanced", title: "Advanced",
+                                         style: CollapsibleSectionStyle(titleColor: .purple, animationDuration: 0.5)) {}
+        let style = section.rowStyle as? CollapsibleSectionStyle
+        #expect(style?.titleColor == .purple)
+        #expect(style?.animationDuration == 0.5)
+    }
+
+    @Test("Row without style: has nil rowStyle")
+    func rowWithoutStyleHasNilRowStyle() {
+        let row = TextInputRow(id: "name", title: "Name")
+        #expect(row.rowStyle == nil)
+    }
 }

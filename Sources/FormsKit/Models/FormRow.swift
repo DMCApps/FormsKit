@@ -206,6 +206,12 @@ public protocol FormRow: Sendable, Identifiable where ID == String {
 
     /// The default value for this row. Loaded into FormViewModel on initialisation.
     var defaultValue: AnyCodableValue? { get }
+
+    /// An optional per-row style override attached directly to this row at definition time.
+    ///
+    /// Passed as the `style:` parameter in the row's initialiser.
+    /// `DynamicFormView` reads this and merges it into `theme.rowOverrides` automatically.
+    var rowStyle: (any FormRowStyle)? { get }
 }
 
 // MARK: - Default Implementations
@@ -215,6 +221,7 @@ public extension FormRow {
     var onChange: [FormRowAction] { [] }
     var validators: [FormValidator] { [] }
     var defaultValue: AnyCodableValue? { nil }
+    var rowStyle: (any FormRowStyle)? { nil }
 }
 
 // MARK: - FormPickerStyle
@@ -306,6 +313,8 @@ public struct AnyFormRow: Sendable, Identifiable {
     public let onChange: [FormRowAction]
     public let validators: [FormValidator]
     public let defaultValue: AnyCodableValue?
+    /// The per-row style attached via the `style:` init parameter at definition time, if any.
+    public let rowStyle: (any FormRowStyle)?
 
     /// The underlying concrete row. Internal so views inside the module can cast it.
     let base: any FormRow
@@ -317,6 +326,7 @@ public struct AnyFormRow: Sendable, Identifiable {
         onChange = row.onChange
         validators = row.validators
         defaultValue = row.defaultValue
+        rowStyle = row.rowStyle
         base = row
     }
 
@@ -359,6 +369,8 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
     /// Optional placeholder shown when no value is selected. `nil` by default.
     /// Not shown for `.segmented` style.
     public let placeholder: String?
+    
+    public private(set) var rowStyle: (any FormRowStyle)?
 
     private let _defaultValue: T?
 
@@ -397,7 +409,8 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
                 pickerStyle: FormPickerStyle = .automatic,
                 placeholder: String? = nil,
                 validators: [SelectionValidator] = [],
-                onChange: [FormRowAction] = []) {
+                onChange: [FormRowAction] = [],
+                style: SingleValueRowStyle? = nil) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
@@ -407,6 +420,7 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
         self.placeholder = placeholder
         self.validators = validators.map(\.asFormValidator)
         self.onChange = onChange
+        self.rowStyle = style
     }
 }
 
@@ -424,6 +438,8 @@ public struct MultiValueRow<T>: FormRow, MultiValueRowRepresentable
 
     /// All available options.
     public let options: [T]
+
+    public private(set) var rowStyle: (any FormRowStyle)?
 
     private let _defaultValue: Set<T>
 
@@ -449,7 +465,8 @@ public struct MultiValueRow<T>: FormRow, MultiValueRowRepresentable
                 options: [T]? = nil,
                 defaultValue: Set<T> = [],
                 validators: [SelectionValidator] = [],
-                onChange: [FormRowAction] = []) {
+                onChange: [FormRowAction] = [],
+                style: MultiValueRowStyle? = nil) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
@@ -457,6 +474,7 @@ public struct MultiValueRow<T>: FormRow, MultiValueRowRepresentable
         _defaultValue = defaultValue
         self.validators = validators.map(\.asFormValidator)
         self.onChange = onChange
+        self.rowStyle = style
     }
 }
 
@@ -469,6 +487,7 @@ public struct BooleanSwitchRow: FormRow {
     public let subtitle: String?
     public let onChange: [FormRowAction]
     public let validators: [FormValidator]
+    public private(set) var rowStyle: (any FormRowStyle)?
 
     private let _defaultValue: Bool
 
@@ -479,13 +498,15 @@ public struct BooleanSwitchRow: FormRow {
                 subtitle: String? = nil,
                 defaultValue: Bool = false,
                 validators: [SelectionValidator] = [],
-                onChange: [FormRowAction] = []) {
+                onChange: [FormRowAction] = [],
+                style: BooleanSwitchRowStyle? = nil) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         _defaultValue = defaultValue
         self.validators = validators.map(\.asFormValidator)
         self.onChange = onChange
+        self.rowStyle = style
     }
 }
 
@@ -695,6 +716,7 @@ public struct TextInputRow: FormRow {
     /// is used as the placeholder — `placeholder` is ignored when a mask is present.
     /// The stored value contains only the raw typed characters (no literals).
     public let mask: FormInputMask?
+    public private(set) var rowStyle: (any FormRowStyle)?
 
     private let _defaultValue: String?
 
@@ -712,7 +734,8 @@ public struct TextInputRow: FormRow {
                 placeholder: String? = nil,
                 mask: FormInputMask? = nil,
                 validators: [FormValidator] = [],
-                onChange: [FormRowAction] = []) {
+                onChange: [FormRowAction] = [],
+                style: TextInputRowStyle? = nil) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
@@ -724,6 +747,7 @@ public struct TextInputRow: FormRow {
         self.mask = mask
         self.validators = validators
         self.onChange = onChange
+        self.rowStyle = style
     }
 }
 
@@ -757,6 +781,7 @@ public struct NumberInputRow: FormRow {
     public let onChange: [FormRowAction]
     public let validators: [FormValidator]
     public let placeholder: String?
+    public private(set) var rowStyle: (any FormRowStyle)?
 
     private let _kind: NumberKind
 
@@ -782,7 +807,8 @@ public struct NumberInputRow: FormRow {
                 placeholder: String? = nil,
                 kind: NumberKind = .int(defaultValue: nil),
                 validators: [FormValidator] = [],
-                onChange: [FormRowAction] = []) {
+                onChange: [FormRowAction] = [],
+                style: NumberInputRowStyle? = nil) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
@@ -790,6 +816,7 @@ public struct NumberInputRow: FormRow {
         _kind = kind
         self.validators = validators
         self.onChange = onChange
+        self.rowStyle = style
     }
 }
 
@@ -806,6 +833,7 @@ public struct ButtonRow: FormRow, @unchecked Sendable {
     public let onChange: [FormRowAction]
     public let validators: [FormValidator] = []
     public let defaultValue: AnyCodableValue? = nil
+    public private(set) var rowStyle: (any FormRowStyle)?
 
     /// The action to perform when the button is tapped.
     public let action: @Sendable () -> Void
@@ -814,11 +842,13 @@ public struct ButtonRow: FormRow, @unchecked Sendable {
                 title: String,
                 subtitle: String? = nil,
                 onChange: [FormRowAction] = [],
+                style: ButtonRowStyle? = nil,
                 action: @Sendable @escaping () -> Void) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         self.onChange = onChange
+        self.rowStyle = style
         self.action = action
     }
 }
@@ -839,13 +869,15 @@ public struct InfoRow: FormRow, @unchecked Sendable {
     public let onChange: [FormRowAction] = []
     public let validators: [FormValidator] = []
     public let defaultValue: AnyCodableValue? = nil
+    public private(set) var rowStyle: (any FormRowStyle)?
 
     /// Closure evaluated at render time to produce the value string shown on the trailing side.
     public let value: () -> String
 
-    public init(id: String, title: String, value: @escaping () -> String) {
+    public init(id: String, title: String, style: InfoRowStyle? = nil, value: @escaping () -> String) {
         self.id = id
         self.title = title
+        self.rowStyle = style
         self.value = value
     }
 }
@@ -939,6 +971,7 @@ public struct CollapsibleSection: FormRow, @unchecked Sendable {
     public let onChange: [FormRowAction]
     public let validators: [FormValidator] = []
     public let defaultValue: AnyCodableValue? = nil
+    public private(set) var rowStyle: (any FormRowStyle)?
 
     /// Whether this section starts expanded. Defaults to `true`.
     public let isExpandedByDefault: Bool
@@ -953,12 +986,14 @@ public struct CollapsibleSection: FormRow, @unchecked Sendable {
                 title: String,
                 isExpandedByDefault: Bool = true,
                 rows: [AnyFormRow],
-                onChange: [FormRowAction] = []) {
+                onChange: [FormRowAction] = [],
+                style: CollapsibleSectionStyle? = nil) {
         self.id = id
         self.title = title
         self.isExpandedByDefault = isExpandedByDefault
         self.rows = rows
         self.onChange = onChange
+        self.rowStyle = style
     }
 
     /// Create a collapsible section using the `@FormRowBuilder` DSL.
@@ -973,12 +1008,14 @@ public struct CollapsibleSection: FormRow, @unchecked Sendable {
                 title: String,
                 isExpandedByDefault: Bool = true,
                 onChange: [FormRowAction] = [],
+                style: CollapsibleSectionStyle? = nil,
                 @FormRowBuilder rows: () -> [AnyFormRow]) {
         self.id = id
         self.title = title
         self.isExpandedByDefault = isExpandedByDefault
         self.rows = rows()
         self.onChange = onChange
+        self.rowStyle = style
     }
 }
 
@@ -991,6 +1028,7 @@ public struct NavigationRow: FormRow {
     public let subtitle: String?
     public let onChange: [FormRowAction]
     public let validators: [FormValidator] = []
+    public private(set) var rowStyle: (any FormRowStyle)?
 
     /// The sub-form this row navigates to.
     public let destination: FormDefinition
@@ -1002,11 +1040,13 @@ public struct NavigationRow: FormRow {
                 title: String,
                 subtitle: String? = nil,
                 destination: FormDefinition,
-                onChange: [FormRowAction] = []) {
+                onChange: [FormRowAction] = [],
+                style: NavigationRowStyle? = nil) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         self.destination = destination
         self.onChange = onChange
+        self.rowStyle = style
     }
 }
