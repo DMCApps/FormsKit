@@ -21,6 +21,7 @@ struct FormThemeTests {
         #expect(theme.colors.optionText == .primary)
         #expect(theme.colors.selectionIndicator == .accentColor)
         #expect(theme.colors.sectionHeader == .primary)
+        #expect(theme.colors.placeholder == nil)
         #expect(theme.colors.secureFieldToggle == .secondary)
         #expect(theme.colors.skeletonDark == Color(red: 30/255, green: 30/255, blue: 30/255).opacity(0.4))
         #expect(theme.colors.skeletonLight == Color(red: 64/255, green: 64/255, blue: 64/255).opacity(0.4))
@@ -217,6 +218,42 @@ struct FormThemeTests {
         #expect(a == b)
     }
 
+    @Test("TextInputRowStyle Equatable detects placeholderColor vs nil difference")
+    func textInputRowStylePlaceholderColorVsNilNotEquatable() {
+        let a = TextInputRowStyle(titleColor: .blue, placeholderColor: .purple)
+        let b = TextInputRowStyle(titleColor: .blue)
+        #expect(a != b)
+    }
+
+    // MARK: rowStyle(for:as:) helper
+
+    @Test("rowStyle(for:as:) returns the override when the type matches")
+    func rowStyleHelperReturnsMatchingOverride() {
+        var theme = FormTheme()
+        theme["email"] = TextInputRowStyle(titleColor: .blue)
+
+        let style = theme.rowStyle(for: "email", as: TextInputRowStyle.self)
+        #expect(style != nil)
+        #expect(style?.titleColor == .blue)
+    }
+
+    @Test("rowStyle(for:as:) returns nil when no override exists for the key")
+    func rowStyleHelperReturnNilForMissingKey() {
+        let theme = FormTheme()
+        let style = theme.rowStyle(for: "nonexistent", as: TextInputRowStyle.self)
+        #expect(style == nil)
+    }
+
+    @Test("rowStyle(for:as:) returns nil when the stored type does not match the requested type")
+    func rowStyleHelperReturnsNilForTypeMismatch() {
+        var theme = FormTheme()
+        theme["field"] = NumberInputRowStyle(titleColor: .green)
+
+        // Requesting a different type for the same key should return nil
+        let style = theme.rowStyle(for: "field", as: TextInputRowStyle.self)
+        #expect(style == nil)
+    }
+
     // MARK: Row overrides
 
     @Test("TextInputRowStyle override is stored and retrieved correctly")
@@ -230,6 +267,7 @@ struct FormThemeTests {
         #expect(style?.titleFont == .headline)
         #expect(style?.subtitleColor == nil)
         #expect(style?.subtitleFont == nil)
+        #expect(style?.placeholderColor == nil)
     }
 
     @Test("MultiValueRowStyle override carries type-specific properties")
@@ -326,6 +364,7 @@ struct FormThemeTests {
         #expect(style.titleFont == nil)
         #expect(style.subtitleColor == nil)
         #expect(style.subtitleFont == nil)
+        #expect(style.placeholderColor == nil)
     }
 
     @Test("NumberInputRowStyle override is stored and retrieved correctly")
@@ -810,6 +849,105 @@ struct FormThemeTests {
         let a = InfoRowStyle(valueColor: .blue)
         let b = InfoRowStyle(valueColor: .green)
         #expect(a != b)
+    }
+
+    // MARK: TextInputRowStyle.placeholderColor
+
+    @Test("TextInputRowStyle stores placeholderColor correctly")
+    func textInputRowStylePlaceholderColor() {
+        let style = TextInputRowStyle(placeholderColor: .purple)
+        #expect(style.placeholderColor == .purple)
+        #expect(style.titleColor == nil)
+        #expect(style.titleFont == nil)
+    }
+
+    @Test("TextInputRowStyle placeholderColor defaults to nil")
+    func textInputRowStylePlaceholderColorDefaultsToNil() {
+        let style = TextInputRowStyle()
+        #expect(style.placeholderColor == nil)
+    }
+
+    @Test("TextInputRowStyle Equatable detects placeholderColor difference")
+    func textInputRowStylePlaceholderColorNotEquatable() {
+        let a = TextInputRowStyle(placeholderColor: .purple)
+        let b = TextInputRowStyle(placeholderColor: .orange)
+        #expect(a != b)
+    }
+
+    @Test("TextInputRowStyle Equatable holds when placeholderColor matches")
+    func textInputRowStylePlaceholderColorEquatable() {
+        let a = TextInputRowStyle(placeholderColor: .purple)
+        let b = TextInputRowStyle(placeholderColor: .purple)
+        #expect(a == b)
+    }
+
+    @Test("TextInputRowStyle override with placeholderColor is stored and retrieved from theme")
+    func textInputRowStylePlaceholderColorInTheme() {
+        var theme = FormTheme()
+        theme["email"] = TextInputRowStyle(placeholderColor: .indigo)
+
+        let style = theme["email"] as? TextInputRowStyle
+        #expect(style?.placeholderColor == .indigo)
+        #expect(style?.titleColor == nil)
+    }
+
+    // MARK: FormTheme.Colors.placeholder token
+
+    @Test("colors.placeholder defaults to nil")
+    func colorsPlaceholderDefaultsToNil() {
+        let theme = FormTheme.default
+        #expect(theme.colors.placeholder == nil)
+    }
+
+    @Test("custom colors.placeholder is stored correctly")
+    func customColorsPlaceholder() {
+        let theme = FormTheme(colors: .init(placeholder: .secondary))
+        #expect(theme.colors.placeholder == .secondary)
+        // Unmodified tokens retain defaults
+        #expect(theme.colors.rowTitle == .secondary)
+        #expect(theme.colors.error == .red)
+    }
+
+    @Test("FormTheme.Colors Equatable detects placeholder difference")
+    func colorsPlaceholderNotEquatable() {
+        let a = FormTheme.Colors(placeholder: .secondary)
+        let b = FormTheme.Colors(placeholder: .primary)
+        #expect(a != b)
+    }
+
+    @Test("FormTheme.Colors Equatable holds when placeholder matches")
+    func colorsPlaceholderEquatable() {
+        let a = FormTheme.Colors(placeholder: .purple)
+        let b = FormTheme.Colors(placeholder: .purple)
+        #expect(a == b)
+    }
+
+    @Test("FormTheme.Colors Equatable holds when both placeholders are nil")
+    func colorsPlaceholderBothNilEquatable() {
+        let a = FormTheme.Colors()
+        let b = FormTheme.Colors()
+        #expect(a == b)
+    }
+
+    @Test("per-row placeholderColor takes precedence over global token")
+    func placeholderColorResolutionPrecedence() {
+        // Both global token and per-row override set — per-row wins
+        var theme = FormTheme(colors: .init(placeholder: .secondary))
+        theme["email"] = TextInputRowStyle(placeholderColor: .blue)
+
+        let globalColor = theme.colors.placeholder   // .secondary
+        let rowColor = (theme["email"] as? TextInputRowStyle)?.placeholderColor  // .blue
+        let resolved = rowColor ?? globalColor
+        #expect(resolved == .blue)
+    }
+
+    @Test("global placeholder token is used when no per-row override is set")
+    func placeholderColorFallsBackToGlobalToken() {
+        let theme = FormTheme(colors: .init(placeholder: .secondary))
+        // No per-row override for "name"
+        let rowColor = (theme["name"] as? TextInputRowStyle)?.placeholderColor  // nil
+        let resolved = rowColor ?? theme.colors.placeholder
+        #expect(resolved == .secondary)
     }
 
     // MARK: TypedFormDefinition theme forwarding

@@ -28,7 +28,8 @@ enum ThemingForm {
                 saveButtonBackground: .indigo,
                 saveButtonDisabledBackground: Color.indigo.opacity(0.4),
                 saveButtonForeground: .white,
-                selectionIndicator: .teal
+                selectionIndicator: .teal,
+                placeholder: Color.indigo.opacity(0.4)
             ),
             fonts: .init(
                 rowTitle: .body.weight(.medium),
@@ -54,7 +55,8 @@ enum ThemingForm {
         // Highlight the email field using the typed subscript (no string literal needed)
         theme[RowID.email] = TextInputRowStyle(
             titleColor: .blue,
-            titleFont: .headline
+            titleFont: .headline,
+            placeholderColor: .blue.opacity(0.5)
         )
         // Per-row overrides for other row types
         theme["themingNotifications"] = BooleanSwitchRowStyle(titleColor: .indigo)
@@ -78,17 +80,23 @@ enum ThemingForm {
             TextInputRow(
                 id: "themingName",
                 title: "Full Name",
-                subtitle: "Your display name",
+                subtitle: "Indigo placeholder via global colors.placeholder token",
                 placeholder: "Jane Doe",
                 validators: [.required(message: "Name is required")]
             )
             TextInputRow(
                 id: "themingEmail",
                 title: "Email",
-                subtitle: "Blue headline via theme[RowID.email] typed subscript",
+                subtitle: "Blue placeholder via TextInputRowStyle override (beats global token)",
                 keyboardType: .emailAddress,
                 placeholder: "jane@example.com",
                 validators: [.required(message: "Email is required")]
+            )
+            NumberInputRow(
+                id: "themingAge",
+                title: "Age",
+                subtitle: "Indigo placeholder via global colors.placeholder token",
+                placeholder: "30"
             )
         }
 

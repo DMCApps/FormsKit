@@ -11,9 +11,7 @@ struct MultiValueRowView: View {
     @Bindable var viewModel: FormViewModel
     @Environment(\.formTheme) private var theme
 
-    private var style: MultiValueRowStyle? {
-        theme.rowOverrides[rowId] as? MultiValueRowStyle
-    }
+    private var style: MultiValueRowStyle? { theme.rowStyle(for: rowId, as: MultiValueRowStyle.self) }
 
     private var selectedDescriptions: Set<String> {
         guard case let .array(arr) = viewModel.rawValue(for: rowId) else {

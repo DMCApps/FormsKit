@@ -31,6 +31,7 @@ extension FormKeyboardType {
 struct MaskedTextField: UIViewRepresentable {
     let mask: FormInputMask
     let placeholder: String
+    let placeholderColor: Color?
     let keyboardType: UIKeyboardType
     let accessibilityIdentifier: String
     /// Raw slot characters (no literals), clamped to maxInputLength.
@@ -39,7 +40,14 @@ struct MaskedTextField: UIViewRepresentable {
     func makeUIView(context: Context) -> UITextField {
         let field = UITextField()
         field.delegate = context.coordinator
-        field.placeholder = placeholder
+        if let placeholderColor {
+            field.attributedPlaceholder = NSAttributedString(
+                string: placeholder,
+                attributes: [.foregroundColor: UIColor(placeholderColor)]
+            )
+        } else {
+            field.placeholder = placeholder
+        }
         field.keyboardType = keyboardType
         field.autocorrectionType = .no
         field.autocapitalizationType = .none
@@ -119,8 +127,15 @@ struct TextInputRowView: View {
     @State private var isRevealed = false
     @Environment(\.formTheme) private var theme
 
-    private var style: TextInputRowStyle? {
-        theme.rowOverrides[row.id] as? TextInputRowStyle
+    private var style: TextInputRowStyle? { theme.rowStyle(for: row.id, as: TextInputRowStyle.self) }
+
+    /// Builds a `Text` prompt for `TextField`/`SecureField`, applying the resolved placeholder color.
+    /// Resolution order: per-row override → global token → system default (nil = plain Text).
+    private func placeholderPrompt(for placeholder: String) -> Text {
+        if let color = style?.placeholderColor ?? theme.colors.placeholder {
+            return Text(placeholder).foregroundColor(color)
+        }
+        return Text(placeholder)
     }
 
     private var text: String {
@@ -198,6 +213,7 @@ struct TextInputRowView: View {
             MaskedTextField(
                 mask: mask,
                 placeholder: row.placeholder ?? mask.pattern,
+                placeholderColor: style?.placeholderColor ?? theme.colors.placeholder,
                 keyboardType: row.keyboardType.uiKeyboardType,
                 accessibilityIdentifier: "formkit.field.\(row.id)",
                 rawText: rawBinding
@@ -219,7 +235,8 @@ struct TextInputRowView: View {
                     }
                 }
             )
-            TextField(mask.pattern, text: binding)
+            let maskedPrompt = placeholderPrompt(for: mask.pattern)
+            TextField(text: binding, prompt: maskedPrompt) { EmptyView() }
                 .textContentType(.none)
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("formkit.field.\(row.id)")
@@ -232,10 +249,11 @@ struct TextInputRowView: View {
                     viewModel.setString(newValue, for: row.id)
                 }
             )
+            let prompt = placeholderPrompt(for: row.placeholder ?? "")
             if row.isSecure {
                 HStack(spacing: 8) {
                     if isRevealed {
-                        TextField(row.placeholder ?? "", text: binding)
+                        TextField(text: binding, prompt: prompt) { EmptyView() }
                             .focused($isFocused)
                             .textContentType(.none)
                             .autocorrectionDisabled()
@@ -244,7 +262,7 @@ struct TextInputRowView: View {
                             .textInputAutocapitalization(.never)
 #endif
                     } else {
-                        SecureField(row.placeholder ?? "", text: binding)
+                        SecureField("", text: binding, prompt: prompt)
                             .focused($isFocused)
                             .accessibilityIdentifier("formkit.field.\(row.id)")
                     }
@@ -260,7 +278,7 @@ struct TextInputRowView: View {
                     }
                 }
             } else {
-                TextField(row.placeholder ?? "", text: binding)
+                TextField(text: binding, prompt: prompt) { EmptyView() }
                     .focused($isFocused)
                     .textContentType(.none)
                     .autocorrectionDisabled()

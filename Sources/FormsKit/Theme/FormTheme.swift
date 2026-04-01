@@ -137,6 +137,18 @@ extension FormTheme {
         get { rowOverrides[id] }
         set { rowOverrides[id] = newValue }
     }
+
+    /// Returns the per-row style override for the given row ID, cast to the requested type.
+    ///
+    /// Used internally by row views to look up their override in a single call:
+    ///
+    /// ```swift
+    /// let style = theme.rowStyle(for: row.id, as: TextInputRowStyle.self)
+    /// let titleColor = style?.titleColor ?? theme.colors.rowTitle
+    /// ```
+    func rowStyle<S: FormRowStyle>(for id: String, as type: S.Type) -> S? {
+        rowOverrides[id] as? S
+    }
 }
 
 // MARK: - FormTheme.Colors
@@ -182,6 +194,12 @@ extension FormTheme {
         /// Foreground color for section header titles.
         public var sectionHeader: Color
 
+        // MARK: Input placeholder
+
+        /// Foreground color for placeholder text in `TextInputRow` and `NumberInputRow` fields.
+        /// When `nil`, the system default placeholder color is used.
+        public var placeholder: Color?
+
         // MARK: Secure field
 
         /// Foreground color for the secure field reveal/hide toggle button.
@@ -205,6 +223,7 @@ extension FormTheme {
             optionText: Color = .primary,
             selectionIndicator: Color = .accentColor,
             sectionHeader: Color = .primary,
+            placeholder: Color? = nil,
             secureFieldToggle: Color = .secondary,
             skeletonDark: Color = Color(red: 30/255, green: 30/255, blue: 30/255).opacity(0.4),
             skeletonLight: Color = Color(red: 64/255, green: 64/255, blue: 64/255).opacity(0.4)
@@ -218,6 +237,7 @@ extension FormTheme {
             self.optionText = optionText
             self.selectionIndicator = selectionIndicator
             self.sectionHeader = sectionHeader
+            self.placeholder = placeholder
             self.secureFieldToggle = secureFieldToggle
             self.skeletonDark = skeletonDark
             self.skeletonLight = skeletonLight

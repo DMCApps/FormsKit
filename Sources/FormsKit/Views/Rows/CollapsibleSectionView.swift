@@ -13,9 +13,7 @@ struct CollapsibleSectionView: View {
     @Bindable var viewModel: FormViewModel
     @Environment(\.formTheme) private var theme
 
-    private var style: CollapsibleSectionStyle? {
-        theme.rowOverrides[section.id] as? CollapsibleSectionStyle
-    }
+    private var style: CollapsibleSectionStyle? { theme.rowStyle(for: section.id, as: CollapsibleSectionStyle.self) }
 
     private var isExpanded: Bool {
         viewModel.isSectionExpanded(section.id)

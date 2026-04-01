@@ -47,16 +47,21 @@ public struct TextInputRowStyle: FormRowStyle, Equatable {
     public var subtitleColor: Color?
     public var subtitleFont: Font?
 
+    /// Override for the placeholder text color. Falls back to the system default when `nil`.
+    public var placeholderColor: Color?
+
     public init(
         titleColor: Color? = nil,
         titleFont: Font? = nil,
         subtitleColor: Color? = nil,
-        subtitleFont: Font? = nil
+        subtitleFont: Font? = nil,
+        placeholderColor: Color? = nil
     ) {
         self.titleColor = titleColor
         self.titleFont = titleFont
         self.subtitleColor = subtitleColor
         self.subtitleFont = subtitleFont
+        self.placeholderColor = placeholderColor
     }
 }
 

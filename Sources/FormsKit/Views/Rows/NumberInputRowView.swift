@@ -13,14 +13,18 @@ struct NumberInputRowView: View {
     @FocusState private var isFocused: Bool
     @Environment(\.formTheme) private var theme
 
-    private var style: NumberInputRowStyle? {
-        theme.rowOverrides[row.id] as? NumberInputRowStyle
-    }
+    private var style: NumberInputRowStyle? { theme.rowStyle(for: row.id, as: NumberInputRowStyle.self) }
 
     var body: some View {
+        let placeholderPrompt: Text? = {
+            if let color = theme.colors.placeholder {
+                return Text(row.placeholder ?? "").foregroundColor(color)
+            }
+            return nil
+        }()
         VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
             rowHeader
-            TextField(row.placeholder ?? "", text: $textBuffer)
+            TextField(row.placeholder ?? "", text: $textBuffer, prompt: placeholderPrompt)
                 .focused($isFocused)
                 .accessibilityIdentifier("formkit.field.\(row.id)")
 #if os(iOS)

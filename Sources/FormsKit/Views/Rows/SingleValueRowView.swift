@@ -11,9 +11,7 @@ struct SingleValueRowView: View {
     @Bindable var viewModel: FormViewModel
     @Environment(\.formTheme) private var theme
 
-    private var style: SingleValueRowStyle? {
-        theme.rowOverrides[rowId] as? SingleValueRowStyle
-    }
+    private var style: SingleValueRowStyle? { theme.rowStyle(for: rowId, as: SingleValueRowStyle.self) }
 
     /// The stored value of the currently selected option, or `nil` when nothing is selected.
     private var currentStoredValue: String? {

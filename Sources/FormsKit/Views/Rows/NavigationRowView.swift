@@ -9,9 +9,7 @@ struct NavigationRowView: View {
     @Bindable var viewModel: FormViewModel
     @Environment(\.formTheme) private var theme
 
-    private var style: NavigationRowStyle? {
-        theme.rowOverrides[row.id] as? NavigationRowStyle
-    }
+    private var style: NavigationRowStyle? { theme.rowStyle(for: row.id, as: NavigationRowStyle.self) }
 
     var body: some View {
         let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
