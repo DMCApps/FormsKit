@@ -415,6 +415,34 @@ struct SingleValueRowTests {
         let value: String? = vm.value(for: "colour")
         #expect(value == "green")
     }
+
+    // MARK: Placeholder
+
+    @Test("SingleValueRow placeholder is nil by default")
+    func singleValueRowPlaceholderNilByDefault() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        #expect(row.placeholder == nil)
+    }
+
+    @Test("SingleValueRow stores placeholder when provided")
+    func singleValueRowStoresPlaceholder() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour", placeholder: "Choose a colour…")
+        #expect(row.placeholder == "Choose a colour…")
+    }
+
+    @Test("SingleValueRow placeholder is accessible via SingleValueRowRepresentable protocol")
+    func singleValueRowPlaceholderViaProtocol() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour", placeholder: "Pick one")
+        let representable: any SingleValueRowRepresentable = row
+        #expect(representable.placeholder == "Pick one")
+    }
+
+    @Test("SingleValueRow nil placeholder is accessible via SingleValueRowRepresentable protocol")
+    func singleValueRowNilPlaceholderViaProtocol() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        let representable: any SingleValueRowRepresentable = row
+        #expect(representable.placeholder == nil)
+    }
 }
 
 // MARK: - MultiValueRow Tests

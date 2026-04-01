@@ -10,9 +10,9 @@ struct SingleValueRowView: View {
     let rowId: String
     @Bindable var viewModel: FormViewModel
 
-    /// The stored value of the currently selected option.
-    private var currentStoredValue: String {
-        viewModel.value(for: rowId) ?? row.defaultStoredValue ?? ""
+    /// The stored value of the currently selected option, or `nil` when nothing is selected.
+    private var currentStoredValue: String? {
+        viewModel.value(for: rowId) ?? row.defaultStoredValue
     }
 
     var body: some View {
@@ -45,12 +45,25 @@ struct SingleValueRowView: View {
 
     private var pickerView: some View {
         let options = row.pickerOptions
-        let picker = Picker(row.title, selection: Binding(
+        let picker = Picker(row.title, selection: Binding<String?>(
             get: { currentStoredValue },
-            set: { viewModel.setString($0, for: rowId) }
+            set: { newValue in
+                if let newValue {
+                    viewModel.setString(newValue, for: rowId)
+                } else {
+                    viewModel.setValue(nil, for: rowId)
+                }
+            }
         )) {
+            // Placeholder tag must always be present so the Picker can match it when the value is nil.
+            // Suppress it visually once a value is selected, and never show it for segmented style.
+            if let placeholder = row.placeholder, row.pickerStyle != .segmented {
+                Text(placeholder)
+                    .tag(String?.none)
+                    .opacity(currentStoredValue == nil ? 1 : 0)
+            }
             ForEach(options.indices, id: \.self) { index in
-                Text(options[index].label).tag(options[index].storedValue)
+                Text(options[index].label).tag(String?.some(options[index].storedValue))
             }
         }
         .accessibilityIdentifier("formkit.picker.\(rowId)")

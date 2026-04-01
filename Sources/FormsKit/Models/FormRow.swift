@@ -217,6 +217,10 @@ public extension FormRow {
     var defaultValue: AnyCodableValue? { nil }
 }
 
+public extension SingleValueRowRepresentable {
+    var placeholder: String? { nil }
+}
+
 // MARK: - FormPickerStyle
 
 /// Platform-independent picker style hint for `SingleValueRow`.
@@ -274,6 +278,11 @@ public protocol SingleValueRowRepresentable: FormRow {
 
     /// The preferred picker style for this row.
     var pickerStyle: FormPickerStyle { get }
+
+    /// An optional placeholder label shown when no value is selected.
+    /// Pass `nil` (the default) to show no placeholder — the picker will display
+    /// whichever item SwiftUI naturally selects. Not shown for `.segmented` style.
+    var placeholder: String? { get }
 }
 
 // MARK: - MultiValueRowRepresentable
@@ -347,6 +356,10 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
     /// Styles unavailable on the current platform fall back to `.automatic`.
     public let pickerStyle: FormPickerStyle
 
+    /// Optional placeholder shown when no value is selected. `nil` by default.
+    /// Not shown for `.segmented` style.
+    public let placeholder: String?
+
     private let _defaultValue: T?
 
     public var defaultValue: AnyCodableValue? {
@@ -382,6 +395,7 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
                 options: [T]? = nil,
                 defaultValue: T? = nil,
                 pickerStyle: FormPickerStyle = .automatic,
+                placeholder: String? = nil,
                 validators: [SelectionValidator] = [],
                 onChange: [FormRowAction] = []) {
         self.id = id
@@ -390,6 +404,7 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
         self.options = options ?? Array(T.allCases)
         _defaultValue = defaultValue
         self.pickerStyle = pickerStyle
+        self.placeholder = placeholder
         self.validators = validators.map(\.asFormValidator)
         self.onChange = onChange
     }
