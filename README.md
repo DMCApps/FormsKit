@@ -159,9 +159,18 @@ SingleValueRow<Environment>(
     title: "Environment",
     pickerStyle: .navigationLink
 )
+
+// Placeholder — shown when nothing is selected yet; disappears once a value is chosen
+SingleValueRow<Environment>(
+    id: "env",
+    title: "Environment",
+    placeholder: "Choose an environment…"
+)
 ```
 
 **`FormPickerStyle` cases:** `.automatic` (default), `.segmented`, `.menu`, `.navigationLink`
+
+> **Note:** `placeholder` is not shown for `.segmented` style.
 
 > **Note:** `.menu` falls back to `.automatic` on tvOS. `.navigationLink` falls back to `.automatic` on tvOS and macOS.
 

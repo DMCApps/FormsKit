@@ -55,12 +55,12 @@ struct SingleValueRowView: View {
                 }
             }
         )) {
-            // Placeholder tag must always be present so the Picker can match it when the value is nil.
-            // Suppress it visually once a value is selected, and never show it for segmented style.
-            if let placeholder = row.placeholder, row.pickerStyle != .segmented {
-                Text(placeholder)
-                    .tag(String?.none)
-                    .opacity(currentStoredValue == nil ? 1 : 0)
+            // Only include the placeholder entry when nothing is selected yet.
+            // Omitting it once a value is chosen prevents it from appearing as a
+            // tappable blank slot. Never shown for .segmented style.
+            if currentStoredValue == nil, let placeholder = row.placeholder,
+               row.pickerStyle != .segmented {
+                Text(placeholder).tag(nil as String?)
             }
             ForEach(options.indices, id: \.self) { index in
                 Text(options[index].label).tag(String?.some(options[index].storedValue))

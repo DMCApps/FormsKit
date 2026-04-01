@@ -217,10 +217,6 @@ public extension FormRow {
     var defaultValue: AnyCodableValue? { nil }
 }
 
-public extension SingleValueRowRepresentable {
-    var placeholder: String? { nil }
-}
-
 // MARK: - FormPickerStyle
 
 /// Platform-independent picker style hint for `SingleValueRow`.
@@ -283,6 +279,10 @@ public protocol SingleValueRowRepresentable: FormRow {
     /// Pass `nil` (the default) to show no placeholder — the picker will display
     /// whichever item SwiftUI naturally selects. Not shown for `.segmented` style.
     var placeholder: String? { get }
+}
+
+public extension SingleValueRowRepresentable {
+    var placeholder: String? { nil }
 }
 
 // MARK: - MultiValueRowRepresentable

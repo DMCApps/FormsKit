@@ -443,6 +443,75 @@ struct SingleValueRowTests {
         let representable: any SingleValueRowRepresentable = row
         #expect(representable.placeholder == nil)
     }
+
+    @Test("SingleValueRow with defaultValue seeds store; placeholder does not affect initial value")
+    func singleValueRowDefaultValueWithPlaceholder() {
+        let form = FormDefinition(
+            id: "f", title: "T",
+            rows: [AnyFormRow(SingleValueRow<Colour>(
+                id: "c", title: "C",
+                defaultValue: .red,
+                placeholder: "Choose…"
+            ))],
+            saveBehaviour: .none
+        )
+        let vm = FormViewModel(formDefinition: form)
+        let value: String? = vm.value(for: "c")
+        #expect(value == "red")
+        // placeholder is stored on the row, not in the value store
+        let row = form.rows.first?.asSingleValueRepresentable
+        #expect(row?.placeholder == "Choose…")
+    }
+
+    @Test("SingleValueRow pickerStyle .segmented has placeholder suppressed by convention")
+    func singleValueRowSegmentedPlaceholderSuppressed() {
+        // The view suppresses the placeholder entry for .segmented; verify the model
+        // correctly exposes pickerStyle and placeholder so the view can apply the guard.
+        let row = SingleValueRow<Colour>(
+            id: "colour", title: "Colour",
+            pickerStyle: .segmented,
+            placeholder: "Pick one"
+        )
+        #expect(row.pickerStyle == .segmented)
+        #expect(row.placeholder == "Pick one")
+    }
+
+    @Test("SingleValueRow placeholder does not interfere with pickerOptions")
+    func singleValueRowPlaceholderDoesNotAffectOptions() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour", placeholder: "Choose…")
+        // pickerOptions should still contain only the enum cases, not the placeholder
+        #expect(row.pickerOptions.count == Colour.allCases.count)
+        #expect(!row.pickerOptions.map(\.label).contains("Choose…"))
+    }
+
+    @Test("AnyFormRow preserves placeholder via asSingleValueRepresentable")
+    func anyFormRowPreservesPlaceholder() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour", placeholder: "Pick one")
+        let anyRow = AnyFormRow(row)
+        #expect(anyRow.asSingleValueRepresentable?.placeholder == "Pick one")
+    }
+
+    @Test("AnyFormRow preserves nil placeholder via asSingleValueRepresentable")
+    func anyFormRowPreservesNilPlaceholder() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        let anyRow = AnyFormRow(row)
+        #expect(anyRow.asSingleValueRepresentable?.placeholder == nil)
+    }
+
+    @Test("Setting SingleValueRow value to nil clears it from the store")
+    func singleValueRowSetValueNilClearsStore() {
+        let form = FormDefinition(
+            id: "f", title: "T",
+            rows: [AnyFormRow(SingleValueRow<Colour>(id: "c", title: "C"))],
+            saveBehaviour: .none
+        )
+        let vm = FormViewModel(formDefinition: form)
+        vm.setString("red", for: "c")
+        #expect(vm.value(for: "c") == "red")
+        vm.setValue(nil, for: "c")
+        let value: String? = vm.value(for: "c")
+        #expect(value == nil)
+    }
 }
 
 // MARK: - MultiValueRow Tests
