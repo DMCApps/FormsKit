@@ -20,13 +20,24 @@ import SwiftUI
 /// let form = FormDefinition(id: "x", title: "X", theme: myTheme) { ... }
 /// ```
 ///
-/// For per-row-ID overrides, populate `rowOverrides` with a `FormRowStyle`-conforming
-/// value keyed by row ID string. Each property in the override falls back to the
-/// corresponding semantic token if `nil`.
+/// For per-row-ID overrides use the subscript API. Each override property falls back
+/// to the corresponding semantic token when `nil`:
 ///
 /// ```swift
 /// var theme = FormTheme()
-/// theme.rowOverrides["email"] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
+/// // String subscript — convenient when you don't have a typed enum:
+/// theme["email"] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
+/// // Typed subscript — preferred when you have a RawRepresentable row-ID enum:
+/// theme[Row.email] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
+/// ```
+///
+/// For form-level components (save button, validation errors), use the dedicated typed
+/// properties rather than `rowOverrides`:
+///
+/// ```swift
+/// var theme = FormTheme()
+/// theme.saveButtonStyle = SaveButtonStyle(backgroundColor: .indigo, cornerRadius: 16)
+/// theme.validationErrorStyle = ValidationErrorStyle(color: .orange)
 /// ```
 public struct FormTheme: Sendable {
 
@@ -47,15 +58,21 @@ public struct FormTheme: Sendable {
     /// Animation tokens.
     public var animations: Animations
 
+    // MARK: - Component Styles
+
+    /// Style overrides for the form's save button.
+    /// Each property falls back to the corresponding semantic token when `nil`.
+    public var saveButtonStyle: SaveButtonStyle?
+
+    /// Style overrides for validation error display across all rows.
+    /// Each property falls back to the corresponding semantic token when `nil`.
+    public var validationErrorStyle: ValidationErrorStyle?
+
     // MARK: - Per-row Overrides
 
-    /// Per-row-ID style overrides. Key is the row's `id` string.
-    /// The value must conform to `FormRowStyle`; cast to the concrete type for the row type
-    /// to access type-specific properties.
-    ///
-    /// Common properties (`titleColor`, `titleFont`, `subtitleColor`, `subtitleFont`) fall back
-    /// to the semantic tokens when `nil`.
-    public var rowOverrides: [String: any FormRowStyle]
+    /// Storage for per-row-ID style overrides. Keyed by row ID string.
+    /// Access externally via the `theme["rowId"]` or `theme[RowID.row]` subscripts.
+    var rowOverrides: [String: any FormRowStyle]
 
     // MARK: - Init
 
@@ -65,6 +82,8 @@ public struct FormTheme: Sendable {
         spacing: Spacing = Spacing(),
         icons: Icons = Icons(),
         animations: Animations = Animations(),
+        saveButtonStyle: SaveButtonStyle? = nil,
+        validationErrorStyle: ValidationErrorStyle? = nil,
         rowOverrides: [String: any FormRowStyle] = [:]
     ) {
         self.colors = colors
@@ -72,6 +91,8 @@ public struct FormTheme: Sendable {
         self.spacing = spacing
         self.icons = icons
         self.animations = animations
+        self.saveButtonStyle = saveButtonStyle
+        self.validationErrorStyle = validationErrorStyle
         self.rowOverrides = rowOverrides
     }
 
@@ -79,11 +100,50 @@ public struct FormTheme: Sendable {
     public static let `default` = FormTheme()
 }
 
+// MARK: - Typed Row Override Subscript
+
+extension FormTheme {
+    /// Accesses a per-row style override using any `RawRepresentable` key whose `RawValue` is `String`.
+    ///
+    /// This is the preferred way to interact with `rowOverrides` when you have a typed row-ID enum,
+    /// as it eliminates stringly-typed key access and provides autocomplete:
+    ///
+    /// ```swift
+    /// enum Row: String {
+    ///     case name, email
+    /// }
+    ///
+    /// var theme = FormTheme()
+    /// theme[Row.email] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
+    /// let style = theme[Row.email] as? TextInputRowStyle
+    /// ```
+    ///
+    /// Reading or writing through this subscript is equivalent to `theme["id.rawValue"]`.
+    public subscript<ID: RawRepresentable>(_ id: ID) -> (any FormRowStyle)?
+    where ID.RawValue == String {
+        get { rowOverrides[id.rawValue] }
+        set { rowOverrides[id.rawValue] = newValue }
+    }
+
+    /// Accesses a per-row style override using a plain `String` key.
+    ///
+    /// Use this when you don't have a typed `RawRepresentable` enum for your row IDs:
+    ///
+    /// ```swift
+    /// theme["email"] = TextInputRowStyle(titleColor: .blue)
+    /// let style = theme["email"] as? TextInputRowStyle
+    /// ```
+    public subscript(_ id: String) -> (any FormRowStyle)? {
+        get { rowOverrides[id] }
+        set { rowOverrides[id] = newValue }
+    }
+}
+
 // MARK: - FormTheme.Colors
 
 extension FormTheme {
     /// Color tokens used throughout FormsKit views.
-    public struct Colors: Sendable {
+    public struct Colors: Sendable, Equatable {
 
         // MARK: Row content
 
@@ -117,6 +177,16 @@ extension FormTheme {
         /// Color for the selection checkmark in multi-value rows.
         public var selectionIndicator: Color
 
+        // MARK: Section header
+
+        /// Foreground color for section header titles.
+        public var sectionHeader: Color
+
+        // MARK: Secure field
+
+        /// Foreground color for the secure field reveal/hide toggle button.
+        public var secureFieldToggle: Color
+
         // MARK: Skeleton
 
         /// The darker color in the skeleton shimmer animation cycle.
@@ -134,6 +204,8 @@ extension FormTheme {
             saveButtonForeground: Color = .white,
             optionText: Color = .primary,
             selectionIndicator: Color = .accentColor,
+            sectionHeader: Color = .primary,
+            secureFieldToggle: Color = .secondary,
             skeletonDark: Color = Color(red: 30/255, green: 30/255, blue: 30/255).opacity(0.4),
             skeletonLight: Color = Color(red: 64/255, green: 64/255, blue: 64/255).opacity(0.4)
         ) {
@@ -145,6 +217,8 @@ extension FormTheme {
             self.saveButtonForeground = saveButtonForeground
             self.optionText = optionText
             self.selectionIndicator = selectionIndicator
+            self.sectionHeader = sectionHeader
+            self.secureFieldToggle = secureFieldToggle
             self.skeletonDark = skeletonDark
             self.skeletonLight = skeletonLight
         }
@@ -155,7 +229,7 @@ extension FormTheme {
 
 extension FormTheme {
     /// Font tokens used throughout FormsKit views.
-    public struct Fonts: Sendable {
+    public struct Fonts: Sendable, Equatable {
 
         /// Font for row title labels (TextInputRow, NumberInputRow header labels).
         public var rowTitle: Font
@@ -172,6 +246,9 @@ extension FormTheme {
         /// Font for the info row trailing value text.
         public var infoValue: Font
 
+        /// Font for section header titles.
+        public var sectionHeader: Font
+
         /// Font for the "Failed to Load" heading.
         public var loadFailedTitle: Font
 
@@ -184,6 +261,7 @@ extension FormTheme {
             error: Font = .caption,
             saveButton: Font = .body.weight(.semibold),
             infoValue: Font = .caption,
+            sectionHeader: Font = .headline,
             loadFailedTitle: Font = .headline,
             loadFailedSubtitle: Font = .subheadline
         ) {
@@ -192,6 +270,7 @@ extension FormTheme {
             self.error = error
             self.saveButton = saveButton
             self.infoValue = infoValue
+            self.sectionHeader = sectionHeader
             self.loadFailedTitle = loadFailedTitle
             self.loadFailedSubtitle = loadFailedSubtitle
         }
@@ -202,7 +281,7 @@ extension FormTheme {
 
 extension FormTheme {
     /// Spacing tokens used throughout FormsKit views.
-    public struct Spacing: Sendable {
+    public struct Spacing: Sendable, Equatable {
 
         /// Vertical spacing between elements within a row content wrapper.
         public var rowContentSpacing: CGFloat
@@ -239,7 +318,7 @@ extension FormTheme {
 
 extension FormTheme {
     /// SF Symbol name tokens used by FormsKit views.
-    public struct Icons: Sendable {
+    public struct Icons: Sendable, Equatable {
 
         /// SF Symbol name for the collapsible section disclosure arrow.
         public var collapsibleDisclosure: String
@@ -250,14 +329,24 @@ extension FormTheme {
         /// SF Symbol name for the multi-value selection checkmark.
         public var selectionCheckmark: String
 
+        /// SF Symbol name shown on the secure field toggle button when the field is hidden (reveal action).
+        public var secureFieldReveal: String
+
+        /// SF Symbol name shown on the secure field toggle button when the field is revealed (hide action).
+        public var secureFieldHide: String
+
         public init(
             collapsibleDisclosure: String = "chevron.right",
             validationError: String = "exclamationmark.circle.fill",
-            selectionCheckmark: String = "checkmark"
+            selectionCheckmark: String = "checkmark",
+            secureFieldReveal: String = "eye",
+            secureFieldHide: String = "eye.slash"
         ) {
             self.collapsibleDisclosure = collapsibleDisclosure
             self.validationError = validationError
             self.selectionCheckmark = selectionCheckmark
+            self.secureFieldReveal = secureFieldReveal
+            self.secureFieldHide = secureFieldHide
         }
     }
 }
@@ -266,15 +355,20 @@ extension FormTheme {
 
 extension FormTheme {
     /// Animation tokens used by FormsKit views.
-    public struct Animations: Sendable {
+    public struct Animations: Sendable, Equatable {
 
         /// Duration in seconds of the collapsible section expand/collapse animation.
         public var collapsibleDuration: Double
 
+        /// Duration in seconds of the skeleton shimmer animation cycle.
+        public var skeletonDuration: Double
+
         public init(
-            collapsibleDuration: Double = 0.2
+            collapsibleDuration: Double = 0.2,
+            skeletonDuration: Double = 1
         ) {
             self.collapsibleDuration = collapsibleDuration
+            self.skeletonDuration = skeletonDuration
         }
     }
 }

@@ -11,12 +11,13 @@ import SwiftUI
 /// are defined here and shared across all row style types. Row-type-specific extras
 /// are defined on the concrete structs.
 ///
-/// Register a style override on the theme's `rowOverrides` dictionary keyed by
-/// the row's `id`:
+/// Register a style override using the theme's subscript API keyed by the row's `id`:
 ///
 /// ```swift
 /// var theme = FormTheme()
-/// theme.rowOverrides["email"] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
+/// theme["email"] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
+/// // Or with a typed enum:
+/// theme[Row.email] = TextInputRowStyle(titleColor: .blue, titleFont: .headline)
 /// ```
 public protocol FormRowStyle: Sendable {
     /// Override for the row title color. Falls back to `theme.colors.rowTitle` when `nil`.
@@ -40,7 +41,7 @@ extension FormRowStyle {
 // MARK: - TextInputRowStyle
 
 /// Per-row style overrides for `TextInputRow`.
-public struct TextInputRowStyle: FormRowStyle {
+public struct TextInputRowStyle: FormRowStyle, Equatable {
     public var titleColor: Color?
     public var titleFont: Font?
     public var subtitleColor: Color?
@@ -62,7 +63,7 @@ public struct TextInputRowStyle: FormRowStyle {
 // MARK: - NumberInputRowStyle
 
 /// Per-row style overrides for `NumberInputRow`.
-public struct NumberInputRowStyle: FormRowStyle {
+public struct NumberInputRowStyle: FormRowStyle, Equatable {
     public var titleColor: Color?
     public var titleFont: Font?
     public var subtitleColor: Color?
@@ -84,7 +85,7 @@ public struct NumberInputRowStyle: FormRowStyle {
 // MARK: - BooleanSwitchRowStyle
 
 /// Per-row style overrides for `BooleanSwitchRow`.
-public struct BooleanSwitchRowStyle: FormRowStyle {
+public struct BooleanSwitchRowStyle: FormRowStyle, Equatable {
     public var titleColor: Color?
     public var titleFont: Font?
     public var subtitleColor: Color?
@@ -106,7 +107,7 @@ public struct BooleanSwitchRowStyle: FormRowStyle {
 // MARK: - SingleValueRowStyle
 
 /// Per-row style overrides for `SingleValueRow<T>`.
-public struct SingleValueRowStyle: FormRowStyle {
+public struct SingleValueRowStyle: FormRowStyle, Equatable {
     public var titleColor: Color?
     public var titleFont: Font?
     public var subtitleColor: Color?
@@ -128,7 +129,7 @@ public struct SingleValueRowStyle: FormRowStyle {
 // MARK: - MultiValueRowStyle
 
 /// Per-row style overrides for `MultiValueRow<T>`.
-public struct MultiValueRowStyle: FormRowStyle {
+public struct MultiValueRowStyle: FormRowStyle, Equatable {
     public var titleColor: Color?
     public var titleFont: Font?
     public var subtitleColor: Color?
@@ -163,7 +164,7 @@ public struct MultiValueRowStyle: FormRowStyle {
 // MARK: - InfoRowStyle
 
 /// Per-row style overrides for `InfoRow`.
-public struct InfoRowStyle: FormRowStyle {
+public struct InfoRowStyle: FormRowStyle, Equatable {
     public var titleColor: Color?
     public var titleFont: Font?
     public var subtitleColor: Color?
@@ -194,7 +195,7 @@ public struct InfoRowStyle: FormRowStyle {
 // MARK: - ButtonRowStyle
 
 /// Per-row style overrides for `ButtonRow`.
-public struct ButtonRowStyle: FormRowStyle {
+public struct ButtonRowStyle: FormRowStyle, Equatable {
     public var titleColor: Color?
     public var titleFont: Font?
     public var subtitleColor: Color?
@@ -216,7 +217,7 @@ public struct ButtonRowStyle: FormRowStyle {
 // MARK: - NavigationRowStyle
 
 /// Per-row style overrides for `NavigationRow`.
-public struct NavigationRowStyle: FormRowStyle {
+public struct NavigationRowStyle: FormRowStyle, Equatable {
     public var titleColor: Color?
     public var titleFont: Font?
     public var subtitleColor: Color?
@@ -238,7 +239,7 @@ public struct NavigationRowStyle: FormRowStyle {
 // MARK: - CollapsibleSectionStyle
 
 /// Per-row style overrides for `CollapsibleSection`.
-public struct CollapsibleSectionStyle: FormRowStyle {
+public struct CollapsibleSectionStyle: FormRowStyle, Equatable {
     public var titleColor: Color?
     public var titleFont: Font?
     public var subtitleColor: Color?
@@ -272,21 +273,13 @@ public struct CollapsibleSectionStyle: FormRowStyle {
 
 /// Style overrides for the form's save button.
 ///
-/// Unlike other row styles, `SaveButtonStyle` is not keyed by row ID (the save button
-/// has no row ID). Register it under the reserved key `FormTheme.saveButtonOverrideKey`:
+/// Assign directly to `FormTheme.saveButtonStyle`:
 ///
 /// ```swift
 /// var theme = FormTheme()
-/// theme.rowOverrides[FormTheme.saveButtonOverrideKey] = SaveButtonStyle(
-///     backgroundColor: .indigo,
-///     cornerRadius: 16
-/// )
+/// theme.saveButtonStyle = SaveButtonStyle(backgroundColor: .indigo, cornerRadius: 16)
 /// ```
-public struct SaveButtonStyle: FormRowStyle {
-    public var titleColor: Color?
-    public var titleFont: Font?
-    public var subtitleColor: Color?
-    public var subtitleFont: Font?
+public struct SaveButtonStyle: Sendable, Equatable {
 
     /// Override for the save button background color when enabled.
     /// Falls back to `theme.colors.saveButtonBackground` when `nil`.
@@ -323,20 +316,13 @@ public struct SaveButtonStyle: FormRowStyle {
 
 /// Style overrides for validation error display.
 ///
-/// Register under `FormTheme.validationErrorOverrideKey` to apply globally:
+/// Assign directly to `FormTheme.validationErrorStyle`:
 ///
 /// ```swift
 /// var theme = FormTheme()
-/// theme.rowOverrides[FormTheme.validationErrorOverrideKey] = ValidationErrorStyle(
-///     color: .orange,
-///     icon: "exclamationmark.triangle.fill"
-/// )
+/// theme.validationErrorStyle = ValidationErrorStyle(color: .orange, icon: "exclamationmark.triangle.fill")
 /// ```
-public struct ValidationErrorStyle: FormRowStyle {
-    public var titleColor: Color?
-    public var titleFont: Font?
-    public var subtitleColor: Color?
-    public var subtitleFont: Font?
+public struct ValidationErrorStyle: Sendable, Equatable {
 
     /// Override for the error text and icon color. Falls back to `theme.colors.error` when `nil`.
     public var color: Color?
@@ -357,12 +343,3 @@ public struct ValidationErrorStyle: FormRowStyle {
     }
 }
 
-// MARK: - Reserved override keys
-
-extension FormTheme {
-    /// Reserved `rowOverrides` key for `SaveButtonStyle`.
-    public static let saveButtonOverrideKey = "__formkit_saveButton"
-
-    /// Reserved `rowOverrides` key for `ValidationErrorStyle`.
-    public static let validationErrorOverrideKey = "__formkit_validationError"
-}

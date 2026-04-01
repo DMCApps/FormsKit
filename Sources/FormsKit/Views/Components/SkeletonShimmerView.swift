@@ -19,7 +19,7 @@ struct SkeletonShimmerView: View {
             .fill(isLight ? theme.colors.skeletonLight : theme.colors.skeletonDark)
             .onAppear {
                 withAnimation(
-                    .easeInOut(duration: 1).repeatForever(autoreverses: true)
+                    .easeInOut(duration: theme.animations.skeletonDuration).repeatForever(autoreverses: true)
                 ) {
                     isLight.toggle()
                 }

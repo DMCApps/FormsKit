@@ -6,15 +6,20 @@ import SwiftUI
 struct FormSectionView: View {
     let section: FormSection
     @Bindable var viewModel: FormViewModel
+    @Environment(\.formTheme) private var theme
 
     var body: some View {
-        Section(section.title) {
+        Section {
             ForEach(section.rows) { row in
                 if viewModel.isRowVisible(row) {
                     FormRowContainer(row: row, viewModel: viewModel)
                         .animation(.default, value: viewModel.isRowVisible(row))
                 }
             }
+        } header: {
+            Text(section.title)
+                .font(theme.fonts.sectionHeader)
+                .foregroundStyle(theme.colors.sectionHeader)
         }
     }
 }

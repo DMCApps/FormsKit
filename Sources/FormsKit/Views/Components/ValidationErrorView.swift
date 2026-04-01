@@ -9,9 +9,7 @@ struct ValidationErrorView: View {
     var rowId: String = ""
     @Environment(\.formTheme) private var theme
 
-    private var style: ValidationErrorStyle? {
-        theme.rowOverrides[FormTheme.validationErrorOverrideKey] as? ValidationErrorStyle
-    }
+    private var style: ValidationErrorStyle? { theme.validationErrorStyle }
 
     var body: some View {
         if !errors.isEmpty {

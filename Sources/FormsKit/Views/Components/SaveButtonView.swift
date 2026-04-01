@@ -10,9 +10,7 @@ struct SaveButtonView: View {
     let action: () -> Void
     @Environment(\.formTheme) private var theme
 
-    private var style: SaveButtonStyle? {
-        theme.rowOverrides[FormTheme.saveButtonOverrideKey] as? SaveButtonStyle
-    }
+    private var style: SaveButtonStyle? { theme.saveButtonStyle }
 
     var body: some View {
         let bgColor = isDisabled
@@ -56,9 +54,7 @@ struct StickyBottomSaveButtonView: View {
     let action: () -> Void
     @Environment(\.formTheme) private var theme
 
-    private var style: SaveButtonStyle? {
-        theme.rowOverrides[FormTheme.saveButtonOverrideKey] as? SaveButtonStyle
-    }
+    private var style: SaveButtonStyle? { theme.saveButtonStyle }
 
     var body: some View {
         let bgColor = isDisabled

@@ -35,11 +35,15 @@ struct BooleanSwitchRowView: View {
 
     @ViewBuilder
     private var rowLabel: some View {
+        let titleColor = style?.titleColor ?? theme.colors.rowTitle
+        let titleFont = style?.titleFont ?? theme.fonts.rowTitle
         let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
         let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
 
         VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
             Text(row.title)
+                .font(titleFont)
+                .foregroundStyle(titleColor)
             if let subtitle = row.subtitle {
                 Text(subtitle)
                     .font(subtitleFont)

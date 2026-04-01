@@ -10,6 +10,14 @@ import SwiftUI
 /// - **Per-Row Overrides**: Same form with individual row overrides on top of the default theme.
 enum ThemingForm {
 
+    // MARK: Row ID enum
+
+    /// Typed row IDs for the brand form — enables enum-case subscript access on `FormTheme`.
+    enum RowID: String {
+        case name  = "themingName"
+        case email = "themingEmail"
+    }
+
     // MARK: Brand theme
 
     /// A custom theme using an indigo/teal brand palette.
@@ -33,22 +41,26 @@ enum ThemingForm {
             icons: .init(
                 collapsibleDisclosure: "chevron.down",
                 selectionCheckmark: "checkmark.circle.fill"
+            ),
+            saveButtonStyle: SaveButtonStyle(
+                backgroundColor: .indigo,
+                cornerRadius: 16
+            ),
+            validationErrorStyle: ValidationErrorStyle(
+                color: .orange,
+                icon: "exclamationmark.triangle.fill"
             )
         )
-        // Highlight the email field with a blue title
-        theme.rowOverrides["themingEmail"] = TextInputRowStyle(
+        // Highlight the email field using the typed subscript (no string literal needed)
+        theme[RowID.email] = TextInputRowStyle(
             titleColor: .blue,
             titleFont: .headline
         )
-        // Style the save button via the reserved key
-        theme.rowOverrides[FormTheme.saveButtonOverrideKey] = SaveButtonStyle(
-            backgroundColor: .indigo,
-            cornerRadius: 16
-        )
-        // Style validation errors
-        theme.rowOverrides[FormTheme.validationErrorOverrideKey] = ValidationErrorStyle(
-            color: .orange,
-            icon: "exclamationmark.triangle.fill"
+        // Per-row overrides for other row types
+        theme["themingNotifications"] = BooleanSwitchRowStyle(titleColor: .indigo)
+        theme["themingTags"] = MultiValueRowStyle(
+            optionTextColor: .indigo,
+            selectionIndicatorColor: .teal
         )
         return theme
     }()
@@ -73,7 +85,7 @@ enum ThemingForm {
             TextInputRow(
                 id: "themingEmail",
                 title: "Email",
-                subtitle: "Gets a blue headline style via rowOverrides",
+                subtitle: "Blue headline via theme[RowID.email] typed subscript",
                 keyboardType: .emailAddress,
                 placeholder: "jane@example.com",
                 validators: [.required(message: "Email is required")]
@@ -84,13 +96,13 @@ enum ThemingForm {
             BooleanSwitchRow(
                 id: "themingNotifications",
                 title: "Push Notifications",
-                subtitle: "Receive alerts about activity",
+                subtitle: "Title in indigo via BooleanSwitchRowStyle per-row override",
                 defaultValue: true
             )
             MultiValueRow<ThemingTag>(
                 id: "themingTags",
                 title: "Interests",
-                subtitle: "Checkmarks use teal via theme.colors.selectionIndicator"
+                subtitle: "Option text and checkmark colored via MultiValueRowStyle per-row override"
             )
         }
 

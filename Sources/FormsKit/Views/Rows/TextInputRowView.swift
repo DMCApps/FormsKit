@@ -252,8 +252,8 @@ struct TextInputRowView: View {
                         Button {
                             isRevealed.toggle()
                         } label: {
-                            Image(systemName: isRevealed ? "eye.slash" : "eye")
-                                .foregroundStyle(.secondary)
+                            Image(systemName: isRevealed ? theme.icons.secureFieldHide : theme.icons.secureFieldReveal)
+                                .foregroundStyle(theme.colors.secureFieldToggle)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(isRevealed ? "Hide password" : "Show password")
