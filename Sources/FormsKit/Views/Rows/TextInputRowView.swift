@@ -281,7 +281,7 @@ struct TextInputRowView: View {
                         Button {
                             isRevealed.toggle()
                         } label: {
-                            Image(systemName: isRevealed ? theme.icons.secureFieldHide : theme.icons.secureFieldReveal)
+                            (isRevealed ? theme.icons.secureFieldHide : theme.icons.secureFieldReveal).image()
                                 .foregroundStyle(theme.colors.secureFieldToggle)
                         }
                         .buttonStyle(.plain)

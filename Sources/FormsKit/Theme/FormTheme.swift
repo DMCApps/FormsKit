@@ -298,30 +298,30 @@ extension FormTheme {
 // MARK: - FormTheme.Icons
 
 extension FormTheme {
-    /// SF Symbol name tokens used by FormsKit views.
+    /// Icon tokens used by FormsKit views.
     public struct Icons: Sendable, Equatable {
 
-        /// SF Symbol name for the collapsible section disclosure arrow.
-        public var collapsibleDisclosure: String
+        /// Icon for the collapsible section disclosure arrow.
+        public var collapsibleDisclosure: FormIcon
 
-        /// SF Symbol name for the validation error icon.
-        public var validationError: String
+        /// Icon for the validation error indicator.
+        public var validationError: FormIcon
 
-        /// SF Symbol name for the multi-value selection checkmark.
-        public var selectionCheckmark: String
+        /// Icon for the multi-value selection checkmark.
+        public var selectionCheckmark: FormIcon
 
-        /// SF Symbol name shown on the secure field toggle button when the field is hidden (reveal action).
-        public var secureFieldReveal: String
+        /// Icon shown on the secure field toggle button when the field is hidden (reveal action).
+        public var secureFieldReveal: FormIcon
 
-        /// SF Symbol name shown on the secure field toggle button when the field is revealed (hide action).
-        public var secureFieldHide: String
+        /// Icon shown on the secure field toggle button when the field is revealed (hide action).
+        public var secureFieldHide: FormIcon
 
         public init(
-            collapsibleDisclosure: String = "chevron.right",
-            validationError: String = "exclamationmark.circle.fill",
-            selectionCheckmark: String = "checkmark",
-            secureFieldReveal: String = "eye",
-            secureFieldHide: String = "eye.slash"
+            collapsibleDisclosure: FormIcon = .system("chevron.right"),
+            validationError: FormIcon = .system("exclamationmark.circle.fill"),
+            selectionCheckmark: FormIcon = .system("checkmark"),
+            secureFieldReveal: FormIcon = .system("eye"),
+            secureFieldHide: FormIcon = .system("eye.slash")
         ) {
             self.collapsibleDisclosure = collapsibleDisclosure
             self.validationError = validationError

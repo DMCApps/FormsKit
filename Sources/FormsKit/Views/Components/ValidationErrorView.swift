@@ -24,7 +24,7 @@ struct ValidationErrorView: View {
                             .font(font)
                             .foregroundStyle(color)
                     } icon: {
-                        Image(systemName: icon)
+                        icon.image()
                             .foregroundStyle(color)
                             .font(font)
                     }

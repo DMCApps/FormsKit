@@ -42,8 +42,8 @@ enum ThemingForm {
             saveButtonCornerRadius: 16
         ),
         icons: .init(
-            collapsibleDisclosure: "chevron.down",
-            selectionCheckmark: "checkmark.circle.fill"
+            collapsibleDisclosure: .system("chevron.down"),
+            selectionCheckmark: .system("checkmark.circle.fill")
         ),
         saveButtonStyle: SaveButtonStyle(
             backgroundColor: .indigo,
@@ -51,7 +51,7 @@ enum ThemingForm {
         ),
         validationErrorStyle: ValidationErrorStyle(
             color: .orange,
-            icon: "exclamationmark.triangle.fill"
+            icon: .system("exclamationmark.triangle.fill")
         )
     )
 

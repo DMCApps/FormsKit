@@ -56,11 +56,11 @@ struct FormThemeTests {
     @Test("default theme has expected icon tokens")
     func defaultIcons() {
         let theme = FormTheme.default
-        #expect(theme.icons.collapsibleDisclosure == "chevron.right")
-        #expect(theme.icons.validationError == "exclamationmark.circle.fill")
-        #expect(theme.icons.selectionCheckmark == "checkmark")
-        #expect(theme.icons.secureFieldReveal == "eye")
-        #expect(theme.icons.secureFieldHide == "eye.slash")
+        #expect(theme.icons.collapsibleDisclosure == .system("chevron.right"))
+        #expect(theme.icons.validationError == .system("exclamationmark.circle.fill"))
+        #expect(theme.icons.selectionCheckmark == .system("checkmark"))
+        #expect(theme.icons.secureFieldReveal == .system("eye"))
+        #expect(theme.icons.secureFieldHide == .system("eye.slash"))
     }
 
     @Test("default theme has expected animation tokens")
@@ -99,9 +99,9 @@ struct FormThemeTests {
 
     @Test("custom icon tokens are stored correctly")
     func customIcons() {
-        let theme = FormTheme(icons: .init(collapsibleDisclosure: "chevron.down"))
-        #expect(theme.icons.collapsibleDisclosure == "chevron.down")
-        #expect(theme.icons.validationError == "exclamationmark.circle.fill")
+        let theme = FormTheme(icons: .init(collapsibleDisclosure: .system("chevron.down")))
+        #expect(theme.icons.collapsibleDisclosure == .system("chevron.down"))
+        #expect(theme.icons.validationError == .system("exclamationmark.circle.fill"))
     }
 
     @Test("custom animation tokens are stored correctly")
@@ -134,11 +134,11 @@ struct FormThemeTests {
     func customSecureFieldTokens() {
         let theme = FormTheme(
             colors: .init(secureFieldToggle: .blue),
-            icons: .init(secureFieldReveal: "lock.open", secureFieldHide: "lock")
+            icons: .init(secureFieldReveal: .system("lock.open"), secureFieldHide: .system("lock"))
         )
         #expect(theme.colors.secureFieldToggle == .blue)
-        #expect(theme.icons.secureFieldReveal == "lock.open")
-        #expect(theme.icons.secureFieldHide == "lock")
+        #expect(theme.icons.secureFieldReveal == .system("lock.open"))
+        #expect(theme.icons.secureFieldHide == .system("lock"))
     }
 
     // MARK: Equatable
@@ -173,8 +173,8 @@ struct FormThemeTests {
 
     @Test("FormTheme.Icons equality holds for identical values")
     func iconsEquatable() {
-        let a = FormTheme.Icons(collapsibleDisclosure: "chevron.down")
-        let b = FormTheme.Icons(collapsibleDisclosure: "chevron.down")
+        let a = FormTheme.Icons(collapsibleDisclosure: .system("chevron.down"))
+        let b = FormTheme.Icons(collapsibleDisclosure: .system("chevron.down"))
         #expect(a == b)
     }
 
@@ -201,8 +201,8 @@ struct FormThemeTests {
 
     @Test("ValidationErrorStyle Equatable holds for identical values")
     func validationErrorStyleEquatable() {
-        let a = ValidationErrorStyle(color: .orange, icon: "exclamationmark.triangle")
-        let b = ValidationErrorStyle(color: .orange, icon: "exclamationmark.triangle")
+        let a = ValidationErrorStyle(color: .orange, icon: .system("exclamationmark.triangle"))
+        let b = ValidationErrorStyle(color: .orange, icon: .system("exclamationmark.triangle"))
         #expect(a == b)
     }
 
@@ -235,11 +235,11 @@ struct FormThemeTests {
         var theme = FormTheme()
         theme.validationErrorStyle = ValidationErrorStyle(
             color: .orange,
-            icon: "exclamationmark.triangle.fill"
+            icon: .system("exclamationmark.triangle.fill")
         )
 
         #expect(theme.validationErrorStyle?.color == .orange)
-        #expect(theme.validationErrorStyle?.icon == "exclamationmark.triangle.fill")
+        #expect(theme.validationErrorStyle?.icon == .system("exclamationmark.triangle.fill"))
         #expect(theme.validationErrorStyle?.font == nil)
     }
 
@@ -253,10 +253,10 @@ struct FormThemeTests {
 
     @Test("ValidationErrorStyle can be set via FormTheme init")
     func validationErrorStyleViaInit() {
-        let style = ValidationErrorStyle(color: .orange, icon: "exclamationmark.triangle")
+        let style = ValidationErrorStyle(color: .orange, icon: .system("exclamationmark.triangle"))
         let theme = FormTheme(validationErrorStyle: style)
         #expect(theme.validationErrorStyle?.color == .orange)
-        #expect(theme.validationErrorStyle?.icon == "exclamationmark.triangle")
+        #expect(theme.validationErrorStyle?.icon == .system("exclamationmark.triangle"))
     }
 
     @Test("FormRowStyle default implementations return nil")
@@ -286,11 +286,11 @@ struct FormThemeTests {
 
     @Test("FormDefinition DSL init stores theme when provided")
     func formDefinitionDSLStoresTheme() {
-        let theme = FormTheme(icons: .init(collapsibleDisclosure: "chevron.down"))
+        let theme = FormTheme(icons: .init(collapsibleDisclosure: .system("chevron.down")))
         let form = FormDefinition(id: "test", title: "Test", theme: theme) {
             TextInputRow(id: "name", title: "Name")
         }
-        #expect(form.theme?.icons.collapsibleDisclosure == "chevron.down")
+        #expect(form.theme?.icons.collapsibleDisclosure == .system("chevron.down"))
     }
 
     // MARK: EnvironmentValues
@@ -465,15 +465,15 @@ struct FormThemeTests {
 
     @Test("CollapsibleSectionStyle Equatable holds for identical values")
     func collapsibleSectionStyleEquatable() {
-        let a = CollapsibleSectionStyle(disclosureIcon: "chevron.down", animationDuration: 0.4)
-        let b = CollapsibleSectionStyle(disclosureIcon: "chevron.down", animationDuration: 0.4)
+        let a = CollapsibleSectionStyle(disclosureIcon: .system("chevron.down"), animationDuration: 0.4)
+        let b = CollapsibleSectionStyle(disclosureIcon: .system("chevron.down"), animationDuration: 0.4)
         #expect(a == b)
     }
 
     @Test("CollapsibleSectionStyle Equatable detects disclosureIcon difference")
     func collapsibleSectionStyleIconNotEquatable() {
-        let a = CollapsibleSectionStyle(disclosureIcon: "chevron.down")
-        let b = CollapsibleSectionStyle(disclosureIcon: "chevron.right")
+        let a = CollapsibleSectionStyle(disclosureIcon: .system("chevron.down"))
+        let b = CollapsibleSectionStyle(disclosureIcon: .system("chevron.right"))
         #expect(a != b)
     }
 
@@ -489,20 +489,20 @@ struct FormThemeTests {
         let a = MultiValueRowStyle(
             optionTextColor: .purple,
             selectionIndicatorColor: .green,
-            selectionIcon: "star.fill"
+            selectionIcon: .system("star.fill")
         )
         let b = MultiValueRowStyle(
             optionTextColor: .purple,
             selectionIndicatorColor: .green,
-            selectionIcon: "star.fill"
+            selectionIcon: .system("star.fill")
         )
         #expect(a == b)
     }
 
     @Test("MultiValueRowStyle Equatable detects selectionIcon difference")
     func multiValueRowStyleIconNotEquatable() {
-        let a = MultiValueRowStyle(selectionIcon: "checkmark")
-        let b = MultiValueRowStyle(selectionIcon: "star.fill")
+        let a = MultiValueRowStyle(selectionIcon: .system("checkmark"))
+        let b = MultiValueRowStyle(selectionIcon: .system("star.fill"))
         #expect(a != b)
     }
 
@@ -601,11 +601,11 @@ struct FormThemeTests {
     @Test("TypedFormDefinition DSL init forwards theme to underlying FormDefinition")
     func typedFormDefinitionDSLInitForwardsTheme() {
         enum Row: String { case name }
-        let theme = FormTheme(icons: .init(validationError: "exclamationmark.triangle.fill"))
+        let theme = FormTheme(icons: .init(validationError: .system("exclamationmark.triangle.fill")))
         let typed = TypedFormDefinition<Row>(id: "t", title: "T", theme: theme) {
             TextInputRow(id: Row.name.rawValue, title: "Name")
         }
-        #expect(typed.definition.theme?.icons.validationError == "exclamationmark.triangle.fill")
+        #expect(typed.definition.theme?.icons.validationError == .system("exclamationmark.triangle.fill"))
     }
 
     @Test("TypedFormDefinition theme is nil by default")
@@ -710,9 +710,9 @@ struct FormThemeTests {
             var description: String { rawValue }
         }
         let row = MultiValueRow<Tag>(id: "tags", title: "Tags",
-                                     style: MultiValueRowStyle(optionTextColor: .indigo, selectionIcon: "star.fill"))
+                                     style: MultiValueRowStyle(optionTextColor: .indigo, selectionIcon: .system("star.fill")))
         let style = row.rowStyle as? MultiValueRowStyle
         #expect(style?.optionTextColor == .indigo)
-        #expect(style?.selectionIcon == "star.fill")
+        #expect(style?.selectionIcon == .system("star.fill"))
     }
 }

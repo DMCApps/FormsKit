@@ -77,7 +77,7 @@ struct MultiValueRowView: View {
                     .foregroundStyle(optionColor)
                 Spacer()
                 if isSelected {
-                    Image(systemName: indicatorIcon)
+                    indicatorIcon.image()
                         .foregroundStyle(indicatorColor)
                 }
             }

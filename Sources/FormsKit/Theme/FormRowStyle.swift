@@ -155,8 +155,8 @@ public struct MultiValueRowStyle: FormRowStyle, Equatable {
     public var optionTextColor: Color?
     /// Override for the selection indicator (checkmark) color. Falls back to `theme.colors.selectionIndicator` when `nil`.
     public var selectionIndicatorColor: Color?
-    /// Override for the SF Symbol name used as the selection indicator. Falls back to `theme.icons.selectionCheckmark` when `nil`.
-    public var selectionIcon: String?
+    /// Override for the icon used as the selection indicator. Falls back to `theme.icons.selectionCheckmark` when `nil`.
+    public var selectionIcon: FormIcon?
 
     public init(
         titleColor: Color? = nil,
@@ -165,7 +165,7 @@ public struct MultiValueRowStyle: FormRowStyle, Equatable {
         subtitleFont: Font? = nil,
         optionTextColor: Color? = nil,
         selectionIndicatorColor: Color? = nil,
-        selectionIcon: String? = nil
+        selectionIcon: FormIcon? = nil
     ) {
         self.titleColor = titleColor
         self.titleFont = titleFont
@@ -261,9 +261,9 @@ public struct CollapsibleSectionStyle: FormRowStyle, Equatable {
     public var subtitleColor: Color?
     public var subtitleFont: Font?
 
-    /// Override for the SF Symbol name used as the disclosure arrow.
+    /// Override for the icon used as the disclosure arrow.
     /// Falls back to `theme.icons.collapsibleDisclosure` when `nil`.
-    public var disclosureIcon: String?
+    public var disclosureIcon: FormIcon?
     /// Override for the expand/collapse animation duration in seconds.
     /// Falls back to `theme.animations.collapsibleDuration` when `nil`.
     public var animationDuration: Double?
@@ -273,7 +273,7 @@ public struct CollapsibleSectionStyle: FormRowStyle, Equatable {
         titleFont: Font? = nil,
         subtitleColor: Color? = nil,
         subtitleFont: Font? = nil,
-        disclosureIcon: String? = nil,
+        disclosureIcon: FormIcon? = nil,
         animationDuration: Double? = nil
     ) {
         self.titleColor = titleColor
@@ -344,14 +344,14 @@ public struct ValidationErrorStyle: Sendable, Equatable {
     public var color: Color?
     /// Override for the error text font. Falls back to `theme.fonts.error` when `nil`.
     public var font: Font?
-    /// Override for the SF Symbol name used as the error icon.
+    /// Override for the icon used as the error indicator.
     /// Falls back to `theme.icons.validationError` when `nil`.
-    public var icon: String?
+    public var icon: FormIcon?
 
     public init(
         color: Color? = nil,
         font: Font? = nil,
-        icon: String? = nil
+        icon: FormIcon? = nil
     ) {
         self.color = color
         self.font = font

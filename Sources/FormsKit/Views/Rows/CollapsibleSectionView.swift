@@ -45,7 +45,7 @@ struct CollapsibleSectionView: View {
                         .font(titleFont)
                         .foregroundStyle(titleColor)
                     Spacer()
-                    Image(systemName: disclosureIcon)
+                    disclosureIcon.image()
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                         .animation(.easeInOut(duration: animationDuration), value: isExpanded)
                 }
