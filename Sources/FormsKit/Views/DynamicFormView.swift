@@ -35,9 +35,11 @@ public struct DynamicFormView: View {
         )
     }
 
-    /// The resolved theme: `formDefinition.theme` takes precedence over the ambient environment theme.
+    /// The resolved theme: an explicit theme on the definition takes precedence over the
+    /// ambient environment theme (set via `.formTheme(_:)`), which in turn falls back to
+    /// `FormTheme.default` via the `EnvironmentKey` default.
     private var theme: FormTheme {
-        formDefinition.theme ?? environmentTheme
+        formDefinition._theme ?? environmentTheme
     }
 
     // MARK: - Body

@@ -64,11 +64,19 @@ public struct FormDefinition: Sendable, Identifiable {
     /// Defaults to `.activityIndicator` (a centered spinner).
     public let loadingStyle: FormLoadingStyle
 
-    /// Optional theme to apply to this form. When set, `DynamicFormView` injects it into
-    /// the SwiftUI environment for all child views. When `nil`, the ambient environment
-    /// theme (or `FormTheme.default`) is used. A `.formTheme(_:)` modifier applied
-    /// directly to `DynamicFormView` takes lower priority than this property.
-    public let theme: FormTheme?
+    /// The raw optional theme provided at init time.
+    /// `nil` means no explicit theme was set — `DynamicFormView` will defer to the
+    /// ambient environment theme (or `FormTheme.default`) instead.
+    let _theme: FormTheme?
+
+    /// The effective theme for this form. Returns the explicitly-provided theme
+    /// if set, otherwise `FormTheme.default`.
+    ///
+    /// Use this when you need a resolved, always-non-nil theme value outside of a
+    /// SwiftUI view hierarchy. Inside `DynamicFormView`, the environment modifier
+    /// uses `_theme` directly so that a `.formTheme(_:)` modifier applied to
+    /// `DynamicFormView` is still honoured when no explicit theme is set.
+    public var theme: FormTheme { _theme ?? .default }
 
     // MARK: Initialiser — Array of AnyFormRow
 
@@ -87,7 +95,7 @@ public struct FormDefinition: Sendable, Identifiable {
         self.saveBehaviour = saveBehaviour
         self.onSave = onSave
         self.loadingStyle = loadingStyle
-        self.theme = theme
+        self._theme = theme
     }
 
     // MARK: Initialiser — Result Builder DSL
@@ -115,7 +123,7 @@ public struct FormDefinition: Sendable, Identifiable {
         self.saveBehaviour = saveBehaviour
         self.onSave = onSave
         self.loadingStyle = loadingStyle
-        self.theme = theme
+        self._theme = theme
     }
 }
 

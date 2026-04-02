@@ -893,13 +893,29 @@ Both approaches are equivalent. When both a modifier and a `FormDefinition` them
 
 #### Icons (`FormTheme.Icons`)
 
+Icon tokens use the `FormIcon` enum, which supports SF Symbols, asset catalog images, and arbitrary SwiftUI `Image` values:
+
+```swift
+// SF Symbol (most common)
+.system("checkmark.circle.fill")
+
+// Asset catalog image (app bundle)
+.named("MyAppCheckmark")
+
+// Asset catalog image in a specific bundle (e.g. a Swift package)
+.named("MyIcon", bundle: .module)
+
+// Arbitrary SwiftUI Image
+.custom(Image("brand-logo"))
+```
+
 | Property | Default | What it styles |
 |---|---|---|
-| `collapsibleDisclosure` | `"chevron.right"` | `CollapsibleSection` disclosure arrow |
-| `validationError` | `"exclamationmark.circle.fill"` | Inline error icon |
-| `selectionCheckmark` | `"checkmark"` | `MultiValueRow` selection indicator |
-| `secureFieldReveal` | `"eye"` | Secure field show button |
-| `secureFieldHide` | `"eye.slash"` | Secure field hide button |
+| `collapsibleDisclosure` | `.system("chevron.right")` | `CollapsibleSection` disclosure arrow |
+| `validationError` | `.system("exclamationmark.circle.fill")` | Inline error icon |
+| `selectionCheckmark` | `.system("checkmark")` | `MultiValueRow` selection indicator |
+| `secureFieldReveal` | `.system("eye")` | Secure field show button |
+| `secureFieldHide` | `.system("eye.slash")` | Secure field hide button |
 
 #### Animations (`FormTheme.Animations`)
 
@@ -928,7 +944,7 @@ theme.saveButtonStyle = SaveButtonStyle(
 theme.validationErrorStyle = ValidationErrorStyle(
     color: .orange,
     font: .caption,
-    icon: "exclamationmark.triangle.fill"
+    icon: .system("exclamationmark.triangle.fill")
 )
 ```
 
@@ -975,11 +991,11 @@ All row style structs conform to `FormRowStyle`, which provides common optional 
 | `NumberInputRowStyle` | `NumberInputRow` | — |
 | `BooleanSwitchRowStyle` | `BooleanSwitchRow` | `tintColor: Color?` |
 | `SingleValueRowStyle` | `SingleValueRow<T>` | `tintColor: Color?` |
-| `MultiValueRowStyle` | `MultiValueRow<T>` | `optionTextColor: Color?`, `selectionIndicatorColor: Color?`, `selectionIcon: String?` |
+| `MultiValueRowStyle` | `MultiValueRow<T>` | `optionTextColor: Color?`, `selectionIndicatorColor: Color?`, `selectionIcon: FormIcon?` |
 | `InfoRowStyle` | `InfoRow` | `valueFont: Font?`, `valueColor: Color?` |
 | `ButtonRowStyle` | `ButtonRow` | — |
 | `NavigationRowStyle` | `NavigationRow` | — |
-| `CollapsibleSectionStyle` | `CollapsibleSection` | `disclosureIcon: String?`, `animationDuration: Double?` |
+| `CollapsibleSectionStyle` | `CollapsibleSection` | `disclosureIcon: FormIcon?`, `animationDuration: Double?` |
 
 `tintColor` on `BooleanSwitchRowStyle` falls back to `theme.colors.switchTint`, then to the system accent color. `tintColor` on `SingleValueRowStyle` falls back to `theme.colors.pickerTint`, then to the system accent color.
 
@@ -1001,9 +1017,9 @@ let brandTheme = FormTheme(
         saveButton: .headline
     ),
     spacing: .init(saveButtonCornerRadius: 16),
-    icons: .init(collapsibleDisclosure: "chevron.down"),
+    icons: .init(collapsibleDisclosure: .system("chevron.down")),
     saveButtonStyle: SaveButtonStyle(backgroundColor: .indigo, cornerRadius: 16),
-    validationErrorStyle: ValidationErrorStyle(color: .orange, icon: "exclamationmark.triangle.fill")
+    validationErrorStyle: ValidationErrorStyle(color: .orange, icon: .system("exclamationmark.triangle.fill"))
 )
 
 let form = FormDefinition(

@@ -63,6 +63,60 @@ struct FormThemeTests {
         #expect(theme.icons.secureFieldHide == .system("eye.slash"))
     }
 
+    // MARK: FormIcon
+
+    @Test("FormIcon.system equality holds for same name")
+    func formIconSystemEquality() {
+        #expect(FormIcon.system("checkmark") == .system("checkmark"))
+        #expect(FormIcon.system("checkmark") != .system("xmark"))
+    }
+
+    @Test("FormIcon.named equality holds when name and bundle match")
+    func formIconNamedEquality() {
+        #expect(FormIcon.named("MyIcon") == .named("MyIcon"))
+        #expect(FormIcon.named("MyIcon") != .named("OtherIcon"))
+    }
+
+    @Test("FormIcon.named with explicit bundle is unequal to nil bundle")
+    func formIconNamedBundleInequality() {
+        let withBundle = FormIcon.named("MyIcon", bundle: .main)
+        let withNilBundle = FormIcon.named("MyIcon")
+        // nil bundle and explicit Bundle.main are stored differently, so they are not equal.
+        #expect(withBundle != withNilBundle)
+    }
+
+    @Test("FormIcon.custom is always unequal to another .custom")
+    func formIconCustomAlwaysUnequal() {
+        let a = FormIcon.custom(Image(systemName: "star"))
+        let b = FormIcon.custom(Image(systemName: "star"))
+        #expect(a != b)
+    }
+
+    @Test("FormIcon cross-case inequality")
+    func formIconCrossCaseInequality() {
+        #expect(FormIcon.system("star") != .named("star"))
+        #expect(FormIcon.named("star") != .custom(Image(systemName: "star")))
+        #expect(FormIcon.system("star") != .custom(Image(systemName: "star")))
+    }
+
+    @Test("FormIcon.named can be stored in FormTheme.Icons")
+    func formIconNamedInTheme() {
+        let theme = FormTheme(icons: .init(selectionCheckmark: .named("MyCheckmark")))
+        #expect(theme.icons.selectionCheckmark == .named("MyCheckmark"))
+    }
+
+    @Test("FormIcon.custom can be stored in FormTheme.Icons")
+    func formIconCustomInTheme() {
+        let icon = FormIcon.custom(Image(systemName: "star.fill"))
+        let theme = FormTheme(icons: .init(selectionCheckmark: icon))
+        // .custom is never equal to itself, so we verify the case via pattern matching
+        if case .custom = theme.icons.selectionCheckmark {
+            // expected
+        } else {
+            Issue.record("Expected .custom case")
+        }
+    }
+
     @Test("default theme has expected animation tokens")
     func defaultAnimations() {
         let theme = FormTheme.default
@@ -275,13 +329,14 @@ struct FormThemeTests {
     func formDefinitionStoresTheme() {
         let theme = FormTheme(colors: .init(error: .orange))
         let form = FormDefinition(id: "test", title: "Test", rows: [], theme: theme)
-        #expect(form.theme?.colors.error == .orange)
+        #expect(form.theme.colors.error == .orange)
     }
 
-    @Test("FormDefinition theme is nil by default")
-    func formDefinitionThemeDefaultsToNil() {
+    @Test("FormDefinition theme defaults to FormTheme.default")
+    func formDefinitionThemeDefaultsToDefault() {
         let form = FormDefinition(id: "test", title: "Test", rows: [])
-        #expect(form.theme == nil)
+        #expect(form.theme.colors.rowTitle == FormTheme.default.colors.rowTitle)
+        #expect(form.theme.icons.selectionCheckmark == FormTheme.default.icons.selectionCheckmark)
     }
 
     @Test("FormDefinition DSL init stores theme when provided")
@@ -290,7 +345,7 @@ struct FormThemeTests {
         let form = FormDefinition(id: "test", title: "Test", theme: theme) {
             TextInputRow(id: "name", title: "Name")
         }
-        #expect(form.theme?.icons.collapsibleDisclosure == .system("chevron.down"))
+        #expect(form.theme.icons.collapsibleDisclosure == .system("chevron.down"))
     }
 
     // MARK: EnvironmentValues
@@ -595,7 +650,7 @@ struct FormThemeTests {
         enum Row: String { case name }
         let theme = FormTheme(colors: .init(error: .orange))
         let typed = TypedFormDefinition<Row>(id: "t", title: "T", rows: [], theme: theme)
-        #expect(typed.definition.theme?.colors.error == .orange)
+        #expect(typed.definition.theme.colors.error == .orange)
     }
 
     @Test("TypedFormDefinition DSL init forwards theme to underlying FormDefinition")
@@ -605,14 +660,15 @@ struct FormThemeTests {
         let typed = TypedFormDefinition<Row>(id: "t", title: "T", theme: theme) {
             TextInputRow(id: Row.name.rawValue, title: "Name")
         }
-        #expect(typed.definition.theme?.icons.validationError == .system("exclamationmark.triangle.fill"))
+        #expect(typed.definition.theme.icons.validationError == .system("exclamationmark.triangle.fill"))
     }
 
-    @Test("TypedFormDefinition theme is nil by default")
-    func typedFormDefinitionThemeDefaultsToNil() {
+    @Test("TypedFormDefinition theme defaults to FormTheme.default")
+    func typedFormDefinitionThemeDefaultsToDefault() {
         enum Row: String { case name }
         let typed = TypedFormDefinition<Row>(id: "t", title: "T", rows: [])
-        #expect(typed.definition.theme == nil)
+        #expect(typed.definition.theme.colors.rowTitle == FormTheme.default.colors.rowTitle)
+        #expect(typed.definition.theme.icons.selectionCheckmark == FormTheme.default.icons.selectionCheckmark)
     }
 
     // MARK: Row-level style: init parameter
