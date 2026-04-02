@@ -7,6 +7,9 @@ import SwiftUI
 struct BooleanSwitchRowView: View {
     let row: BooleanSwitchRow
     @Bindable var viewModel: FormViewModel
+    @Environment(\.formTheme) private var theme
+
+    private var style: BooleanSwitchRowStyle? { row.rowStyle as? BooleanSwitchRowStyle }
 
     private var isOn: Bool {
         if let stored: Bool = viewModel.value(for: row.id) { return stored }
@@ -15,8 +18,9 @@ struct BooleanSwitchRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Toggle(isOn: Binding(
+        let tint = style?.tintColor ?? theme.colors.switchTint
+        VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
+            let toggle = Toggle(isOn: Binding(
                 get: { isOn },
                 set: { viewModel.setBool($0, for: row.id) }
             )) {
@@ -24,18 +28,31 @@ struct BooleanSwitchRowView: View {
             }
             .accessibilityIdentifier("formkit.toggle.\(row.id)")
 
+            if let tint {
+                toggle.tint(tint)
+            } else {
+                toggle
+            }
+
             ValidationErrorView(errors: viewModel.errorsForRow(row.id), rowId: row.id)
         }
     }
 
     @ViewBuilder
     private var rowLabel: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        let titleColor = style?.titleColor ?? theme.colors.rowTitle
+        let titleFont = style?.titleFont ?? theme.fonts.rowTitle
+        let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
+        let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
+
+        VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
             Text(row.title)
+                .font(titleFont)
+                .foregroundStyle(titleColor)
             if let subtitle = row.subtitle {
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(subtitleFont)
+                    .foregroundStyle(subtitleColor)
             }
         }
     }

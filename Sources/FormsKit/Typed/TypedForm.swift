@@ -41,6 +41,7 @@ where RowID.RawValue == String {
     ///   - saveBehaviour: Controls when and how form values are saved. Defaults to `.buttonBottomForm()`.
     ///   - onSave: Actions that fire after the form is successfully saved.
     ///   - loadingStyle: Controls what is displayed while values are loading. Defaults to `.activityIndicator`.
+    ///   - theme: Optional theme to apply to this form.
     ///   - rows: Row builder closure — use `RowID` enum cases for the `id:` parameter.
     public init(id: String,
                 title: String,
@@ -48,6 +49,7 @@ where RowID.RawValue == String {
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                 onSave: [FormSaveAction] = [],
                 loadingStyle: FormLoadingStyle = .activityIndicator,
+                theme: FormTheme? = nil,
                 @FormRowBuilder rows: () -> [AnyFormRow]) {
         definition = FormDefinition(
             id: id,
@@ -56,6 +58,7 @@ where RowID.RawValue == String {
             saveBehaviour: saveBehaviour,
             onSave: onSave,
             loadingStyle: loadingStyle,
+            theme: theme,
             rows: rows
         )
     }
@@ -70,13 +73,15 @@ where RowID.RawValue == String {
     ///   - saveBehaviour: Controls when and how form values are saved. Defaults to `.buttonBottomForm()`.
     ///   - onSave: Actions that fire after the form is successfully saved.
     ///   - loadingStyle: Controls what is displayed while values are loading. Defaults to `.activityIndicator`.
+    ///   - theme: Optional theme to apply to this form.
     public init(id: String,
                 title: String,
                 rows: [AnyFormRow],
                 persistence: (any FormPersistence)? = nil,
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                 onSave: [FormSaveAction] = [],
-                loadingStyle: FormLoadingStyle = .activityIndicator) {
+                loadingStyle: FormLoadingStyle = .activityIndicator,
+                theme: FormTheme? = nil) {
         definition = FormDefinition(
             id: id,
             title: title,
@@ -84,7 +89,8 @@ where RowID.RawValue == String {
             persistence: persistence,
             saveBehaviour: saveBehaviour,
             onSave: onSave,
-            loadingStyle: loadingStyle
+            loadingStyle: loadingStyle,
+            theme: theme
         )
     }
 }

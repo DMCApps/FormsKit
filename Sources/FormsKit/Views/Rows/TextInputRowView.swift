@@ -31,6 +31,7 @@ extension FormKeyboardType {
 struct MaskedTextField: UIViewRepresentable {
     let mask: FormInputMask
     let placeholder: String
+    let placeholderColor: Color?
     let keyboardType: UIKeyboardType
     let accessibilityIdentifier: String
     /// Raw slot characters (no literals), clamped to maxInputLength.
@@ -39,7 +40,14 @@ struct MaskedTextField: UIViewRepresentable {
     func makeUIView(context: Context) -> UITextField {
         let field = UITextField()
         field.delegate = context.coordinator
-        field.placeholder = placeholder
+        if let placeholderColor {
+            field.attributedPlaceholder = NSAttributedString(
+                string: placeholder,
+                attributes: [.foregroundColor: UIColor(placeholderColor)]
+            )
+        } else {
+            field.placeholder = placeholder
+        }
         field.keyboardType = keyboardType
         field.autocorrectionType = .no
         field.autocapitalizationType = .none
@@ -56,6 +64,15 @@ struct MaskedTextField: UIViewRepresentable {
         let expected = mask.apply(to: rawText)
         if uiView.text != expected {
             uiView.text = expected
+        }
+        // Re-sync placeholder appearance in case placeholderColor changed (e.g. theme update).
+        if let color = placeholderColor {
+            uiView.attributedPlaceholder = NSAttributedString(
+                string: placeholder,
+                attributes: [.foregroundColor: UIColor(color)]
+            )
+        } else {
+            uiView.placeholder = placeholder
         }
     }
 
@@ -117,6 +134,18 @@ struct TextInputRowView: View {
     @FocusState private var isFocused: Bool
     /// Tracks whether a secure field is currently revealed via the eye toggle.
     @State private var isRevealed = false
+    @Environment(\.formTheme) private var theme
+
+    private var style: TextInputRowStyle? { row.rowStyle as? TextInputRowStyle }
+
+    /// Builds a `Text` prompt for `TextField`/`SecureField`, applying the resolved placeholder color.
+    /// Resolution order: per-row override → global token → system default (nil = plain Text).
+    private func placeholderPrompt(for placeholder: String) -> Text {
+        if let color = style?.placeholderColor ?? theme.colors.placeholder {
+            return Text(placeholder).foregroundColor(color)
+        }
+        return Text(placeholder)
+    }
 
     private var text: String {
         if let mask = row.mask,
@@ -133,7 +162,7 @@ struct TextInputRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
             rowHeader
             inputField
             ValidationErrorView(errors: viewModel.errorsForRow(row.id), rowId: row.id)
@@ -147,19 +176,24 @@ struct TextInputRowView: View {
 
     @ViewBuilder
     private var rowHeader: some View {
+        let titleColor = style?.titleColor ?? theme.colors.rowTitle
+        let titleFont = style?.titleFont ?? theme.fonts.rowTitle
+        let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
+        let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
+
         if let subtitle = row.subtitle {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
                 Text(row.title)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(titleFont)
+                    .foregroundStyle(titleColor)
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(subtitleFont)
+                    .foregroundStyle(subtitleColor)
             }
         } else {
             Text(row.title)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(titleFont)
+                .foregroundStyle(titleColor)
         }
     }
 
@@ -188,6 +222,7 @@ struct TextInputRowView: View {
             MaskedTextField(
                 mask: mask,
                 placeholder: row.placeholder ?? mask.pattern,
+                placeholderColor: style?.placeholderColor ?? theme.colors.placeholder,
                 keyboardType: row.keyboardType.uiKeyboardType,
                 accessibilityIdentifier: "formkit.field.\(row.id)",
                 rawText: rawBinding
@@ -209,9 +244,11 @@ struct TextInputRowView: View {
                     }
                 }
             )
-            TextField(mask.pattern, text: binding)
+            let maskedPrompt = placeholderPrompt(for: mask.pattern)
+            TextField(text: binding, prompt: maskedPrompt) { EmptyView() }
                 .textContentType(.none)
                 .autocorrectionDisabled()
+                .accessibilityLabel(row.title)
                 .accessibilityIdentifier("formkit.field.\(row.id)")
 #endif
         } else {
@@ -222,19 +259,21 @@ struct TextInputRowView: View {
                     viewModel.setString(newValue, for: row.id)
                 }
             )
+            let prompt = placeholderPrompt(for: row.placeholder ?? "")
             if row.isSecure {
                 HStack(spacing: 8) {
                     if isRevealed {
-                        TextField(row.placeholder ?? "", text: binding)
+                        TextField(text: binding, prompt: prompt) { EmptyView() }
                             .focused($isFocused)
                             .textContentType(.none)
                             .autocorrectionDisabled()
+                            .accessibilityLabel(row.title)
                             .accessibilityIdentifier("formkit.field.\(row.id)")
 #if os(iOS)
                             .textInputAutocapitalization(.never)
 #endif
                     } else {
-                        SecureField(row.placeholder ?? "", text: binding)
+                        SecureField("", text: binding, prompt: prompt)
                             .focused($isFocused)
                             .accessibilityIdentifier("formkit.field.\(row.id)")
                     }
@@ -242,18 +281,19 @@ struct TextInputRowView: View {
                         Button {
                             isRevealed.toggle()
                         } label: {
-                            Image(systemName: isRevealed ? "eye.slash" : "eye")
-                                .foregroundStyle(.secondary)
+                            (isRevealed ? theme.icons.secureFieldHide : theme.icons.secureFieldReveal).image()
+                                .foregroundStyle(theme.colors.secureFieldToggle)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(isRevealed ? "Hide password" : "Show password")
                     }
                 }
             } else {
-                TextField(row.placeholder ?? "", text: binding)
+                TextField(text: binding, prompt: prompt) { EmptyView() }
                     .focused($isFocused)
                     .textContentType(.none)
                     .autocorrectionDisabled()
+                    .accessibilityLabel(row.title)
                     .accessibilityIdentifier("formkit.field.\(row.id)")
 #if os(iOS)
                     .keyboardType(row.keyboardType.uiKeyboardType)

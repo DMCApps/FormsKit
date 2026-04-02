@@ -678,6 +678,21 @@ struct MultiValueRowTests {
         let anyRow = AnyFormRow(row)
         #expect(anyRow.asSingleValueRepresentable == nil)
     }
+
+    @Test("MultiValueRow with explicit empty options has empty optionDescriptions")
+    func multiValueRowExplicitEmptyOptions() {
+        let row = MultiValueRow<Tag>(id: "tags", title: "Tags", options: [])
+        #expect(row.optionDescriptions == [])
+    }
+
+    @Test("MultiValueRow with explicit empty options still encodes defaultValue set")
+    func multiValueRowEmptyOptionsNonEmptyDefaultValue() {
+        // The defaultValue is derived from the defaultValue set, not filtered by options.
+        // Callers are responsible for providing a consistent pair.
+        let row = MultiValueRow<Tag>(id: "tags", title: "Tags", options: [], defaultValue: [.swift])
+        #expect(row.defaultValue == .array([.string("swift")]))
+        #expect(row.optionDescriptions == [])
+    }
 }
 
 // MARK: - BooleanSwitchRow Tests

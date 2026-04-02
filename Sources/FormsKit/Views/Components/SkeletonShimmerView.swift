@@ -11,17 +11,15 @@ import SwiftUI
 /// - light: RGB(64, 64, 64) @ 40 % opacity
 @available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct SkeletonShimmerView: View {
-    private static let darkColor = Color(red: 30 / 255, green: 30 / 255, blue: 30 / 255).opacity(0.4)
-    private static let lightColor = Color(red: 64 / 255, green: 64 / 255, blue: 64 / 255).opacity(0.4)
-
     @State private var isLight = false
+    @Environment(\.formTheme) private var theme
 
     var body: some View {
         RoundedRectangle(cornerRadius: 4)
-            .fill(isLight ? Self.lightColor : Self.darkColor)
+            .fill(isLight ? theme.colors.skeletonLight : theme.colors.skeletonDark)
             .onAppear {
                 withAnimation(
-                    .easeInOut(duration: 1).repeatForever(autoreverses: true)
+                    .easeInOut(duration: theme.animations.skeletonDuration).repeatForever(autoreverses: true)
                 ) {
                     isLight.toggle()
                 }

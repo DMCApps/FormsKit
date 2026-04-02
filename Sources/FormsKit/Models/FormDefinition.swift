@@ -64,6 +64,20 @@ public struct FormDefinition: Sendable, Identifiable {
     /// Defaults to `.activityIndicator` (a centered spinner).
     public let loadingStyle: FormLoadingStyle
 
+    /// The raw optional theme provided at init time.
+    /// `nil` means no explicit theme was set — `DynamicFormView` will defer to the
+    /// ambient environment theme (or `FormTheme.default`) instead.
+    let _theme: FormTheme?
+
+    /// The effective theme for this form. Returns the explicitly-provided theme
+    /// if set, otherwise `FormTheme.default`.
+    ///
+    /// Use this when you need a resolved, always-non-nil theme value outside of a
+    /// SwiftUI view hierarchy. Inside `DynamicFormView`, the environment modifier
+    /// uses `_theme` directly so that a `.formTheme(_:)` modifier applied to
+    /// `DynamicFormView` is still honoured when no explicit theme is set.
+    public var theme: FormTheme { _theme ?? .default }
+
     // MARK: Initialiser — Array of AnyFormRow
 
     public init(id: String,
@@ -72,7 +86,8 @@ public struct FormDefinition: Sendable, Identifiable {
                 persistence: (any FormPersistence)? = nil,
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                 onSave: [FormSaveAction] = [],
-                loadingStyle: FormLoadingStyle = .activityIndicator) {
+                loadingStyle: FormLoadingStyle = .activityIndicator,
+                theme: FormTheme? = nil) {
         self.id = id
         self.title = title
         self.rows = rows
@@ -80,6 +95,7 @@ public struct FormDefinition: Sendable, Identifiable {
         self.saveBehaviour = saveBehaviour
         self.onSave = onSave
         self.loadingStyle = loadingStyle
+        self._theme = theme
     }
 
     // MARK: Initialiser — Result Builder DSL
@@ -98,6 +114,7 @@ public struct FormDefinition: Sendable, Identifiable {
                 saveBehaviour: FormSaveBehaviour = .buttonBottomForm(),
                 onSave: [FormSaveAction] = [],
                 loadingStyle: FormLoadingStyle = .activityIndicator,
+                theme: FormTheme? = nil,
                 @FormRowBuilder rows: () -> [AnyFormRow]) {
         self.id = id
         self.title = title
@@ -106,6 +123,7 @@ public struct FormDefinition: Sendable, Identifiable {
         self.saveBehaviour = saveBehaviour
         self.onSave = onSave
         self.loadingStyle = loadingStyle
+        self._theme = theme
     }
 }
 

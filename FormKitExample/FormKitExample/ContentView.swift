@@ -83,18 +83,37 @@ struct ContentView: View {
     ]
 
     var body: some View {
-        List(entries) { entry in
-            NavigationLink {
-                DynamicFormView(formDefinition: entry.destination)
-            } label: {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.title)
-                        .font(.body)
-                    Text(entry.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        List {
+            Section {
+                ForEach(entries) { entry in
+                    NavigationLink {
+                        DynamicFormView(formDefinition: entry.destination)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.title)
+                                .font(.body)
+                            Text(entry.subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 2)
+                    }
                 }
-                .padding(.vertical, 2)
+            }
+
+            Section("Theming") {
+                NavigationLink {
+                    ThemingShowcaseView()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Theming")
+                            .font(.body)
+                        Text("Custom colors, fonts, spacing, icons — global and per-row")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                }
             }
         }
         .navigationTitle("FormKit")

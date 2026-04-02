@@ -18,6 +18,7 @@ import SwiftUI
 public struct DynamicFormView: View {
     private let formDefinition: FormDefinition
     @State private var viewModel: FormViewModel
+    @Environment(\.formTheme) private var environmentTheme
 
     // MARK: - Init
 
@@ -32,6 +33,13 @@ public struct DynamicFormView: View {
         _viewModel = State(
             initialValue: viewModel ?? FormViewModel(formDefinition: formDefinition)
         )
+    }
+
+    /// The resolved theme: an explicit theme on the definition takes precedence over the
+    /// ambient environment theme (set via `.formTheme(_:)`), which in turn falls back to
+    /// `FormTheme.default` via the `EnvironmentKey` default.
+    private var theme: FormTheme {
+        formDefinition._theme ?? environmentTheme
     }
 
     // MARK: - Body
@@ -92,6 +100,7 @@ public struct DynamicFormView: View {
                 }
             }
         }
+        .environment(\.formTheme, theme)
         .navigationTitle(formDefinition.title)
         // Automatically load from persistence whenever status transitions to .needsLoad.
         // This covers: initial appearance, post-reset(), and re-navigation to the view.
@@ -153,10 +162,10 @@ public struct DynamicFormView: View {
     private func loadFailedView(error: Error) -> some View {
         VStack(spacing: 16) {
             Text("Failed to Load")
-                .font(.headline)
+                .font(theme.fonts.loadFailedTitle)
             Text(error.localizedDescription)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(theme.fonts.loadFailedSubtitle)
+                .foregroundStyle(theme.colors.subtitle)
                 .multilineTextAlignment(.center)
             Button("Retry") {
                 Task { await viewModel.loadFromPersistence() }
@@ -177,6 +186,7 @@ public struct DynamicFormView: View {
 struct FormRowContainer: View {
     let row: AnyFormRow
     @Bindable var viewModel: FormViewModel
+    @Environment(\.formTheme) private var theme
 
     var body: some View {
         Group {
@@ -206,7 +216,7 @@ struct FormRowContainer: View {
                 // Fallback for any future custom row types that haven't added
                 // a view dispatch case. Shows the row title as plain text.
                 Text(row.title)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.colors.subtitle)
             }
         }
         .disabled(viewModel.isRowDisabled(row))

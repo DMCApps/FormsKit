@@ -5,14 +5,24 @@ import SwiftUI
 /// the value is shown in caption style on the trailing side.
 struct InfoRowView: View {
     let row: InfoRow
+    @Environment(\.formTheme) private var theme
+
+    private var style: InfoRowStyle? { row.rowStyle as? InfoRowStyle }
 
     var body: some View {
+        let labelColor = style?.titleColor ?? theme.colors.rowTitle
+        let labelFont = style?.titleFont ?? theme.fonts.rowTitle
+        let valueFont = style?.valueFont ?? theme.fonts.infoValue
+        let valueColor = style?.valueColor ?? theme.colors.rowTitle
+
         HStack {
             Text(row.title)
-                .foregroundStyle(.secondary)
+                .font(labelFont)
+                .foregroundStyle(labelColor)
             Spacer()
             Text(row.value())
-                .font(.caption)
+                .font(valueFont)
+                .foregroundStyle(valueColor)
                 .multilineTextAlignment(.trailing)
         }
     }
