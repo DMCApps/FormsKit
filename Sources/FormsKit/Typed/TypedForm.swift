@@ -124,7 +124,6 @@ where RowID.RawValue == String {
 /// - Note: `TypedFormViewModel` is not itself `@Observable`. Observable state lives on
 ///   `viewModel` (which is `@Observable`). Access `form.viewModel.xyz` in SwiftUI views
 ///   to get automatic updates. Use `TypedFormViewModel` methods for all mutations.
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 public final class TypedFormViewModel<RowID: RawRepresentable & Sendable>
 where RowID.RawValue == String {
     // MARK: - Underlying ViewModel

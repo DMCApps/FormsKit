@@ -14,7 +14,6 @@ import SwiftUI
 ///     DynamicFormView(formDefinition: myForm, viewModel: viewModel)
 /// }
 /// ```
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 public struct DynamicFormView: View {
     private let formDefinition: FormDefinition
     @State private var viewModel: FormViewModel
@@ -182,7 +181,6 @@ public struct DynamicFormView: View {
 /// Non-generic row types are matched directly via `asType(_:)`.
 /// Generic row types (`SingleValueRow<T>`, `MultiValueRow<T>`) are matched via their
 /// marker protocols (`SingleValueRowRepresentable`, `MultiValueRowRepresentable`).
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct FormRowContainer: View {
     let row: AnyFormRow
     @Bindable var viewModel: FormViewModel

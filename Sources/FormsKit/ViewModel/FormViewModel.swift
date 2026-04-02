@@ -94,7 +94,6 @@ public struct FormError: Sendable, Equatable {
 /// // Later:
 /// let name: String? = viewModel.value(for: "name")
 /// ```
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 @Observable
 public final class FormViewModel {
     // MARK: - Observable State

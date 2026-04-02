@@ -46,7 +46,6 @@ struct SaveButtonView: View {
 
 /// A save button pinned to the bottom of the screen, outside the scroll area.
 /// Used with `FormSaveBehaviour.buttonStickyBottom`.
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct StickyBottomSaveButtonView: View {
     let title: String
     let isLoading: Bool

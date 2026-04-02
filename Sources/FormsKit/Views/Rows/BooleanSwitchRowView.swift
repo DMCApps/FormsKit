@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - BooleanSwitchRowView
 
 /// Renders a BooleanSwitchRow as a SwiftUI Toggle.
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct BooleanSwitchRowView: View {
     let row: BooleanSwitchRow
     @Bindable var viewModel: FormViewModel

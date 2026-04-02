@@ -7,7 +7,6 @@ import SwiftUI
 ///
 /// When collapsed, only the header is visible. When expanded, child rows are
 /// dispatched through `FormRowContainer` — the same dispatcher used by the top-level form.
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct CollapsibleSectionView: View {
     let section: CollapsibleSection
     @Bindable var viewModel: FormViewModel

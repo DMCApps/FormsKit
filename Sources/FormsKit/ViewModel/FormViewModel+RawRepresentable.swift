@@ -11,7 +11,6 @@ import Foundation
 /// viewModel.value(for: .username)
 /// viewModel.setBool(true, for: .notifications)
 /// ```
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 public extension FormViewModel {
     /// Returns a typed value for the given row ID (enum case overload).
     func value<T: Decodable, ID: RawRepresentable>(for rowId: ID) -> T? where ID.RawValue == String {

@@ -27,7 +27,6 @@ extension FormKeyboardType {
 /// Using UITextFieldDelegate.textField(_:shouldChangeCharactersIn:replacementString:)
 /// is the only reliable way to intercept keystrokes and reformat text in UIKit —
 /// SwiftUI's TextField ignores programmatic text changes made from within its own binding setter.
-@available(iOS 17, *)
 struct MaskedTextField: UIViewRepresentable {
     let mask: FormInputMask
     let placeholder: String
@@ -127,7 +126,6 @@ struct MaskedTextField: UIViewRepresentable {
 // MARK: - TextInputRowView
 
 /// Renders a TextInputRow as a TextField or SecureField.
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct TextInputRowView: View {
     let row: TextInputRow
     @Bindable var viewModel: FormViewModel

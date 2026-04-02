@@ -4,7 +4,6 @@ import SwiftUI
 
 /// Renders a SingleValueRowRepresentable as a Picker.
 /// Works without knowing the generic type T — operates on string descriptions only.
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct SingleValueRowView: View {
     let row: any SingleValueRowRepresentable
     let rowId: String

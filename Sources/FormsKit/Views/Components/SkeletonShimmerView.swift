@@ -9,7 +9,6 @@ import SwiftUI
 /// Colours are taken from the same defaults as `SkeletonViewAppearance`:
 /// - dark:  RGB(30, 30, 30) @ 40 % opacity
 /// - light: RGB(64, 64, 64) @ 40 % opacity
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct SkeletonShimmerView: View {
     @State private var isLight = false
     @Environment(\.formTheme) private var theme

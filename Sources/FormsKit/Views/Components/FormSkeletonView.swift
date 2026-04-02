@@ -15,7 +15,6 @@ import SwiftUI
 /// - Section → section header bar + skeleton children
 ///
 /// The view is fully non-interactive.
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct FormSkeletonView: View {
     let formDefinition: FormDefinition
 
@@ -63,7 +62,6 @@ struct FormSkeletonView: View {
 
 // MARK: - Section Header
 
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 private struct SkeletonSectionHeader: View {
     var body: some View {
         SkeletonShimmerView()
@@ -73,7 +71,6 @@ private struct SkeletonSectionHeader: View {
 
 // MARK: - Text / Number Input
 
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 private struct SkeletonTextInputRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -89,7 +86,6 @@ private struct SkeletonTextInputRow: View {
 
 // MARK: - Toggle / Boolean Switch
 
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 private struct SkeletonToggleRow: View {
     var body: some View {
         HStack {
@@ -106,7 +102,6 @@ private struct SkeletonToggleRow: View {
 
 // MARK: - Picker (Single / Multi)
 
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 private struct SkeletonPickerRow: View {
     var body: some View {
         HStack {
@@ -122,7 +117,6 @@ private struct SkeletonPickerRow: View {
 
 // MARK: - Button
 
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 private struct SkeletonButtonRow: View {
     var body: some View {
         SkeletonShimmerView()
@@ -134,7 +128,6 @@ private struct SkeletonButtonRow: View {
 
 // MARK: - Info
 
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 private struct SkeletonInfoRow: View {
     var body: some View {
         HStack {
@@ -150,7 +143,6 @@ private struct SkeletonInfoRow: View {
 
 // MARK: - Navigation
 
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 private struct SkeletonNavigationRow: View {
     var body: some View {
         HStack {

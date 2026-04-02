@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Renders a `FormSection` as a SwiftUI `Section` with a title header,
 /// dispatching each visible child row through `FormRowContainer`.
-@available(iOS 17, tvOS 17, macOS 14, visionOS 1, *)
 struct FormSectionView: View {
     let section: FormSection
     @Bindable var viewModel: FormViewModel
