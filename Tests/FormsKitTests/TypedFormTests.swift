@@ -248,7 +248,7 @@ struct TypedFormViewModelTests {
         #expect(saved == true)
 
         // Reload via a fresh vm.
-        let vm2 = TypedFormViewModel(form: form, persistence: persistence)
+        let vm2 = TypedFormViewModel(form: form)
         await vm2.loadFromPersistence()
         let username: String? = vm2.value(for: .username)
         #expect(username == "dave")

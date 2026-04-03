@@ -149,7 +149,6 @@ public final class FormViewModel {
     // MARK: - Private State
 
     public let formDefinition: FormDefinition
-    private let persistence: (any FormPersistence)?
 
     /// Cancellable debounce tasks keyed by row ID (for debounced validators).
     private var debounceTimers: [String: Task<Void, Never>] = [:]
@@ -173,14 +172,10 @@ public final class FormViewModel {
     // MARK: - Initialisation
 
     /// - Parameters:
-    ///   - formDefinition: The form to manage.
-    ///   - persistence: Override persistence backend.
-    ///     Falls back to `formDefinition.persistence` if nil.
-    public init(formDefinition: FormDefinition,
-                persistence: (any FormPersistence)? = nil) {
+    ///   - formDefinition: The form to manage. Set `formDefinition.persistence` to configure
+    ///     the persistence backend.
+    public init(formDefinition: FormDefinition) {
         self.formDefinition = formDefinition
-        let resolvedPersistence = persistence ?? formDefinition.persistence
-        self.persistence = resolvedPersistence
 
         // Flatten once here — used to seed defaults and then stored as `allRows`.
         let flatRows = FormViewModel.allRows(in: formDefinition.rows)
@@ -485,7 +480,7 @@ public final class FormViewModel {
 
         guard validateAll() else { return false }
 
-        guard let persistence else {
+        guard let persistence = formDefinition.persistence else {
             isDirty = false
             dispatchOnSaveActions()
             return true
@@ -529,7 +524,7 @@ public final class FormViewModel {
         guard status == .needsLoad || status.isLoadFailed else { return }
         status = .loading
 
-        guard let persistence else {
+        guard let persistence = formDefinition.persistence else {
             status = .ready
             return
         }
@@ -594,7 +589,7 @@ public final class FormViewModel {
         }
         // If persistence is configured, reload from storage immediately.
         // Mirrors the same pattern used in init().
-        if persistence != nil {
+        if formDefinition.persistence != nil {
             status = .needsLoad
             Task { [weak self] in await self?.loadFromPersistence() }
         }
@@ -614,7 +609,7 @@ public final class FormViewModel {
 
     /// Clear persisted data for this form.
     public func clearPersistence() async {
-        guard let persistence else { return }
+        guard let persistence = formDefinition.persistence else { return }
         try? await persistence.clear(formId: formDefinition.id)
     }
 

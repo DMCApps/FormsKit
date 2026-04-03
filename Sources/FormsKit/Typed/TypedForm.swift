@@ -136,27 +136,19 @@ where RowID.RawValue == String {
     /// Create a typed view model from a `TypedFormDefinition`.
     ///
     /// - Parameters:
-    ///   - form: The typed form definition.
-    ///   - persistence: Optional persistence backend override.
-    public init(form: TypedFormDefinition<RowID>,
-                persistence: (any FormPersistence)? = nil) {
-        viewModel = FormViewModel(
-            formDefinition: form.definition,
-            persistence: persistence
-        )
+    ///   - form: The typed form definition. Set `form.definition.persistence` to configure
+    ///     the persistence backend.
+    public init(form: TypedFormDefinition<RowID>) {
+        viewModel = FormViewModel(formDefinition: form.definition)
     }
 
     /// Create a typed view model directly from a plain `FormDefinition`.
     ///
     /// - Parameters:
-    ///   - formDefinition: The form definition.
-    ///   - persistence: Optional persistence backend override.
-    public init(formDefinition: FormDefinition,
-                persistence: (any FormPersistence)? = nil) {
-        viewModel = FormViewModel(
-            formDefinition: formDefinition,
-            persistence: persistence
-        )
+    ///   - formDefinition: The form definition. Set `formDefinition.persistence` to configure
+    ///     the persistence backend.
+    public init(formDefinition: FormDefinition) {
+        viewModel = FormViewModel(formDefinition: formDefinition)
     }
 
     // MARK: - Value Reading

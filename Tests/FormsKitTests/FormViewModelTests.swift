@@ -490,7 +490,7 @@ struct FormViewModelTests {
         #expect(saved == true)
 
         // Create a new VM and load from same persistence.
-        let vm2 = FormViewModel(formDefinition: form, persistence: persistence)
+        let vm2 = FormViewModel(formDefinition: form)
         await vm2.loadFromPersistence()
         let name: String? = vm2.value(for: "name")
         #expect(name == "Bob")
@@ -644,7 +644,7 @@ struct FormViewModelTests {
         await vm.save()
 
         // Confirm data was persisted by loading it through a fresh vm.
-        let vm2 = FormViewModel(formDefinition: form, persistence: persistence)
+        let vm2 = FormViewModel(formDefinition: form)
         await vm2.loadFromPersistence()
         let flag: Bool? = vm2.value(for: "flag")
         #expect(flag == true)
