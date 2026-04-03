@@ -4,15 +4,22 @@ import SwiftUI
 
 /// The main entry point for rendering a `FormDefinition` as a SwiftUI Form.
 ///
-/// Provide a `FormDefinition` and optionally a pre-existing `FormViewModel`
-/// (useful when you need to read the values back after the user saves).
+/// When you need to read values back or observe form state externally, pass a
+/// `FormViewModel` directly:
 ///
 /// ```swift
 /// @State private var viewModel = FormViewModel(formDefinition: myForm)
 ///
 /// NavigationStack {
-///     DynamicFormView(formDefinition: myForm, viewModel: viewModel)
+///     DynamicFormView(viewModel: viewModel)
 /// }
+/// ```
+///
+/// When rendering a standalone form with no external state requirements, pass
+/// just the definition:
+///
+/// ```swift
+/// DynamicFormView(formDefinition: myForm)
 /// ```
 public struct DynamicFormView: View {
     private let formDefinition: FormDefinition
@@ -21,17 +28,22 @@ public struct DynamicFormView: View {
 
     // MARK: - Init
 
-    /// - Parameters:
-    ///   - formDefinition: Describes the form to display.
-    ///   - viewModel: An externally-created view model.
-    ///     Pass one in if you need to read values after the form closes.
-    ///     If nil, a new view model is created internally.
-    public init(formDefinition: FormDefinition,
-                viewModel: FormViewModel? = nil) {
+    /// Creates a view from an externally-owned view model.
+    /// Use this when you need to observe form state or read values from outside the view.
+    ///
+    /// - Parameter viewModel: The view model to use. The form definition is derived from it.
+    public init(viewModel: FormViewModel) {
+        self.formDefinition = viewModel.formDefinition
+        _viewModel = State(initialValue: viewModel)
+    }
+
+    /// Creates a view from a form definition, managing the view model internally.
+    /// Use this when you don't need to observe or read form state from outside the view.
+    ///
+    /// - Parameter formDefinition: Describes the form to display.
+    public init(formDefinition: FormDefinition) {
         self.formDefinition = formDefinition
-        _viewModel = State(
-            initialValue: viewModel ?? FormViewModel(formDefinition: formDefinition)
-        )
+        _viewModel = State(initialValue: FormViewModel(formDefinition: formDefinition))
     }
 
     /// The resolved theme: an explicit theme on the definition takes precedence over the
