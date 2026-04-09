@@ -100,8 +100,21 @@ where RowID.RawValue == String {
 /// A strongly typed companion to `FormViewModel` that constrains all row ID
 /// parameters to a specific `RowID` enum.
 ///
-/// Create one from a `TypedFormDefinition` and use enum cases everywhere instead of
-/// raw strings:
+/// ## Loading contract
+///
+/// When a persistence backend is configured, initialisation kicks off an async load
+/// in the background. Always call `awaitReady()` before reading values
+/// programmatically — values available before that point reflect row defaults only:
+///
+/// ```swift
+/// let form = TypedFormViewModel<SettingsRowID>(form: settingsForm)
+/// await form.awaitReady()
+/// let name: String? = form.value(for: .username)  // guaranteed to be the persisted value
+/// ```
+///
+/// When using `DynamicFormView` this is handled automatically.
+///
+/// ## Usage
 ///
 /// ```swift
 /// @State private var form = TypedFormViewModel<SettingsRowID>(form: settingsForm)
@@ -117,7 +130,6 @@ where RowID.RawValue == String {
 ///
 /// // Observe state directly on viewModel in SwiftUI bodies:
 /// form.viewModel.isDirty
-/// form.viewModel.isSaving
 /// form.viewModel.isValid
 /// ```
 ///
@@ -244,6 +256,16 @@ where RowID.RawValue == String {
     @MainActor
     public func loadFromPersistence() async {
         await viewModel.loadFromPersistence()
+    }
+
+    /// Suspends until the form has finished loading from persistence.
+    /// Returns immediately if the form is already `.ready` or `.loadFailed`.
+    ///
+    /// Use this when you need the final persisted values outside of a SwiftUI view
+    /// — for example, reading configuration during app startup.
+    @MainActor
+    public func awaitReady() async {
+        await viewModel.awaitReady()
     }
 
     /// Clear persisted data for this form.

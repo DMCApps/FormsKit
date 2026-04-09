@@ -82,16 +82,34 @@ public struct FormError: Sendable, Equatable {
 // MARK: - FormViewModel
 
 /// The observable view model that drives all form state.
-/// Pass an instance of this class into `DynamicFormView` to read form values
-/// from outside the view hierarchy after the user interacts with the form.
 ///
-/// Create and retain a `FormViewModel` externally to access values after save:
+/// ## Loading contract
+///
+/// When a persistence backend is configured, `init` automatically kicks off an
+/// async load in the background. Values read immediately after `init` reflect
+/// row defaults only — **not** persisted data. Always call `awaitReady()` before
+/// reading values programmatically:
+///
+/// ```swift
+/// let vm = FormViewModel(formDefinition: myForm)
+/// await vm.awaitReady()                      // suspends until load completes
+/// let name: String? = vm.value(for: "name")  // guaranteed to be the persisted value
+/// ```
+///
+/// When using `DynamicFormView`, this is handled automatically — the view observes
+/// `status` and shows a loading indicator until the form reaches `.ready`.
+///
+/// ## External access
+///
+/// Pass a `FormViewModel` into `DynamicFormView` to read values from outside the
+/// view hierarchy:
+///
 /// ```swift
 /// @State private var viewModel = FormViewModel(formDefinition: myForm)
 ///
-/// DynamicFormView(formDefinition: myForm, viewModel: viewModel)
+/// DynamicFormView(viewModel: viewModel)
 ///
-/// // Later:
+/// // After the user fills the form and saves:
 /// let name: String? = viewModel.value(for: "name")
 /// ```
 @Observable
@@ -139,6 +157,10 @@ public final class FormViewModel {
     /// The current lifecycle state of the form.
     /// Use this to drive loading indicators and disable the save button during saves.
     public private(set) var status: FormStatus = .needsLoad
+
+    /// The in-flight load task started in `init`. Multiple callers can `await` its `.value`
+    /// concurrently — Swift resumes all of them when the task finishes.
+    private var loadTask: Task<Void, Never>?
 
     /// The most recent save error, if any.
     public private(set) var saveError: Error?
@@ -200,11 +222,17 @@ public final class FormViewModel {
             }
         }
 
-        // Kick off the async load. `status` starts as `.needsLoad` and transitions
-        // to `.loading` → `.ready` (or `.loadFailed`) once the load completes.
-        // `loadFromPersistence()` dispatches its own state mutations onto the
-        // MainActor internally, so the Task itself doesn't need to run there.
-        Task { [weak self] in await self?.loadFromPersistence() }
+        // If there is no persistence backend there is nothing to load — go straight to
+        // `.ready` so that `awaitReady()` callers never suspend and no Task is spawned.
+        guard formDefinition.persistence != nil else {
+            status = .ready
+            return
+        }
+
+        // Kick off the async load and store the task so callers can await it via
+        // `awaitReady()`. Multiple concurrent awaits on the same task are safe —
+        // Swift resumes all of them when the task completes.
+        loadTask = Task { [weak self] in await self?.performLoad() }
     }
 
     // MARK: - Value Reading
@@ -502,21 +530,54 @@ public final class FormViewModel {
         }
     }
 
+    // MARK: - Awaiting Readiness
+
+    /// Suspends until the form has finished loading from persistence (i.e. `status` is
+    /// `.ready` or `.loadFailed`). Returns immediately if there is no persistence backend
+    /// or if loading has already completed.
+    ///
+    /// Multiple concurrent calls are safe — they all await the same underlying `Task`
+    /// and are resumed together when it completes.
+    ///
+    /// Use this when you need the final persisted values before the SwiftUI view
+    /// hierarchy has had a chance to react to status changes — for example, reading
+    /// debug configuration values during app startup before any UI is shown.
+    ///
+    /// ```swift
+    /// await debugConfig.environment.awaitReady()
+    /// api.environment = debugConfig.environment.apiEnvironment // guaranteed to be loaded
+    /// ```
+    @MainActor
+    public func awaitReady() async {
+        await loadTask?.value
+    }
+
     // MARK: - Load
 
-    /// Load persisted values, merging over row defaults.
-    /// Transitions `status` from `.needsLoad` → `.loading` → `.ready` (or `.loadFailed`).
+    /// Await the in-flight load task, or start a new one if the form is in a retryable
+    /// state (`.needsLoad` or `.loadFailed`).
     ///
-    /// Must be called from the `@MainActor`. Concurrent calls are safely deduplicated:
-    /// only the caller that observes `status == .needsLoad` proceeds; any racing caller
-    /// bails out immediately because the status check and transition happen synchronously
-    /// before the first suspension point.
+    /// Calling this when a load is already in progress simply joins the existing task —
+    /// no duplicate I/O is performed. Calling it after a successful load returns
+    /// immediately.
     ///
-    /// Persistence I/O suspends off the main actor for the duration of the backend call,
-    /// then resumes on the main actor to write state — keeping SwiftUI `@Observable`
-    /// callbacks on the main thread.
+    /// Use this in tests or when you need to explicitly trigger a retry after
+    /// `.loadFailed`. In SwiftUI, prefer observing `status` instead.
     @MainActor
     public func loadFromPersistence() async {
+        if let existing = loadTask, !status.isLoadFailed {
+            await existing.value
+            return
+        }
+        // Retrying after .loadFailed or first explicit call before auto-start has run.
+        loadTask = Task { [weak self] in await self?.performLoad() }
+        await loadTask?.value
+    }
+
+    /// Performs the actual persistence load. Called exclusively from within a stored
+    /// `loadTask` — never called directly.
+    @MainActor
+    private func performLoad() async {
         // Check and claim the load synchronously before any suspension.
         // Because we're on the MainActor, this is race-free: only the caller
         // that sees `.needsLoad` or `.loadFailed` transitions to `.loading`;
@@ -587,11 +648,15 @@ public final class FormViewModel {
                 expandedSections.insert(collapsible.id)
             }
         }
+        // Cancel any in-flight load before restarting so stale results can't
+        // overwrite the freshly reset state.
+        loadTask?.cancel()
+        loadTask = nil
         // If persistence is configured, reload from storage immediately.
         // Mirrors the same pattern used in init().
         if formDefinition.persistence != nil {
             status = .needsLoad
-            Task { [weak self] in await self?.loadFromPersistence() }
+            loadTask = Task { [weak self] in await self?.performLoad() }
         }
     }
 

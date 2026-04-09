@@ -1104,10 +1104,13 @@ Conditions and validators also accept your enum directly:
 
 ## FormViewModel
 
-`DynamicFormView` creates and manages a `FormViewModel` internally. For custom UIs or programmatic control, create one directly:
+`DynamicFormView` creates and manages a `FormViewModel` internally. For custom UIs or programmatic control, create one directly.
+
+> **Important:** When a persistence backend is configured, `init` kicks off an async load in the background. Values read immediately after `init` reflect row defaults only — not persisted data. Always call `awaitReady()` before reading values programmatically. When using `DynamicFormView` this is handled for you automatically.
 
 ```swift
-@State private var viewModel = FormViewModel(formDefinition: myForm)
+let viewModel = FormViewModel(formDefinition: myForm)
+await viewModel.awaitReady()  // wait for persisted values to load before reading
 
 // Read values
 let email: String? = viewModel.value(for: "email")
@@ -1124,7 +1127,8 @@ viewModel.setDate(Date(), for: "dob")
 viewModel.toggleArrayValue(.string("write"), for: "permissions")
 
 // Lifecycle
-await viewModel.loadFromPersistence()
+await viewModel.awaitReady()            // suspend until initial load completes
+await viewModel.loadFromPersistence()   // explicit load / retry after .loadFailed
 let success = await viewModel.save()
 viewModel.reset()
 await viewModel.clearPersistence()

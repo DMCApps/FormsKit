@@ -742,11 +742,11 @@ struct FormViewModelTests {
         #expect(vm.status == .needsLoad)
     }
 
-    @Test("status is .needsLoad on init when no persistence backend is set")
-    func statusIsNeedsLoadOnInitWithoutPersistence() {
+    @Test("status is .ready on init when no persistence backend is set")
+    func statusIsReadyOnInitWithoutPersistence() {
         let form = makeForm(rows: [], persistence: nil)
         let vm = FormViewModel(formDefinition: form)
-        #expect(vm.status == .needsLoad)
+        #expect(vm.status == .ready)
     }
 
     @Test("status transitions to .loadFailed when persistence throws during load")
