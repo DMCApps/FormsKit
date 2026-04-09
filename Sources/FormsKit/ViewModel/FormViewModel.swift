@@ -539,17 +539,21 @@ public final class FormViewModel {
     /// Multiple concurrent calls are safe — they all await the same underlying `Task`
     /// and are resumed together when it completes.
     ///
+    /// If the in-flight load was cancelled (e.g. by a concurrent `reset()`), this will
+    /// join the replacement task that `reset()` starts, ensuring the caller always waits
+    /// for a complete load rather than returning with stale state.
+    ///
     /// Use this when you need the final persisted values before the SwiftUI view
     /// hierarchy has had a chance to react to status changes — for example, reading
     /// debug configuration values during app startup before any UI is shown.
     ///
     /// ```swift
-    /// await debugConfig.environment.awaitReady()
-    /// api.environment = debugConfig.environment.apiEnvironment // guaranteed to be loaded
+    /// await form.awaitReady()
+    /// api.environment = form.value(for: .apiEnvironment) // guaranteed to be loaded
     /// ```
     @MainActor
     public func awaitReady() async {
-        await loadTask?.value
+        await loadFromPersistence()
     }
 
     // MARK: - Load
@@ -610,6 +614,11 @@ public final class FormViewModel {
             isDirty = false
             errors = [:]
             status = .ready
+        } catch is CancellationError {
+            // The load was cancelled by a concurrent reset() — revert to .needsLoad
+            // so loadFromPersistence() knows to start a fresh load rather than treating
+            // this as a real failure.
+            status = .needsLoad
         } catch {
             status = .loadFailed(error)
         }

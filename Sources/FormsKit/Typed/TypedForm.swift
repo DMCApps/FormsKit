@@ -258,8 +258,13 @@ where RowID.RawValue == String {
         await viewModel.loadFromPersistence()
     }
 
-    /// Suspends until the form has finished loading from persistence.
-    /// Returns immediately if the form is already `.ready` or `.loadFailed`.
+    /// Suspends until the form has finished loading from persistence (i.e. `status` is
+    /// `.ready` or `.loadFailed`). Returns immediately if there is no persistence backend
+    /// or if loading has already completed.
+    ///
+    /// If the in-flight load was cancelled (e.g. by a concurrent `reset()`), this will
+    /// join the replacement task that `reset()` starts, ensuring the caller always waits
+    /// for a complete load rather than returning with stale state.
     ///
     /// Use this when you need the final persisted values outside of a SwiftUI view
     /// — for example, reading configuration during app startup.

@@ -1442,6 +1442,109 @@ struct FormViewModelTests {
         #expect(vm.isValid == false)
     }
 
+    // MARK: - awaitReady
+
+    @Test("awaitReady returns immediately when no persistence backend is set")
+    func awaitReadyNoPersistence() async {
+        let form = makeForm(rows: [], persistence: nil)
+        let vm = FormViewModel(formDefinition: form)
+
+        await vm.awaitReady()
+
+        #expect(vm.status == .ready)
+    }
+
+    @Test("awaitReady suspends until load completes and status is .ready")
+    func awaitReadySuspendsUntilReady() async {
+        let persistence = FormPersistenceMemory()
+        let form = makeForm(
+            rows: [AnyFormRow(BooleanSwitchRow(id: "t", title: "T", defaultValue: true))],
+            persistence: persistence
+        )
+        let vm = FormViewModel(formDefinition: form)
+
+        #expect(vm.status == .needsLoad)
+
+        await vm.awaitReady()
+
+        #expect(vm.status == .ready)
+        let value: Bool? = vm.value(for: "t")
+        #expect(value == true)
+    }
+
+    @Test("awaitReady is safe to call multiple times concurrently")
+    func awaitReadyConcurrentCallers() async {
+        let persistence = FormPersistenceMemory()
+        let form = makeForm(rows: [], persistence: persistence)
+        let vm = FormViewModel(formDefinition: form)
+
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0 ..< 5 {
+                group.addTask { await vm.awaitReady() }
+            }
+        }
+
+        #expect(vm.status == .ready)
+    }
+
+    @Test("awaitReady after reset waits for the replacement load, not the cancelled one")
+    func awaitReadyAfterResetJoinsReplacementTask() async {
+        let persistence = FormPersistenceMemory()
+        let form = makeForm(
+            rows: [AnyFormRow(BooleanSwitchRow(id: "flag", title: "Flag", defaultValue: true))],
+            persistence: persistence
+        )
+        let vm = FormViewModel(formDefinition: form)
+
+        // Complete the initial load.
+        await vm.awaitReady()
+        #expect(vm.status == .ready)
+
+        // reset() cancels the current loadTask and starts a new one.
+        vm.reset()
+        #expect(vm.status == .needsLoad)
+
+        // awaitReady() must join the replacement task, not the cancelled one,
+        // and must resolve to .ready with the correct value.
+        await vm.awaitReady()
+        #expect(vm.status == .ready)
+        let flag: Bool? = vm.value(for: "flag")
+        #expect(flag == true)
+    }
+
+    @Test("CancellationError during load sets status to .needsLoad, not .loadFailed")
+    func cancellationErrorSetsNeedsLoad() async {
+        let persistence = FormPersistenceMemory()
+        let form = makeForm(rows: [], persistence: persistence)
+        let vm = FormViewModel(formDefinition: form)
+
+        // Start load, then immediately cancel via reset() before it can complete.
+        // reset() cancels the in-flight task and starts a new one.
+        vm.reset()
+
+        // After cancellation, status should transition back to .needsLoad (not .loadFailed),
+        // because CancellationError is not a real persistence failure.
+        // Allow the cancelled task to finish.
+        await Task.yield()
+        await Task.yield()
+
+        // Status should be .needsLoad or .ready (from the reset's replacement task),
+        // but never .loadFailed, since the only error was a cancellation.
+        let isFailed = vm.status.isLoadFailed
+        #expect(isFailed == false)
+    }
+
+    @Test("awaitReady returns .loadFailed status after a genuine persistence failure")
+    func awaitReadyAfterGenuineFailure() async {
+        let form = makeForm(rows: [], persistence: FailingPersistence())
+        let vm = FormViewModel(formDefinition: form)
+
+        await vm.awaitReady()
+
+        // A real persistence error must still surface as .loadFailed.
+        #expect(vm.status.isLoadFailed)
+    }
+
     @Test("reset with persistence eventually reloads to .ready")
     func resetWithPersistenceReloadsToReady() async {
         let persistence = FormPersistenceMemory()

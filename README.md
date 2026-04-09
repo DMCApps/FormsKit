@@ -1107,6 +1107,8 @@ Conditions and validators also accept your enum directly:
 `DynamicFormView` creates and manages a `FormViewModel` internally. For custom UIs or programmatic control, create one directly.
 
 > **Important:** When a persistence backend is configured, `init` kicks off an async load in the background. Values read immediately after `init` reflect row defaults only — not persisted data. Always call `awaitReady()` before reading values programmatically. When using `DynamicFormView` this is handled for you automatically.
+>
+> `awaitReady()` delegates to `loadFromPersistence()` internally, which means it is safe to call at any point in the form's lifecycle: if a load is already in progress it joins the existing task without duplicating I/O; if the previous load was cancelled by a concurrent `reset()` it joins the replacement task that `reset()` starts; and if the form has already reached `.ready` it returns immediately. A `CancellationError` from a `reset()` is treated as a transient interruption and sets status back to `.needsLoad` rather than `.loadFailed`, so callers can always distinguish a real persistence failure from a cancelled load.
 
 ```swift
 let viewModel = FormViewModel(formDefinition: myForm)
