@@ -17,11 +17,24 @@ struct SingleValueRowView: View {
         viewModel.value(for: rowId) ?? row.defaultStoredValue
     }
 
+    /// The effective picker style after platform remapping.
+    /// On tvOS, .menu and .automatic are remapped to .navigationLink for focusability.
+    private var effectivePickerStyle: FormPickerStyle {
+        #if os(tvOS)
+        switch row.pickerStyle {
+        case .menu, .automatic: return .navigationLink
+        default: return row.pickerStyle
+        }
+        #else
+        return row.pickerStyle
+        #endif
+    }
+
     var body: some View {
         let tint = style?.tintColor ?? theme.colors.pickerTint
 
         VStack(alignment: .leading, spacing: theme.spacing.rowContentSpacing) {
-            switch row.pickerStyle {
+            switch effectivePickerStyle {
             case .segmented:
                 // .segmented fills the full width — label sits above the control.
                 VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
@@ -131,17 +144,13 @@ struct SingleValueRowView: View {
     /// `pickerContent` with the appropriate platform style applied.
     @ViewBuilder
     private var styledPicker: some View {
-        switch row.pickerStyle {
+        switch effectivePickerStyle {
         case .segmented:
             pickerContent.pickerStyle(.segmented)
         case .menu:
-#if os(tvOS)
-            pickerContent.pickerStyle(.automatic)
-#else
             pickerContent.pickerStyle(.menu)
-#endif
         case .navigationLink:
-#if os(tvOS) || os(macOS)
+#if os(macOS)
             pickerContent.pickerStyle(.automatic)
 #else
             pickerContent.pickerStyle(.navigationLink)

@@ -177,7 +177,7 @@ SingleValueRow<Environment>(
 
 > **Note:** `placeholder` is not shown for `.segmented` style.
 
-> **Note:** `.menu` falls back to `.automatic` on tvOS. `.navigationLink` falls back to `.automatic` on tvOS and macOS.
+> **Note:** On tvOS, `.automatic` and `.menu` are remapped to `.navigationLink` so pickers remain focusable and interactive with the Siri Remote. `.navigationLink` falls back to `.automatic` on macOS.
 
 ---
 

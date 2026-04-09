@@ -231,22 +231,26 @@ public extension FormRow {
 /// Not all styles are available on every platform. `SingleValueRowView` maps
 /// each case to the closest supported SwiftUI `PickerStyle` for the current platform:
 ///
-/// | Case          | iOS / iPadOS     | tvOS             |
-/// |---------------|------------------|------------------|
-/// | `.automatic`  | `.automatic`     | `.automatic`     |
-/// | `.segmented`  | `.segmented`     | `.segmented`     |
-/// | `.menu`       | `.menu`          | `.automatic`*    |
-/// | `.navigationLink` | `.navigationLink` | `.automatic`* |
+/// | Case              | iOS / iPadOS      | tvOS              | macOS        |
+/// |-------------------|-------------------|-------------------|--------------|
+/// | `.automatic`      | `.automatic`      | `.navigationLink` | `.automatic` |
+/// | `.segmented`      | `.segmented`      | `.segmented`      | `.segmented` |
+/// | `.menu`           | `.menu`           | `.navigationLink` | `.menu`      |
+/// | `.navigationLink` | `.navigationLink` | `.navigationLink` | `.automatic` |
 ///
-/// *Styles marked with `*` are not available on tvOS and fall back to `.automatic`.
+/// On tvOS, `.automatic` and `.menu` are remapped to `.navigationLink` so that
+/// pickers remain focusable and interactive with the Siri Remote.
 public enum FormPickerStyle: Sendable {
     /// The default picker style for the current platform and context.
+    /// On tvOS this resolves to `.navigationLink` for Siri Remote focusability.
     case automatic
     /// A segmented control. Best for 2–5 short options. Available on iOS and tvOS.
     case segmented
-    /// A menu button that reveals options when pressed. iOS / iPadOS only; falls back to `.automatic` on tvOS.
+    /// A menu button that reveals options when pressed. iOS / iPadOS and macOS only;
+    /// remapped to `.navigationLink` on tvOS for Siri Remote focusability.
     case menu
-    /// A navigation link that pushes a picker list. iOS / iPadOS only; falls back to `.automatic` on tvOS and macOS.
+    /// A navigation link that pushes a picker list. Available on iOS and tvOS;
+    /// falls back to `.automatic` on macOS.
     case navigationLink
 }
 
