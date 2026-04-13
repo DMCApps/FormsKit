@@ -134,6 +134,7 @@ struct CollapsibleSectionAnyFormRowWrappingTests {
 // MARK: - CollapsibleSection in FormDefinition DSL Tests
 
 @Suite("CollapsibleSection in FormDefinition DSL")
+@MainActor
 struct CollapsibleSectionInFormDefinitionTests {
     @Test("CollapsibleSection used in FormDefinition builder DSL")
     func collapsibleSectionInFormDefinitionDSL() {
@@ -182,29 +183,30 @@ struct CollapsibleSectionInFormDefinitionTests {
 // MARK: - CollapsibleSection Expand/Collapse Tests
 
 @Suite("CollapsibleSection Expand/Collapse")
+@MainActor
 struct CollapsibleSectionExpandCollapseTests {
     @Test("Expanded section shows child rows")
-    func expandedSectionShowsChildren() {
+    func expandedSectionShowsChildren() throws {
         let form = FormDefinition(id: "test", title: "Test", saveBehaviour: .none) {
             CollapsibleSection(id: "sect", title: "Section", isExpandedByDefault: true) {
                 BooleanSwitchRow(id: "child", title: "Child")
             }
         }
         let vm = FormViewModel(formDefinition: form)
-        let childRow = form.rows[0].asType(CollapsibleSection.self)!.rows[0]
+        let childRow = try #require(form.rows[0].asType(CollapsibleSection.self)).rows[0]
         #expect(vm.isSectionExpanded("sect"))
         #expect(vm.isRowVisible(childRow))
     }
 
     @Test("Collapsed section hides child rows")
-    func collapsedSectionHidesChildren() {
+    func collapsedSectionHidesChildren() throws {
         let form = FormDefinition(id: "test", title: "Test", saveBehaviour: .none) {
             CollapsibleSection(id: "sect", title: "Section", isExpandedByDefault: false) {
                 BooleanSwitchRow(id: "child", title: "Child")
             }
         }
         let vm = FormViewModel(formDefinition: form)
-        let childRow = form.rows[0].asType(CollapsibleSection.self)!.rows[0]
+        let childRow = try #require(form.rows[0].asType(CollapsibleSection.self)).rows[0]
         #expect(!vm.isSectionExpanded("sect"))
         #expect(!vm.isRowVisible(childRow))
     }
@@ -222,14 +224,14 @@ struct CollapsibleSectionExpandCollapseTests {
     }
 
     @Test("toggleSection expands a collapsed section")
-    func toggleExpandsCollapsedSection() {
+    func toggleExpandsCollapsedSection() throws {
         let form = FormDefinition(id: "test", title: "Test", saveBehaviour: .none) {
             CollapsibleSection(id: "sect", title: "Section", isExpandedByDefault: false) {
                 BooleanSwitchRow(id: "child", title: "Child")
             }
         }
         let vm = FormViewModel(formDefinition: form)
-        let childRow = form.rows[0].asType(CollapsibleSection.self)!.rows[0]
+        let childRow = try #require(form.rows[0].asType(CollapsibleSection.self)).rows[0]
 
         #expect(!vm.isSectionExpanded("sect"))
         #expect(!vm.isRowVisible(childRow))
@@ -241,14 +243,14 @@ struct CollapsibleSectionExpandCollapseTests {
     }
 
     @Test("toggleSection collapses an expanded section")
-    func toggleCollapsesExpandedSection() {
+    func toggleCollapsesExpandedSection() throws {
         let form = FormDefinition(id: "test", title: "Test", saveBehaviour: .none) {
             CollapsibleSection(id: "sect", title: "Section", isExpandedByDefault: true) {
                 BooleanSwitchRow(id: "child", title: "Child")
             }
         }
         let vm = FormViewModel(formDefinition: form)
-        let childRow = form.rows[0].asType(CollapsibleSection.self)!.rows[0]
+        let childRow = try #require(form.rows[0].asType(CollapsibleSection.self)).rows[0]
 
         #expect(vm.isSectionExpanded("sect"))
         #expect(vm.isRowVisible(childRow))
@@ -276,7 +278,7 @@ struct CollapsibleSectionExpandCollapseTests {
     }
 
     @Test("Hidden CollapsibleSection hides children regardless of expand state")
-    func hiddenCollapsibleSectionHidesChildren() {
+    func hiddenCollapsibleSectionHidesChildren() throws {
         let form = FormDefinition(id: "test", title: "Test", saveBehaviour: .none) {
             BooleanSwitchRow(
                 id: "showAdvanced",
@@ -290,7 +292,7 @@ struct CollapsibleSectionExpandCollapseTests {
         }
         let vm = FormViewModel(formDefinition: form)
         let sectionRow = form.rows[1]
-        let childRow = form.rows[1].asType(CollapsibleSection.self)!.rows[0]
+        let childRow = try #require(form.rows[1].asType(CollapsibleSection.self)).rows[0]
 
         // Section is hidden by showRow action (toggle is off).
         #expect(!vm.isRowVisible(sectionRow))

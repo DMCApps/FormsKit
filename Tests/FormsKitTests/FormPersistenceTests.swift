@@ -254,10 +254,9 @@ struct FormPersistenceUserDefaultsTests {
     @Test("Save and load returns same values")
     func saveAndLoad() async throws {
         let suiteName = makeSuiteName()
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults.standard.removePersistentDomain(forName: suiteName) }
 
-        let persistence = FormPersistenceUserDefaults(defaults: defaults)
+        let persistence = FormPersistenceUserDefaults(defaults: try #require(UserDefaults(suiteName: suiteName)))
         let store = makeStore(["city": .string("NYC"), "count": .int(5)])
         try await persistence.save(store, formId: "prefs")
 
@@ -269,10 +268,9 @@ struct FormPersistenceUserDefaultsTests {
     @Test("Load returns empty store when key not present")
     func loadWhenNoData() async throws {
         let suiteName = makeSuiteName()
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults.standard.removePersistentDomain(forName: suiteName) }
 
-        let persistence = FormPersistenceUserDefaults(defaults: defaults)
+        let persistence = FormPersistenceUserDefaults(defaults: try #require(UserDefaults(suiteName: suiteName)))
         let loaded = try await persistence.load(formId: "nonexistent")
         #expect(loaded.isEmpty == true)
     }
@@ -280,14 +278,15 @@ struct FormPersistenceUserDefaultsTests {
     @Test("Clear removes the UserDefaults key")
     func clearRemovesKey() async throws {
         let suiteName = makeSuiteName()
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults.standard.removePersistentDomain(forName: suiteName) }
 
-        let persistence = FormPersistenceUserDefaults(defaults: defaults, keyPrefix: "Test")
+        let persistence = FormPersistenceUserDefaults(defaults: try #require(UserDefaults(suiteName: suiteName)), keyPrefix: "Test")
         try await persistence.save(makeStore(["k": .string("v")]), formId: "form")
         try await persistence.clear(formId: "form")
 
-        #expect(defaults.data(forKey: "Test.form") == nil)
+        // Verify the underlying UserDefaults key was physically removed.
+        #expect(try #require(UserDefaults(suiteName: suiteName)).data(forKey: "Test.form") == nil)
+        // Also verify the persistence abstraction returns empty after clear.
         let loaded = try await persistence.load(formId: "form")
         #expect(loaded.isEmpty == true)
     }
@@ -295,11 +294,12 @@ struct FormPersistenceUserDefaultsTests {
     @Test("Key prefix namespacing prevents collision")
     func keyPrefixNamespacing() async throws {
         let suiteName = makeSuiteName()
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults.standard.removePersistentDomain(forName: suiteName) }
 
-        let p1 = FormPersistenceUserDefaults(defaults: defaults, keyPrefix: "feature1")
-        let p2 = FormPersistenceUserDefaults(defaults: defaults, keyPrefix: "feature2")
+        // Both instances intentionally share the same suite — verifying that key prefixes
+        // prevent collisions within a single UserDefaults backing store.
+        let p1 = FormPersistenceUserDefaults(defaults: try #require(UserDefaults(suiteName: suiteName)), keyPrefix: "feature1")
+        let p2 = FormPersistenceUserDefaults(defaults: try #require(UserDefaults(suiteName: suiteName)), keyPrefix: "feature2")
 
         try await p1.save(makeStore(["val": .int(1)]), formId: "settings")
         try await p2.save(makeStore(["val": .int(2)]), formId: "settings")
@@ -314,10 +314,9 @@ struct FormPersistenceUserDefaultsTests {
     @Test("String- and Int-backed enum values survive UserDefaults round-trip")
     func enumRoundTrip() async throws {
         let suiteName = makeSuiteName()
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults.standard.removePersistentDomain(forName: suiteName) }
 
-        let persistence = FormPersistenceUserDefaults(defaults: defaults)
+        let persistence = FormPersistenceUserDefaults(defaults: try #require(UserDefaults(suiteName: suiteName)))
         var store = FormValueStore()
         store.setValue(Status.inactive, for: "status")
         store.setValue(Priority.low, for: "priority")
@@ -334,10 +333,9 @@ struct FormPersistenceUserDefaultsTests {
     @Test("Double-backed enum with raw value 1.0 survives UserDefaults round-trip")
     func doubleBackedEnumRoundTrip() async throws {
         let suiteName = makeSuiteName()
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults.standard.removePersistentDomain(forName: suiteName) }
 
-        let persistence = FormPersistenceUserDefaults(defaults: defaults)
+        let persistence = FormPersistenceUserDefaults(defaults: try #require(UserDefaults(suiteName: suiteName)))
         var store = FormValueStore()
         store.setValue(Scale.normal, for: "scale") // raw value 1.0
 

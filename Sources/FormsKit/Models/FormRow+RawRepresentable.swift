@@ -125,7 +125,7 @@ public extension ButtonRow {
                                title: String,
                                subtitle: String? = nil,
                                onChange: [FormRowAction] = [],
-                               action: @Sendable @escaping () -> Void) where ID.RawValue == String {
+                               action: @MainActor @Sendable @escaping () -> Void) where ID.RawValue == String {
         self.init(
             id: id.rawValue,
             title: title,
@@ -137,7 +137,7 @@ public extension ButtonRow {
 }
 
 public extension InfoRow {
-    init<ID: RawRepresentable>(id: ID, title: String, value: @escaping () -> String) where ID.RawValue == String {
+    init<ID: RawRepresentable>(id: ID, title: String, value: @escaping @Sendable () -> String) where ID.RawValue == String {
         self.init(id: id.rawValue, title: title, value: value)
     }
 }

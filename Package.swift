@@ -1,4 +1,4 @@
-// swift-tools-version:5.9
+// swift-tools-version:6.0
 
 import PackageDescription
 
@@ -21,11 +21,13 @@ let package = Package(
     targets: [
         .target(
             name: "FormsKit",
-            dependencies: []
+            dependencies: [],
+            swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(
             name: "FormsKitTests",
-            dependencies: ["FormsKit"]
+            dependencies: ["FormsKit"],
+            swiftSettings: [.swiftLanguageMode(.v6)]
         )
     ]
 )

@@ -26,6 +26,7 @@ struct ActionTimingTests {
 // MARK: - FormSaveAction Tests
 
 @Suite("FormSaveAction")
+@MainActor
 struct FormSaveActionTests {
     @Test("FormSaveAction stores and calls handler")
     func formSaveActionStoresHandler() {
@@ -53,6 +54,7 @@ struct FormSaveActionTests {
 // MARK: - FormRowAction Tests
 
 @Suite("FormRowAction")
+@MainActor
 struct FormRowActionTests {
     // MARK: - timing
 

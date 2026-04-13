@@ -136,6 +136,7 @@ where RowID.RawValue == String {
 /// - Note: `TypedFormViewModel` is not itself `@Observable`. Observable state lives on
 ///   `viewModel` (which is `@Observable`). Access `form.viewModel.xyz` in SwiftUI views
 ///   to get automatic updates. Use `TypedFormViewModel` methods for all mutations.
+@MainActor
 public final class TypedFormViewModel<RowID: RawRepresentable & Sendable>
 where RowID.RawValue == String {
     // MARK: - Underlying ViewModel
@@ -246,14 +247,12 @@ where RowID.RawValue == String {
 
     /// Validate and persist the current values.
     /// - Returns: `true` if validation passed and persistence succeeded (or no persistence).
-    @MainActor
     @discardableResult
     public func save() async -> Bool {
         await viewModel.save()
     }
 
     /// Load persisted values, merging over row defaults.
-    @MainActor
     public func loadFromPersistence() async {
         await viewModel.loadFromPersistence()
     }
@@ -268,13 +267,11 @@ where RowID.RawValue == String {
     ///
     /// Use this when you need the final persisted values outside of a SwiftUI view
     /// — for example, reading configuration during app startup.
-    @MainActor
     public func awaitReady() async {
         await viewModel.awaitReady()
     }
 
     /// Clear persisted data for this form.
-    @MainActor
     public func clearPersistence() async {
         await viewModel.clearPersistence()
     }

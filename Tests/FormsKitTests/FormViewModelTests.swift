@@ -124,10 +124,10 @@ struct FormViewModelTests {
     // MARK: - Visibility
 
     @Test("Row with no showRow actions targeting it is always visible")
-    func rowWithNoShowActionsIsAlwaysVisible() {
+    func rowWithNoShowActionsIsAlwaysVisible() throws {
         let form = makeForm(rows: [AnyFormRow(BooleanSwitchRow(id: "t", title: "T"))])
         let vm = FormViewModel(formDefinition: form)
-        let row = form.rows.first!
+        let row = try #require(form.rows.first)
         #expect(vm.isRowVisible(row) == true)
     }
 

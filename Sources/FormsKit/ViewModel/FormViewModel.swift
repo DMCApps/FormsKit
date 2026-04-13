@@ -112,6 +112,7 @@ public struct FormError: Sendable, Equatable {
 /// // After the user fills the form and saves:
 /// let name: String? = viewModel.value(for: "name")
 /// ```
+@MainActor
 @Observable
 public final class FormViewModel {
     // MARK: - Observable State
@@ -488,7 +489,6 @@ public final class FormViewModel {
 
     /// Validate and persist the current values.
     /// - Returns: `true` if validation passed and persistence succeeded (or no persistence).
-    @MainActor
     @discardableResult
     public func save() async -> Bool {
         guard status == .ready else { return false }
@@ -551,7 +551,6 @@ public final class FormViewModel {
     /// await form.awaitReady()
     /// api.environment = form.value(for: .apiEnvironment) // guaranteed to be loaded
     /// ```
-    @MainActor
     public func awaitReady() async {
         await loadFromPersistence()
     }
@@ -567,7 +566,6 @@ public final class FormViewModel {
     ///
     /// Use this in tests or when you need to explicitly trigger a retry after
     /// `.loadFailed`. In SwiftUI, prefer observing `status` instead.
-    @MainActor
     public func loadFromPersistence() async {
         if let existing = loadTask, !status.isLoadFailed {
             await existing.value
@@ -580,7 +578,6 @@ public final class FormViewModel {
 
     /// Performs the actual persistence load. Called exclusively from within a stored
     /// `loadTask` — never called directly.
-    @MainActor
     private func performLoad() async {
         // Check and claim the load synchronously before any suspension.
         // Because we're on the MainActor, this is race-free: only the caller
@@ -594,9 +591,9 @@ public final class FormViewModel {
             return
         }
         do {
-            // Hop off the main actor for the I/O call — safe for network-backed backends.
+            // Hop to the persistence actor for the I/O call — main actor is released during await.
             let loaded = try await persistence.load(formId: formDefinition.id)
-            // Back on the main actor (implicit after await on @MainActor func).
+            // Back on the main actor after the persistence actor returns.
             // Cancel pending timers before replacing values so stale tasks
             // don't overwrite errors or trigger actions on the freshly loaded state.
             debounceTimers.values.forEach { $0.cancel() }
@@ -750,14 +747,11 @@ public final class FormViewModel {
         debounceTimers[rowId] = Task { [weak self] in
             try? await Task.sleep(for: .seconds(maxDelay))
             guard !Task.isCancelled else { return }
-            await MainActor.run { [weak self] in
-                self?.runDebouncedValidators(for: rowId)
-            }
+            self?.runDebouncedValidators(for: rowId)
         }
     }
 
     /// Fire all debounced validators for a row (called after the debounce delay).
-    @MainActor
     private func runDebouncedValidators(for rowId: String) {
         guard let row = allRows.first(where: { $0.id == rowId }) else { return }
         let rowErrors = row.validators
@@ -796,9 +790,7 @@ public final class FormViewModel {
                 actionDebounceTimers[timerKey] = Task { [weak self] in
                     try? await Task.sleep(for: .seconds(delay))
                     guard !Task.isCancelled else { return }
-                    await MainActor.run { [weak self] in
-                        self?.executeAction(action, rowId: rowId)
-                    }
+                    self?.executeAction(action, rowId: rowId)
                 }
             }
         }

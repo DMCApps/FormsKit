@@ -4,6 +4,7 @@ import Testing
 // MARK: - InfoRow Tests
 
 @Suite("InfoRow")
+@MainActor
 struct InfoRowTests {
     // MARK: - Construction
 
@@ -106,6 +107,7 @@ struct InfoRowTests {
 // MARK: - FormSaveBehaviour.none Tests
 
 @Suite("FormSaveBehaviour.none")
+@MainActor
 struct FormSaveBehaviourNoneTests {
     @Test("saveBehaviour .none is stored on FormDefinition")
     func saveBehaviourNoneStored() {

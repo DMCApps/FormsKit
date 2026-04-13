@@ -122,6 +122,7 @@ struct FormSectionAnyFormRowWrappingTests {
 // MARK: - FormSection in FormDefinition DSL Tests
 
 @Suite("FormSection in FormDefinition DSL")
+@MainActor
 struct FormSectionInFormDefinitionTests {
     @Test("FormSection used in FormDefinition builder DSL")
     func formSectionInFormDefinitionDSL() {
@@ -174,6 +175,7 @@ struct FormSectionInFormDefinitionTests {
 // MARK: - FormSection Visibility Tests
 
 @Suite("FormSection Visibility")
+@MainActor
 struct FormSectionVisibilityTests {
     @Test("FormSection with no showRow actions is always visible")
     func formSectionAlwaysVisible() {
@@ -188,7 +190,7 @@ struct FormSectionVisibilityTests {
     }
 
     @Test("Hidden section hides all its child rows")
-    func hiddenSectionHidesChildren() {
+    func hiddenSectionHidesChildren() throws {
         let form = FormDefinition(id: "test", title: "Test", saveBehaviour: .none) {
             BooleanSwitchRow(
                 id: "showAdvanced",
@@ -202,7 +204,7 @@ struct FormSectionVisibilityTests {
         }
         let vm = FormViewModel(formDefinition: form)
         let sectionRow = form.rows[1]
-        let childRow = form.rows[1].asType(FormSection.self)!.rows[0]
+        let childRow = try #require(form.rows[1].asType(FormSection.self)).rows[0]
         // Section is hidden because showAdvanced is false.
         #expect(!vm.isRowVisible(sectionRow))
         // Child is also hidden because its parent section is hidden.
@@ -210,7 +212,7 @@ struct FormSectionVisibilityTests {
     }
 
     @Test("Visible section shows all its child rows")
-    func visibleSectionShowsChildren() {
+    func visibleSectionShowsChildren() throws {
         let form = FormDefinition(id: "test", title: "Test", saveBehaviour: .none) {
             BooleanSwitchRow(
                 id: "showAdvanced",
@@ -224,13 +226,13 @@ struct FormSectionVisibilityTests {
         }
         let vm = FormViewModel(formDefinition: form)
         let sectionRow = form.rows[1]
-        let childRow = form.rows[1].asType(FormSection.self)!.rows[0]
+        let childRow = try #require(form.rows[1].asType(FormSection.self)).rows[0]
         #expect(vm.isRowVisible(sectionRow))
         #expect(vm.isRowVisible(childRow))
     }
 
     @Test("Section visibility toggles when controlling row value changes")
-    func sectionVisibilityTogglesOnValueChange() {
+    func sectionVisibilityTogglesOnValueChange() throws {
         let form = FormDefinition(id: "test", title: "Test", saveBehaviour: .none) {
             BooleanSwitchRow(
                 id: "enabled",
@@ -244,7 +246,7 @@ struct FormSectionVisibilityTests {
         }
         let vm = FormViewModel(formDefinition: form)
         let sectionRow = form.rows[1]
-        let childRow = form.rows[1].asType(FormSection.self)!.rows[0]
+        let childRow = try #require(form.rows[1].asType(FormSection.self)).rows[0]
 
         // Initially hidden (enabled = false).
         #expect(!vm.isRowVisible(sectionRow))

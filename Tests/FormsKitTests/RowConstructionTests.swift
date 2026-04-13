@@ -5,6 +5,7 @@ import Testing
 // MARK: - ButtonRow Tests
 
 @Suite("ButtonRow")
+@MainActor
 struct ButtonRowTests {
     // MARK: Construction
 
@@ -109,6 +110,7 @@ struct ButtonRowTests {
 // MARK: - NavigationRow Tests
 
 @Suite("NavigationRow")
+@MainActor
 struct NavigationRowTests {
     // MARK: Construction
 
@@ -225,6 +227,7 @@ struct NavigationRowTests {
 // MARK: - SingleValueRow Tests
 
 @Suite("SingleValueRow")
+@MainActor
 struct SingleValueRowTests {
     enum Colour: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
         case red, green, blue
@@ -554,6 +557,7 @@ struct SingleValueRowTests {
 // MARK: - MultiValueRow Tests
 
 @Suite("MultiValueRow")
+@MainActor
 struct MultiValueRowTests {
     enum Tag: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
         case swift, ios, macos
@@ -698,6 +702,7 @@ struct MultiValueRowTests {
 // MARK: - BooleanSwitchRow Tests
 
 @Suite("BooleanSwitchRow")
+@MainActor
 struct BooleanSwitchRowTests {
     // MARK: Construction
 
@@ -816,6 +821,7 @@ struct BooleanSwitchRowTests {
 // MARK: - TextInputRow Tests
 
 @Suite("TextInputRow")
+@MainActor
 struct TextInputRowTests {
     // MARK: Construction
 
@@ -1271,6 +1277,7 @@ struct FormInputMaskTests {
 // MARK: - NumberInputRow Tests
 
 @Suite("NumberInputRow")
+@MainActor
 struct NumberInputRowTests {
     // MARK: Construction
 

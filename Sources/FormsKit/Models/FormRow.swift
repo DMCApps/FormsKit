@@ -33,11 +33,11 @@ public struct ActionTiming: Sendable {
 /// ```
 public struct FormSaveAction: Sendable {
     /// The closure to execute after a successful save.
-    public let handler: @Sendable (_ store: FormValueStore) -> Void
+    public let handler: @MainActor @Sendable (_ store: FormValueStore) -> Void
 
     /// Create a save action.
     /// - Parameter handler: Closure receiving the final form values at save time.
-    public init(handler: @Sendable @escaping (_ store: FormValueStore) -> Void) {
+    public init(handler: @MainActor @Sendable @escaping (_ store: FormValueStore) -> Void) {
         self.handler = handler
     }
 }
@@ -164,7 +164,7 @@ public enum FormRowAction: Sendable {
     ///   - handler: Closure receiving the current store and the changed row's ID.
     case custom(
         timing: ActionTiming = .immediate,
-        handler: @Sendable (_ store: FormValueStore, _ rowId: String) -> Void
+        handler: @MainActor @Sendable (_ store: FormValueStore, _ rowId: String) -> Void
     )
 
     // MARK: - Internal Helpers
@@ -830,7 +830,7 @@ public struct NumberInputRow: FormRow {
 /// Unlike NavigationRow, this does not navigate to a sub-form — it fires
 /// an arbitrary closure when tapped. Useful for actions like "Unbind User",
 /// "Show Banner", or "Inspect".
-public struct ButtonRow: FormRow, @unchecked Sendable {
+public struct ButtonRow: FormRow {
     public let id: String
     public let title: String
     public let subtitle: String?
@@ -840,14 +840,14 @@ public struct ButtonRow: FormRow, @unchecked Sendable {
     public private(set) var rowStyle: (any FormRowStyle)?
 
     /// The action to perform when the button is tapped.
-    public let action: @Sendable () -> Void
+    public let action: @MainActor @Sendable () -> Void
 
     public init(id: String,
                 title: String,
                 subtitle: String? = nil,
                 onChange: [FormRowAction] = [],
                 style: ButtonRowStyle? = nil,
-                action: @Sendable @escaping () -> Void) {
+                action: @MainActor @Sendable @escaping () -> Void) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
@@ -866,7 +866,7 @@ public struct ButtonRow: FormRow, @unchecked Sendable {
 ///
 /// The `value` is provided as a closure so it is evaluated at render time,
 /// allowing dynamic values that update independently of the form definition.
-public struct InfoRow: FormRow, @unchecked Sendable {
+public struct InfoRow: FormRow {
     public let id: String
     public let title: String
     public let subtitle: String? = nil
@@ -876,9 +876,9 @@ public struct InfoRow: FormRow, @unchecked Sendable {
     public private(set) var rowStyle: (any FormRowStyle)?
 
     /// Closure evaluated at render time to produce the value string shown on the trailing side.
-    public let value: () -> String
+    public let value: @Sendable () -> String
 
-    public init(id: String, title: String, style: InfoRowStyle? = nil, value: @escaping () -> String) {
+    public init(id: String, title: String, style: InfoRowStyle? = nil, value: @escaping @Sendable () -> String) {
         self.id = id
         self.title = title
         self.rowStyle = style
@@ -906,7 +906,7 @@ public struct InfoRow: FormRow, @unchecked Sendable {
 ///     }
 /// }
 /// ```
-public struct FormSection: FormRow, @unchecked Sendable {
+public struct FormSection: FormRow {
     public let id: String
     public let title: String
     public let subtitle: String? = nil
@@ -968,7 +968,7 @@ public struct FormSection: FormRow, @unchecked Sendable {
 ///     }
 /// }
 /// ```
-public struct CollapsibleSection: FormRow, @unchecked Sendable {
+public struct CollapsibleSection: FormRow {
     public let id: String
     public let title: String
     public let subtitle: String? = nil

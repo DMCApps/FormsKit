@@ -5,7 +5,12 @@ import Foundation
 /// Called when `AnyCodableValue.from(_:)` cannot encode a value.
 /// Defaults to `assertionFailure` so bugs surface immediately in debug builds.
 /// Tests can replace this with a closure that records the failure without crashing.
-var anyCodableValueEncodingFailure: (_ message: String) -> Void = { message in
+///
+/// `nonisolated(unsafe)` is safe here because:
+/// - In production this var is never written — only the default closure is read.
+/// - In tests it is written once during single-threaded setup, before any concurrent
+///   test execution begins. No two tests write to it concurrently.
+nonisolated(unsafe) var anyCodableValueEncodingFailure: (_ message: String) -> Void = { message in
     assertionFailure(message)
 }
 

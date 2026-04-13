@@ -33,7 +33,11 @@ A declarative, type-safe form building framework for SwiftUI on iOS 17+. FormKit
 ## Requirements
 
 - iOS 17+
-- Swift 5.9+
+- Swift 6+ (Xcode 16+)
+
+> **Note:** Projects using an older toolchain version in their own `Package.swift` can still
+> import FormsKit — Swift language mode is per-target. However, **building** FormsKit itself
+> requires a Swift 6-capable compiler.
 
 ---
 

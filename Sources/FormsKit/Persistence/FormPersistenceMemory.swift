@@ -5,8 +5,7 @@ import Foundation
 /// In-memory persistence backed by a dictionary.
 /// Data is retained as long as this instance is alive.
 /// Suitable for use during testing or when you want transient save/load within a session.
-public final class FormPersistenceMemory: FormPersistence, @unchecked Sendable {
-    private let lock = NSLock()
+public actor FormPersistenceMemory: FormPersistence {
     private var storage: [String: FormValueStore] = [:]
 
     /// Optional prefix added to all form IDs to namespace this instance.
@@ -20,22 +19,15 @@ public final class FormPersistenceMemory: FormPersistence, @unchecked Sendable {
     // MARK: FormPersistence
 
     public func save(_ values: FormValueStore, formId: String) async throws {
-        lock.withLock {
-            storage[prefixedKey(formId)] = values
-        }
+        storage[prefixedKey(formId)] = values
     }
 
     public func load(formId: String) async throws -> FormValueStore {
-        lock.withLock {
-            storage[prefixedKey(formId)] ?? FormValueStore()
-        }
+        storage[prefixedKey(formId)] ?? FormValueStore()
     }
 
     public func clear(formId: String) async throws {
-        let key = prefixedKey(formId)
-        lock.withLock {
-            _ = storage.removeValue(forKey: key)
-        }
+        storage.removeValue(forKey: prefixedKey(formId))
     }
 
     // MARK: Helpers
