@@ -115,6 +115,21 @@ struct ContentView: View {
                     .padding(.vertical, 2)
                 }
             }
+
+            Section("Concurrency") {
+                NavigationLink {
+                    CrossActorExampleView()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Cross-Actor Access")
+                            .font(.body)
+                        Text("Read form values from background threads via valueStream + OSAllocatedUnfairLock")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
         }
         .navigationTitle("FormKit")
     }
