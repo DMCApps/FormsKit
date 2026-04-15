@@ -876,9 +876,10 @@ public struct InfoRow: FormRow {
     public private(set) var rowStyle: (any FormRowStyle)?
 
     /// Closure evaluated at render time to produce the value string shown on the trailing side.
-    public let value: @Sendable () -> String
+    /// Always called on the main actor — callers may safely reference `@MainActor`-isolated state.
+    public let value: @MainActor () -> String
 
-    public init(id: String, title: String, style: InfoRowStyle? = nil, value: @escaping @Sendable () -> String) {
+    public init(id: String, title: String, style: InfoRowStyle? = nil, value: @escaping @MainActor () -> String) {
         self.id = id
         self.title = title
         self.rowStyle = style

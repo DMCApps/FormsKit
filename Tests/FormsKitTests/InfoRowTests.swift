@@ -17,7 +17,7 @@ struct InfoRowTests {
 
     @Test("InfoRow value closure is evaluated at call time")
     func infoRowValueClosureEvaluatedAtCallTime() {
-        nonisolated(unsafe) var counter = 0
+        var counter = 0
         let row = InfoRow(id: "counter", title: "Counter", value: {
             counter += 1
             return "call \(counter)"
@@ -27,12 +27,13 @@ struct InfoRowTests {
         #expect(counter == 2)
     }
 
-    @Test("InfoRow value closure captures mutable state")
-    func infoRowValueClosureCapturesMutableState() {
-        nonisolated(unsafe) var state = "initial"
-        let row = InfoRow(id: "state", title: "State", value: { state })
+    @Test("InfoRow value closure reflects reference type mutations")
+    func infoRowValueClosureReflectsMutations() {
+        final class Box { var value: String; init(_ v: String) { self.value = v } }
+        let box = Box("initial")
+        let row = InfoRow(id: "state", title: "State", value: { box.value })
         #expect(row.value() == "initial")
-        state = "updated"
+        box.value = "updated"
         #expect(row.value() == "updated")
     }
 
