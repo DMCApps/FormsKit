@@ -117,7 +117,81 @@ public struct FormError: Sendable, Equatable {
 public final class FormViewModel {
     // MARK: - Observable State
 
-    /// Current form values, keyed by row ID.
+    /// The live form state, keyed by row ID.
+    ///
+    /// This property is `@MainActor`-isolated because `FormViewModel` is `@MainActor`.
+    /// `FormValueStore` is a `Sendable` value type — any read of `values` produces
+    /// an independent copy at that instant, which can be freely passed to any
+    /// isolation domain. The isolation constraint is on accessing the property,
+    /// not on using the value once you have it.
+    ///
+    /// **`@MainActor` consumers** (SwiftUI view models, coordinators)
+    ///
+    /// Mark the consuming type `@MainActor` and read `values` directly:
+    ///
+    /// ```swift
+    /// @MainActor
+    /// class MyViewModel {
+    ///     let form: FormViewModel
+    ///     var isEnabled: Bool { form.value(for: "enabled") ?? false }
+    /// }
+    /// ```
+    ///
+    /// **Non-`@MainActor` consumers** (networking, feature flags, debug tools)
+    ///
+    /// Because `FormValueStore` is a value type, reading `values` on the main
+    /// actor gives you a point-in-time copy — a snapshot. The recommended pattern
+    /// is to observe changes on the main actor and push each snapshot into a
+    /// lock-protected container that non-UI code reads synchronously, with no
+    /// `async`/`await` at the call site.
+    ///
+    /// `values` is public, so the `valueStream` helper below can be written as
+    /// an extension in your own module — no changes to FormsKit are required:
+    ///
+    /// ```swift
+    /// // Extension in your module — observes values and streams snapshots.
+    /// extension FormViewModel {
+    ///     var valueStream: AsyncStream<FormValueStore> {
+    ///         AsyncStream { continuation in
+    ///             func observe() {
+    ///                 withObservationTracking {
+    ///                     continuation.yield(values)  // yields a value-type copy
+    ///                 } onChange: {
+    ///                     Task { @MainActor in observe() }
+    ///                 }
+    ///             }
+    ///             observe()
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// // Thread-safe container — readable from any context.
+    /// final class DebugSettings: @unchecked Sendable {
+    ///     static let shared = DebugSettings()
+    ///     private let lock = OSAllocatedUnfairLock(initialState: FormValueStore())
+    ///
+    ///     func value<T: Decodable>(for key: some RawRepresentable<String>) -> T? {
+    ///         lock.withLock { $0.value(for: key.rawValue) }
+    ///     }
+    ///
+    ///     fileprivate func update(from store: FormValueStore) {
+    ///         lock.withLock { $0 = store }
+    ///     }
+    /// }
+    ///
+    /// // Wire up once (e.g. in your debug menu coordinator).
+    /// Task { @MainActor in
+    ///     for await snapshot in form.valueStream {
+    ///         DebugSettings.shared.update(from: snapshot)
+    ///     }
+    /// }
+    ///
+    /// // Read from any thread — no actor ceremony needed.
+    /// func buildRequest() -> URLRequest {
+    ///     let param: String? = DebugSettings.shared.value(for: MyRow.apiParam)
+    ///     // ...
+    /// }
+    /// ```
     public private(set) var values: FormValueStore
 
     /// Validation errors keyed by row ID.

@@ -24,6 +24,7 @@ A declarative, type-safe form building framework for SwiftUI on iOS 17+. FormKit
   - [Row Style Reference](#row-style-reference)
 - [Type-Safe API](#type-safe-api)
 - [FormViewModel](#formviewmodel)
+- [Reading Values Outside the Main Actor](#reading-values-outside-the-main-actor)
 - [Value Model](#value-model)
 - [Example App](#example-app)
 - [Accessibility Identifiers](#accessibility-identifiers)
@@ -1171,6 +1172,96 @@ case .saving:              // Save in progress
 case .loadFailed(let err): // Load failed — defaults shown
 }
 ```
+
+---
+
+## Reading Values Outside the Main Actor
+
+`FormViewModel` is `@MainActor`-isolated, which means all access to its properties — including `values` — must occur on the main actor. This is the right default for UI code, but it creates friction when form values need to drive non-UI logic such as networking, feature flags, or debug configuration.
+
+### Why the constraint exists
+
+`FormValueStore` itself is a plain `Sendable` value type with no actor requirements. The isolation comes from *where it lives*: as a property on a `@MainActor` class. Swift 6 strict concurrency enforces this at compile time. The name `values` reflects that this is live, current state — not a renamed `snapshot` accessor — because `@MainActor` consumers are always reading the real current value. The snapshot semantics emerge naturally from `FormValueStore` being a value type: any read across an isolation boundary produces an independent copy at that instant.
+
+### For `@MainActor` consumers (view models, coordinators)
+
+Mark the consuming type `@MainActor` and access `values` directly — no wrapping needed:
+
+```swift
+@MainActor
+class SettingsCoordinator {
+    let form: FormViewModel
+
+    var notificationsEnabled: Bool {
+        form.value(for: "notifications") ?? false
+    }
+}
+```
+
+### For non-`@MainActor` consumers (networking, feature flags, debug tools)
+
+Because `FormValueStore` is a value type, reading `values` on the main actor gives you a point-in-time copy. The recommended pattern is to observe `values` on the main actor and push each copy into a lock-protected container that non-UI code reads synchronously — no `async`/`await` at the call site.
+
+`FormViewModel.values` is public, so the `valueStream` helper below is written as an extension in your own module. No changes to FormsKit are required.
+
+**Step 1 — Add a `valueStream` extension on `FormViewModel`:**
+
+```swift
+extension FormViewModel {
+    var valueStream: AsyncStream<FormValueStore> {
+        AsyncStream { continuation in
+            func observe() {
+                withObservationTracking {
+                    continuation.yield(values)  // yields a value-type copy at this instant
+                } onChange: {
+                    Task { @MainActor in observe() }
+                }
+            }
+            observe()
+        }
+    }
+}
+```
+
+**Step 2 — Define a thread-safe container in your module:**
+
+```swift
+final class DebugSettings: @unchecked Sendable {
+    static let shared = DebugSettings()
+    private let lock = OSAllocatedUnfairLock(initialState: FormValueStore())
+
+    func value<T: Decodable>(for key: some RawRepresentable<String>) -> T? {
+        lock.withLock { $0.value(for: key.rawValue) }
+    }
+
+    fileprivate func update(from store: FormValueStore) {
+        lock.withLock { $0 = store }
+    }
+}
+```
+
+**Step 3 — Wire it up once (e.g. in your debug menu coordinator):**
+
+```swift
+Task { @MainActor in
+    for await snapshot in form.valueStream {
+        DebugSettings.shared.update(from: snapshot)
+    }
+}
+```
+
+**Step 4 — Read from any thread without actor ceremony:**
+
+```swift
+func buildRequest() -> URLRequest {
+    let override: String? = DebugSettings.shared.value(for: DebugRow.apiBaseURL)
+    // use override to modify the request...
+}
+```
+
+### Why not `MainActor.assumeIsolated`?
+
+`MainActor.assumeIsolated { form.value(for: "key") }` works when you know the call site is always on the main thread (e.g. a UIKit callback). However, it is a runtime assertion rather than a compile-time guarantee, and it does not compose well in non-UI layers. The pattern above crosses the isolation boundary once and stores a freely readable copy, giving you both type safety and synchronous access.
 
 ---
 
