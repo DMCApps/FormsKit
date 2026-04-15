@@ -1891,3 +1891,110 @@ struct FormViewModelTests {
         #expect(vm.errorsForRow("confirm").isEmpty)
     }
 }
+
+// MARK: - SingleValueRow enum round-trip tests
+
+/// Shared enum types for picker selection round-trip tests.
+private enum RTPriority: Int, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+    case low = 1, medium = 2, high = 3
+    var description: String { rawValue.description }
+}
+
+private enum RTCode: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+    case first = "1", second = "2", third = "3"
+    var description: String { rawValue }
+}
+
+private enum RTColour: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+    case red, green, blue
+    var description: String { rawValue }
+}
+
+@Suite("SingleValueRow picker selection round-trip")
+@MainActor
+struct SingleValueRowPickerRoundTripTests {
+
+    // MARK: Int-backed enum
+
+    @Test("Int-backed enum: selecting via anyCodableValue(for:) round-trips through FormViewModel")
+    func intBackedEnumRoundTripViaAnyCodableValue() {
+        let row = SingleValueRow<RTPriority>(id: "priority", title: "Priority")
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        // Simulate what SingleValueRowView will do after the fix:
+        // get the storedValue string from pickerOptions, resolve it back to AnyCodableValue,
+        // then call setValue — not setString.
+        let storedValue = row.pickerOptions.first(where: { $0.label == "2" })!.storedValue
+        let codable = row.anyCodableValue(for: storedValue)!
+        vm.setValue(codable, for: "priority")
+
+        let result: RTPriority? = vm.value(for: "priority")
+        #expect(result == .medium)
+    }
+
+    @Test("Int-backed enum: all cases round-trip correctly")
+    func intBackedEnumAllCasesRoundTrip() {
+        let row = SingleValueRow<RTPriority>(id: "priority", title: "Priority")
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        for option in RTPriority.allCases {
+            let storedValue = row.pickerOptions.first(where: { $0.label == option.description })!.storedValue
+            let codable = row.anyCodableValue(for: storedValue)!
+            vm.setValue(codable, for: "priority")
+            let result: RTPriority? = vm.value(for: "priority")
+            #expect(result == option, "Expected \(option) but got \(String(describing: result))")
+        }
+    }
+
+    // MARK: String-backed enum with numeric rawValue
+
+    @Test("String-backed enum with numeric rawValue round-trips correctly")
+    func stringBackedEnumWithNumericRawValueRoundTrip() {
+        let row = SingleValueRow<RTCode>(id: "code", title: "Code")
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        let storedValue = row.pickerOptions.first(where: { $0.label == "2" })!.storedValue
+        let codable = row.anyCodableValue(for: storedValue)!
+        vm.setValue(codable, for: "code")
+
+        let result: RTCode? = vm.value(for: "code")
+        #expect(result == .second)
+    }
+
+    // MARK: String-backed enum (baseline — must remain unaffected)
+
+    @Test("String-backed enum round-trips correctly (baseline)")
+    func stringBackedEnumBaselineRoundTrip() {
+        let row = SingleValueRow<RTColour>(id: "colour", title: "Colour")
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        let storedValue = row.pickerOptions.first(where: { $0.label == "green" })!.storedValue
+        let codable = row.anyCodableValue(for: storedValue)!
+        vm.setValue(codable, for: "colour")
+
+        let result: RTColour? = vm.value(for: "colour")
+        #expect(result == .green)
+    }
+
+    // MARK: Type-erased protocol path
+
+    @Test("Int-backed enum round-trips via type-erased SingleValueRowRepresentable")
+    func intBackedEnumRoundTripViaProtocol() {
+        let row = SingleValueRow<RTPriority>(id: "priority", title: "Priority")
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        // The view holds `any SingleValueRowRepresentable` — verify the protocol path works.
+        let representable: any SingleValueRowRepresentable = row
+        let storedValue = representable.pickerOptions.first(where: { $0.label == "3" })!.storedValue
+        let codable = representable.anyCodableValue(for: storedValue)!
+        vm.setValue(codable, for: "priority")
+
+        let result: RTPriority? = vm.value(for: "priority")
+        #expect(result == .high)
+    }
+}

@@ -290,6 +290,16 @@ public protocol SingleValueRowRepresentable: FormRow {
     /// Pass `nil` (the default) to show no placeholder — the picker will display
     /// whichever item SwiftUI naturally selects. Not shown for `.segmented` style.
     var placeholder: String? { get }
+
+    /// Returns the correctly-typed `AnyCodableValue` for a given `storedValue` string.
+    ///
+    /// The picker view stores option keys as `String` (via `pickerOptions.storedValue`) but
+    /// must write the correct backing type to the store — e.g. `.int(2)` for an `Int`-backed
+    /// enum, not `.string("2")`. This method performs the reverse lookup: find the matching
+    /// option and re-encode it via `AnyCodableValue.from(_:)`.
+    ///
+    /// Returns `nil` when no option matches `storedValue`, or when encoding produces `.null`.
+    func anyCodableValue(for storedValue: String) -> AnyCodableValue?
 }
 
 public extension SingleValueRowRepresentable {
@@ -403,6 +413,16 @@ public struct SingleValueRow<T>: FormRow, SingleValueRowRepresentable
             let encoded = AnyCodableValue.from(option)
             return encoded != .null ? encoded.displayString : option.description
         }
+    }
+
+    public func anyCodableValue(for storedValue: String) -> AnyCodableValue? {
+        guard let match = options.first(where: { option in
+            let encoded = AnyCodableValue.from(option)
+            let sv = encoded != .null ? encoded.displayString : option.description
+            return sv == storedValue
+        }) else { return nil }
+        let encoded = AnyCodableValue.from(match)
+        return encoded != .null ? encoded : nil
     }
 
     public init(id: String,

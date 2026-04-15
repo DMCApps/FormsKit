@@ -552,6 +552,85 @@ struct SingleValueRowTests {
         let value: String? = vm.value(for: "c")
         #expect(value == nil)
     }
+
+    // MARK: anyCodableValue(for:)
+
+    @Test("anyCodableValue(for:) returns .string for String-backed enum storedValue")
+    func anyCodableValueForStringBackedEnum() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        #expect(row.anyCodableValue(for: "red") == .string("red"))
+        #expect(row.anyCodableValue(for: "green") == .string("green"))
+        #expect(row.anyCodableValue(for: "blue") == .string("blue"))
+    }
+
+    @Test("anyCodableValue(for:) returns .int for Int-backed enum storedValue")
+    func anyCodableValueForIntBackedEnum() {
+        enum Priority: Int, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            case low = 1, medium = 2, high = 3
+            var description: String { rawValue.description }
+        }
+        let row = SingleValueRow<Priority>(id: "priority", title: "Priority")
+        // storedValues are "1", "2", "3" (displayString of .int)
+        #expect(row.anyCodableValue(for: "1") == .int(1))
+        #expect(row.anyCodableValue(for: "2") == .int(2))
+        #expect(row.anyCodableValue(for: "3") == .int(3))
+    }
+
+    @Test("anyCodableValue(for:) returns .string for String-backed enum with numeric rawValue")
+    func anyCodableValueForStringBackedEnumWithNumericRawValue() {
+        enum Code: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            case first = "1", second = "2"
+            var description: String { rawValue }
+        }
+        let row = SingleValueRow<Code>(id: "code", title: "Code")
+        // Both Int-backed and String-backed share storedValue "1"/"2" —
+        // result must be .string (not .int) because T is String-backed.
+        #expect(row.anyCodableValue(for: "1") == .string("1"))
+        #expect(row.anyCodableValue(for: "2") == .string("2"))
+    }
+
+    @Test("anyCodableValue(for:) returns nil for unknown storedValue")
+    func anyCodableValueForUnknownStoredValue() {
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        #expect(row.anyCodableValue(for: "purple") == nil)
+        #expect(row.anyCodableValue(for: "") == nil)
+    }
+
+    @Test("anyCodableValue(for:) is accessible via SingleValueRowRepresentable protocol")
+    func anyCodableValueViaProtocol() {
+        enum Priority: Int, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            case low = 1, medium = 2, high = 3
+            var description: String { rawValue.description }
+        }
+        let row = SingleValueRow<Priority>(id: "priority", title: "Priority")
+        let representable: any SingleValueRowRepresentable = row
+        #expect(representable.anyCodableValue(for: "2") == .int(2))
+        #expect(representable.anyCodableValue(for: "unknown") == nil)
+    }
+
+    @Test("anyCodableValue(for:) falls back to description match for unencodable type")
+    func anyCodableValueFallsBackToDescriptionForUnencodableType() {
+        struct Broken: CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            static let allCases: [Broken] = [Broken(label: "Alpha"), Broken(label: "Beta")]
+            let label: String
+            var description: String { label }
+            init(label: String) { self.label = label }
+            init(from decoder: Decoder) throws {
+                let c = try decoder.singleValueContainer()
+                self.label = try c.decode(String.self)
+            }
+            func encode(to encoder: Encoder) throws { throw EncodingError.invalidValue(label, .init(codingPath: [], debugDescription: "")) }
+        }
+        let previous = anyCodableValueEncodingFailure
+        anyCodableValueEncodingFailure = { _ in }
+        defer { anyCodableValueEncodingFailure = previous }
+
+        let row = SingleValueRow<Broken>(id: "broken", title: "Broken")
+        // storedValue falls back to description; anyCodableValue must return .null (from(.null))
+        // or nil since AnyCodableValue.from returns .null for unencodable — and .null is not
+        // a useful stored value so the method returns nil.
+        #expect(row.anyCodableValue(for: "Alpha") == nil)
+    }
 }
 
 // MARK: - MultiValueRow Tests

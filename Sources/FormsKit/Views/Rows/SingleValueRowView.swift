@@ -115,7 +115,15 @@ struct SingleValueRowView: View {
             get: { currentStoredValue },
             set: { newValue in
                 if let newValue {
-                    viewModel.setString(newValue, for: rowId)
+                    // Resolve the storedValue string back to the correctly-typed AnyCodableValue
+                    // (e.g. .int(2) for Int-backed enums, not .string("2")). Falls back to
+                    // setString only when anyCodableValue(for:) returns nil, which should not
+                    // occur for any valid option produced by pickerOptions.
+                    if let codable = row.anyCodableValue(for: newValue) {
+                        viewModel.setValue(codable, for: rowId)
+                    } else {
+                        viewModel.setString(newValue, for: rowId)
+                    }
                 } else {
                     viewModel.setValue(nil, for: rowId)
                 }
