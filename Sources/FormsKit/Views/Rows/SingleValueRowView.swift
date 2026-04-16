@@ -13,8 +13,17 @@ struct SingleValueRowView: View {
     private var style: SingleValueRowStyle? { row.rowStyle as? SingleValueRowStyle }
 
     /// The stored value of the currently selected option, or `nil` when nothing is selected.
+    ///
+    /// Reads the raw `AnyCodableValue` and converts to `displayString` so the result matches
+    /// the `storedValue` format used by `pickerOptions` regardless of the backing type
+    /// (e.g. `.int(1)` → `"1"` for Int-backed enums, `.string("stage")` → `"stage"` for
+    /// String-backed enums). Falling back to `typed(String.self)` would return `nil` for
+    /// non-String-backed types after the value is stored with its correct `AnyCodableValue` case.
     private var currentStoredValue: String? {
-        viewModel.value(for: rowId) ?? row.defaultStoredValue
+        guard let raw = viewModel.rawValue(for: rowId), raw != .null else {
+            return row.defaultStoredValue
+        }
+        return raw.displayString
     }
 
     /// The effective picker style after platform remapping.

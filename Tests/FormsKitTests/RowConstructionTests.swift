@@ -419,6 +419,66 @@ struct SingleValueRowTests {
         #expect(value == "green")
     }
 
+    // MARK: currentStoredValue resolution
+
+    @Test("rawValue displayString matches pickerOptions storedValue for String-backed enum after selection")
+    func stringBackedEnumRawValueMatchesPickerStoredValue() {
+        // Verifies that reading via rawValue(for:).displayString produces the same string as
+        // pickerOptions.storedValue — the contract currentStoredValue relies on.
+        let row = SingleValueRow<Colour>(id: "colour", title: "Colour")
+        let form = FormDefinition(id: "f", title: "T", rows: [AnyFormRow(row)], saveBehaviour: .none)
+        let vm = FormViewModel(formDefinition: form)
+
+        let storedValue = row.pickerOptions.first(where: { $0.label == "green" })!.storedValue
+        vm.setValue(row.anyCodableValue(for: storedValue)!, for: "colour")
+
+        let raw = vm.rawValue(for: "colour")
+        #expect(raw?.displayString == storedValue)
+    }
+
+    @Test("rawValue displayString matches pickerOptions storedValue for Double-backed enum after selection")
+    func doubleBackedEnumRawValueMatchesPickerStoredValue() {
+        enum Scale: Double, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            case half = 0.5, full = 1.0, double = 2.0
+            var description: String { rawValue.description }
+        }
+        let row = SingleValueRow<Scale>(id: "scale", title: "Scale")
+        let form = FormDefinition(id: "f", title: "T", rows: [AnyFormRow(row)], saveBehaviour: .none)
+        let vm = FormViewModel(formDefinition: form)
+
+        // Fractional: stored as .double(0.5), displayString "0.5"
+        let halfStoredValue = row.pickerOptions.first(where: { $0.label == "0.5" })!.storedValue
+        vm.setValue(row.anyCodableValue(for: halfStoredValue)!, for: "scale")
+        #expect(vm.rawValue(for: "scale")?.displayString == halfStoredValue)
+
+        // Whole-number: stored as .int(1), displayString "1"
+        let fullStoredValue = row.pickerOptions.first(where: { $0.label == "1.0" })!.storedValue
+        vm.setValue(row.anyCodableValue(for: fullStoredValue)!, for: "scale")
+        #expect(vm.rawValue(for: "scale")?.displayString == fullStoredValue)
+    }
+
+    @Test("rawValue displayString matches pickerOptions storedValue for Int-backed enum after selection")
+    func intBackedEnumRawValueMatchesPickerStoredValue() {
+        // Regression: after the anyCodableValue(for:) fix, Int-backed enums are stored as
+        // .int(N). currentStoredValue must use rawValue.displayString (not typed(String.self))
+        // or it returns nil and the picker snaps back to the default.
+        enum Priority: Int, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            case low = 1, medium = 2, high = 3
+            var description: String { rawValue.description }
+        }
+        let row = SingleValueRow<Priority>(id: "priority", title: "Priority")
+        let form = FormDefinition(id: "f", title: "T", rows: [AnyFormRow(row)], saveBehaviour: .none)
+        let vm = FormViewModel(formDefinition: form)
+
+        let storedValue = row.pickerOptions.first(where: { $0.label == "2" })!.storedValue // "2"
+        vm.setValue(row.anyCodableValue(for: storedValue)!, for: "priority") // stores .int(2)
+
+        // rawValue is .int(2); displayString is "2" — must equal storedValue so picker stays on medium.
+        let raw = vm.rawValue(for: "priority")
+        #expect(raw == .int(2))
+        #expect(raw?.displayString == storedValue)
+    }
+
     // MARK: Placeholder
 
     @Test("SingleValueRow placeholder is nil by default")
@@ -596,6 +656,22 @@ struct SingleValueRowTests {
         #expect(row.anyCodableValue(for: "") == nil)
     }
 
+    @Test("anyCodableValue(for:) returns correct AnyCodableValue for Double-backed enum storedValue")
+    func anyCodableValueForDoubleBackedEnum() {
+        enum Scale: Double, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            case half = 0.5, full = 1.0, double = 2.0
+            var description: String { rawValue.description }
+        }
+        let row = SingleValueRow<Scale>(id: "scale", title: "Scale")
+        // Whole-number values: AnyCodableValue.from stores as .int (Int tried before Double).
+        // storedValue = displayString of .int(1) = "1", anyCodableValue must return .int(1).
+        #expect(row.anyCodableValue(for: "1.0") == nil)   // "1.0" is not the storedValue — "1" is
+        #expect(row.anyCodableValue(for: "1") == .int(1)) // full = 1.0 → .int(1)
+        #expect(row.anyCodableValue(for: "2") == .int(2)) // double = 2.0 → .int(2)
+        // Fractional value: stored as .double.
+        #expect(row.anyCodableValue(for: "0.5") == .double(0.5))
+    }
+
     @Test("anyCodableValue(for:) is accessible via SingleValueRowRepresentable protocol")
     func anyCodableValueViaProtocol() {
         enum Priority: Int, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
@@ -606,6 +682,55 @@ struct SingleValueRowTests {
         let representable: any SingleValueRowRepresentable = row
         #expect(representable.anyCodableValue(for: "2") == .int(2))
         #expect(representable.anyCodableValue(for: "unknown") == nil)
+    }
+
+    @Test("anyCodableValue(for:) round-trips a struct that encodes to a JSON primitive")
+    func anyCodableValueForStructEncodingToPrimitive() {
+        // A struct whose Codable representation is a single JSON string is stored as
+        // .string(_) by AnyCodableValue.from() and round-trips correctly — same path
+        // as a String-backed enum.
+        struct Token: CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            static let allCases: [Token] = [Token(raw: "read"), Token(raw: "write")]
+            let raw: String
+            var description: String { raw }
+            init(raw: String) { self.raw = raw }
+            init(from decoder: Decoder) throws { raw = try decoder.singleValueContainer().decode(String.self) }
+            func encode(to encoder: Encoder) throws {
+                var c = encoder.singleValueContainer()
+                try c.encode(raw)
+            }
+        }
+        let row = SingleValueRow<Token>(id: "token", title: "Token")
+        // Encodes to .string("read") — not .null — so anyCodableValue returns a non-nil value.
+        #expect(row.anyCodableValue(for: "read") == .string("read"))
+        #expect(row.anyCodableValue(for: "write") == .string("write"))
+        #expect(row.anyCodableValue(for: "admin") == nil)
+    }
+
+    @Test("anyCodableValue(for:) returns nil for struct encoding to JSON object")
+    func anyCodableValueForStructEncodingToJsonObject() {
+        // A struct whose Codable representation is a JSON object cannot be stored in
+        // AnyCodableValue (no object/dict case). AnyCodableValue.from() returns .null,
+        // so anyCodableValue(for:) returns nil and the view falls back to setString(description).
+        // Typed readback (vm.value(for:) as MyStruct?) will also fail for these types.
+        struct Pair: CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            static let allCases: [Pair] = [Pair(a: "x", b: 1)]
+            let a: String
+            let b: Int
+            var description: String { "\(a):\(b)" }
+        }
+        // Suppress assertionFailure — encoding to AnyCodableValue fails (JSON object case)
+        // but this is the documented limitation we're testing, not a bug.
+        let previous = anyCodableValueEncodingFailure
+        anyCodableValueEncodingFailure = { _ in }
+        defer { anyCodableValueEncodingFailure = previous }
+
+        let row = SingleValueRow<Pair>(id: "pair", title: "Pair")
+        // storedValue falls back to description ("x:1") because encoded == .null.
+        let storedValue = row.pickerOptions.first!.storedValue
+        #expect(storedValue == "x:1")
+        // anyCodableValue returns nil — no usable AnyCodableValue representation exists.
+        #expect(row.anyCodableValue(for: "x:1") == nil)
     }
 
     @Test("anyCodableValue(for:) falls back to description match for unencodable type")

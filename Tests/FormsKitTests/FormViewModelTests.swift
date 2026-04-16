@@ -1905,6 +1905,11 @@ private enum RTCode: String, CaseIterable, CustomStringConvertible, Hashable, Co
     var description: String { rawValue }
 }
 
+private enum RTScale: Double, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+    case half = 0.5, full = 1.0, double = 2.0
+    var description: String { rawValue.description }
+}
+
 private enum RTColour: String, CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
     case red, green, blue
     var description: String { rawValue }
@@ -1978,6 +1983,68 @@ struct SingleValueRowPickerRoundTripTests {
 
         let result: RTColour? = vm.value(for: "colour")
         #expect(result == .green)
+    }
+
+    // MARK: Double-backed enum
+
+    @Test("Double-backed enum: fractional value round-trips correctly")
+    func doubleBackedEnumFractionalRoundTrip() {
+        let row = SingleValueRow<RTScale>(id: "scale", title: "Scale")
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        let storedValue = row.pickerOptions.first(where: { $0.label == "0.5" })!.storedValue
+        let codable = row.anyCodableValue(for: storedValue)!
+        vm.setValue(codable, for: "scale")
+
+        let result: RTScale? = vm.value(for: "scale")
+        #expect(result == .half)
+    }
+
+    @Test("Double-backed enum: whole-number value round-trips correctly")
+    func doubleBackedEnumWholeNumberRoundTrip() {
+        // whole-number doubles are stored as .int by AnyCodableValue — the round-trip
+        // must still recover the correct enum case via the JSON slow path in typed<T>.
+        let row = SingleValueRow<RTScale>(id: "scale", title: "Scale")
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        let storedValue = row.pickerOptions.first(where: { $0.label == "1.0" })!.storedValue
+        let codable = row.anyCodableValue(for: storedValue)!
+        vm.setValue(codable, for: "scale")
+
+        let result: RTScale? = vm.value(for: "scale")
+        #expect(result == .full)
+    }
+
+    // MARK: Struct encoding to JSON primitive
+
+    @Test("Struct encoding to JSON primitive round-trips through FormViewModel")
+    func structEncodingToPrimitiveRoundTrip() {
+        // A struct whose Codable representation is a single JSON string behaves
+        // identically to a String-backed enum — AnyCodableValue stores it as .string(_)
+        // and typed readback via the JSON slow path recovers the original value.
+        struct Token: CaseIterable, CustomStringConvertible, Hashable, Codable, Sendable {
+            static let allCases: [Token] = [Token(raw: "read"), Token(raw: "write")]
+            let raw: String
+            var description: String { raw }
+            init(raw: String) { self.raw = raw }
+            init(from decoder: Decoder) throws { raw = try decoder.singleValueContainer().decode(String.self) }
+            func encode(to encoder: Encoder) throws {
+                var c = encoder.singleValueContainer()
+                try c.encode(raw)
+            }
+        }
+        let row = SingleValueRow<Token>(id: "token", title: "Token")
+        let form = makeForm(rows: [AnyFormRow(row)])
+        let vm = FormViewModel(formDefinition: form)
+
+        let storedValue = row.pickerOptions.first(where: { $0.label == "write" })!.storedValue
+        let codable = row.anyCodableValue(for: storedValue)!
+        vm.setValue(codable, for: "token")
+
+        let result: Token? = vm.value(for: "token")
+        #expect(result == Token(raw: "write"))
     }
 
     // MARK: Type-erased protocol path
