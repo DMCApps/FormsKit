@@ -775,6 +775,67 @@ public struct TextInputRow: FormRow {
     }
 }
 
+// MARK: - LongFormTextRow
+
+/// A multi-line text entry row. The field grows vertically from `minLineCount`
+/// to `maxLineCount` lines, then scrolls internally. Ideal for notes,
+/// descriptions, and other long-form text.
+///
+/// Values are stored as `.string(...)` in the form value store, identical to
+/// `TextInputRow`.
+///
+/// ```swift
+/// LongFormTextRow(
+///     id: "notes",
+///     title: "Notes",
+///     placeholder: "Enter additional notes...",
+///     minLineCount: 3,
+///     maxLineCount: 8
+/// )
+/// ```
+public struct LongFormTextRow: FormRow {
+    public let id: String
+    public let title: String
+    public let subtitle: String?
+    public let onChange: [FormRowAction]
+    public let validators: [FormValidator]
+    /// Hint text shown when the field is empty.
+    public let placeholder: String?
+    /// Minimum number of visible lines the text field occupies. Defaults to 3.
+    public let minLineCount: Int
+    /// Maximum number of visible lines before the text field scrolls internally. Defaults to 8.
+    public let maxLineCount: Int
+    public private(set) var rowStyle: (any FormRowStyle)?
+
+    private let _defaultValue: String?
+
+    public var defaultValue: AnyCodableValue? {
+        _defaultValue.map { .string($0) }
+    }
+
+    public init(id: String,
+                title: String,
+                subtitle: String? = nil,
+                defaultValue: String? = nil,
+                placeholder: String? = nil,
+                minLineCount: Int = 3,
+                maxLineCount: Int = 8,
+                validators: [FormValidator] = [],
+                onChange: [FormRowAction] = [],
+                style: LongFormTextRowStyle? = nil) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.placeholder = placeholder
+        self.minLineCount = minLineCount
+        self.maxLineCount = maxLineCount
+        _defaultValue = defaultValue
+        self.validators = validators
+        self.onChange = onChange
+        self.rowStyle = style
+    }
+}
+
 // MARK: - NumberKind
 
 /// Declares the numeric kind (integer vs decimal) and an optional default value for a

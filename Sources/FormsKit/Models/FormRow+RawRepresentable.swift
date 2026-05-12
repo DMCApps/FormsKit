@@ -100,6 +100,30 @@ public extension TextInputRow {
     }
 }
 
+public extension LongFormTextRow {
+    init<ID: RawRepresentable>(id: ID,
+                               title: String,
+                               subtitle: String? = nil,
+                               defaultValue: String? = nil,
+                               placeholder: String? = nil,
+                               minLineCount: Int = 3,
+                               maxLineCount: Int = 8,
+                               validators: [FormValidator] = [],
+                               onChange: [FormRowAction] = []) where ID.RawValue == String {
+        self.init(
+            id: id.rawValue,
+            title: title,
+            subtitle: subtitle,
+            defaultValue: defaultValue,
+            placeholder: placeholder,
+            minLineCount: minLineCount,
+            maxLineCount: maxLineCount,
+            validators: validators,
+            onChange: onChange
+        )
+    }
+}
+
 public extension NumberInputRow {
     init<ID: RawRepresentable>(id: ID,
                                title: String,

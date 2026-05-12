@@ -212,6 +212,8 @@ struct FormRowContainer: View {
                 BooleanSwitchRowView(row: boolRow, viewModel: viewModel)
             } else if let textRow = row.asType(TextInputRow.self) {
                 TextInputRowView(row: textRow, viewModel: viewModel)
+            } else if let longTextRow = row.asType(LongFormTextRow.self) {
+                LongFormTextRowView(row: longTextRow, viewModel: viewModel)
             } else if let numberRow = row.asType(NumberInputRow.self) {
                 NumberInputRowView(row: numberRow, viewModel: viewModel)
             } else if let navRow = row.asType(NavigationRow.self) {

@@ -771,4 +771,58 @@ struct FormThemeTests {
         #expect(style?.optionTextColor == .indigo)
         #expect(style?.selectionIcon == .system("star.fill"))
     }
+
+    // MARK: LongFormTextRowStyle
+
+    @Test("LongFormTextRowStyle all properties default to nil")
+    func longFormTextRowStyleAllNilByDefault() {
+        let style = LongFormTextRowStyle()
+        #expect(style.titleColor == nil)
+        #expect(style.titleFont == nil)
+        #expect(style.subtitleColor == nil)
+        #expect(style.subtitleFont == nil)
+        #expect(style.placeholderColor == nil)
+    }
+
+    @Test("LongFormTextRowStyle stores placeholderColor correctly")
+    func longFormTextRowStyleStoresPlaceholderColor() {
+        let style = LongFormTextRowStyle(placeholderColor: .gray)
+        #expect(style.placeholderColor == .gray)
+    }
+
+    @Test("LongFormTextRowStyle placeholderColor defaults to nil")
+    func longFormTextRowStylePlaceholderColorNilByDefault() {
+        let style = LongFormTextRowStyle()
+        #expect(style.placeholderColor == nil)
+    }
+
+    @Test("LongFormTextRowStyle Equatable holds for identical values")
+    func longFormTextRowStyleEquatableIdentical() {
+        let a = LongFormTextRowStyle(titleColor: .blue, placeholderColor: .gray)
+        let b = LongFormTextRowStyle(titleColor: .blue, placeholderColor: .gray)
+        #expect(a == b)
+    }
+
+    @Test("LongFormTextRowStyle Equatable detects placeholderColor difference")
+    func longFormTextRowStyleEquatableDetectsPlaceholderColorDiff() {
+        let a = LongFormTextRowStyle(placeholderColor: .gray)
+        let b = LongFormTextRowStyle(placeholderColor: .orange)
+        #expect(a != b)
+    }
+
+    @Test("LongFormTextRowStyle Equatable detects placeholderColor vs nil difference")
+    func longFormTextRowStyleEquatableDetectsPlaceholderColorVsNil() {
+        let a = LongFormTextRowStyle(placeholderColor: .gray)
+        let b = LongFormTextRowStyle()
+        #expect(a != b)
+    }
+
+    @Test("LongFormTextRow style: init parameter stores style as rowStyle")
+    func longFormTextRowStyleAttachesCorrectly() {
+        let row = LongFormTextRow(id: "notes", title: "Notes",
+                                   style: LongFormTextRowStyle(titleColor: .blue, placeholderColor: .gray))
+        let style = row.rowStyle as? LongFormTextRowStyle
+        #expect(style?.titleColor == .blue)
+        #expect(style?.placeholderColor == .gray)
+    }
 }

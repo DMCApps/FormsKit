@@ -71,6 +71,32 @@ enum RowTypesForm {
             )
         }
 
+        // MARK: Long Form Text
+
+        FormSection(id: "longFormTextSection", title: "LongFormTextRow") {
+            LongFormTextRow(
+                id: "notes",
+                title: "Notes",
+                placeholder: "Write your thoughts…"
+            )
+
+            LongFormTextRow(
+                id: "bio",
+                title: "Biography",
+                subtitle: "minLineCount: 2, maxLineCount: 12",
+                placeholder: "Tell us about yourself…",
+                minLineCount: 2,
+                maxLineCount: 12
+            )
+
+            LongFormTextRow(
+                id: "prefilled",
+                title: "With Default Value",
+                subtitle: "Pre-filled with text",
+                defaultValue: "This is a pre-filled long form text field that demonstrates how default values work with the LongFormTextRow type."
+            )
+        }
+
         // MARK: Number Input
 
         FormSection(id: "numberInputSection", title: "NumberInputRow") {

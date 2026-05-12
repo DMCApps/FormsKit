@@ -1908,3 +1908,157 @@ struct FormLoadingStyleTests {
         }
     }
 }
+
+// MARK: - LongFormTextRow Tests
+
+@Suite("LongFormTextRow")
+@MainActor
+struct LongFormTextRowTests {
+
+    // MARK: Construction
+
+    @Test("LongFormTextRow stores id and title")
+    func longFormTextRowStoresIdAndTitle() {
+        let row = LongFormTextRow(id: "notes", title: "Notes")
+        #expect(row.id == "notes")
+        #expect(row.title == "Notes")
+    }
+
+    @Test("LongFormTextRow stores subtitle")
+    func longFormTextRowStoresSubtitle() {
+        let row = LongFormTextRow(id: "notes", title: "Notes", subtitle: "Optional notes")
+        #expect(row.subtitle == "Optional notes")
+    }
+
+    @Test("LongFormTextRow stores placeholder")
+    func longFormTextRowStoresPlaceholder() {
+        let row = LongFormTextRow(id: "notes", title: "Notes", placeholder: "Enter notes...")
+        #expect(row.placeholder == "Enter notes...")
+    }
+
+    @Test("LongFormTextRow nil placeholder by default")
+    func longFormTextRowNilPlaceholderByDefault() {
+        let row = LongFormTextRow(id: "notes", title: "Notes")
+        #expect(row.placeholder == nil)
+    }
+
+    @Test("LongFormTextRow stores defaultValue as string")
+    func longFormTextRowStoresDefaultValue() {
+        let row = LongFormTextRow(id: "notes", title: "Notes", defaultValue: "Some text")
+        if case let .string(val) = row.defaultValue {
+            #expect(val == "Some text")
+        } else {
+            Issue.record("Expected .string defaultValue")
+        }
+    }
+
+    @Test("LongFormTextRow nil defaultValue when not provided")
+    func longFormTextRowNilDefaultValue() {
+        let row = LongFormTextRow(id: "notes", title: "Notes")
+        #expect(row.defaultValue == nil)
+    }
+
+    @Test("LongFormTextRow minLineCount defaults to 3")
+    func longFormTextRowMinLineCountDefault() {
+        let row = LongFormTextRow(id: "notes", title: "Notes")
+        #expect(row.minLineCount == 3)
+    }
+
+    @Test("LongFormTextRow maxLineCount defaults to 8")
+    func longFormTextRowMaxLineCountDefault() {
+        let row = LongFormTextRow(id: "notes", title: "Notes")
+        #expect(row.maxLineCount == 8)
+    }
+
+    @Test("LongFormTextRow stores custom minLineCount")
+    func longFormTextRowStoresCustomMinLineCount() {
+        let row = LongFormTextRow(id: "notes", title: "Notes", minLineCount: 2)
+        #expect(row.minLineCount == 2)
+    }
+
+    @Test("LongFormTextRow stores custom maxLineCount")
+    func longFormTextRowStoresCustomMaxLineCount() {
+        let row = LongFormTextRow(id: "notes", title: "Notes", maxLineCount: 12)
+        #expect(row.maxLineCount == 12)
+    }
+
+    @Test("LongFormTextRow stores validators")
+    func longFormTextRowStoresValidators() {
+        let v = FormValidator { _ in nil }
+        let row = LongFormTextRow(id: "notes", title: "Notes", validators: [v])
+        #expect(row.validators.count == 1)
+    }
+
+    @Test("LongFormTextRow stores onChange actions")
+    func longFormTextRowStoresOnChangeActions() {
+        let row = LongFormTextRow(
+            id: "notes",
+            title: "Notes",
+            onChange: [.showRow(id: "other", when: [])]
+        )
+        #expect(row.onChange.count == 1)
+    }
+
+    @Test("LongFormTextRow RawRepresentable id")
+    func longFormTextRowRawRepresentableId() {
+        enum RowID: String { case notes = "user_notes" }
+        let row = LongFormTextRow(id: RowID.notes, title: "Notes")
+        #expect(row.id == "user_notes")
+    }
+
+    // MARK: Protocol defaults
+
+    @Test("LongFormTextRow nil subtitle by default")
+    func longFormTextRowNilSubtitleByDefault() {
+        let row = LongFormTextRow(id: "notes", title: "Notes")
+        #expect(row.subtitle == nil)
+    }
+
+    @Test("LongFormTextRow empty validators by default")
+    func longFormTextRowEmptyValidatorsByDefault() {
+        let row = LongFormTextRow(id: "notes", title: "Notes")
+        #expect(row.validators.isEmpty)
+    }
+
+    @Test("LongFormTextRow empty onChange by default")
+    func longFormTextRowEmptyOnChangeByDefault() {
+        let row = LongFormTextRow(id: "notes", title: "Notes")
+        #expect(row.onChange.isEmpty)
+    }
+
+    @Test("LongFormTextRow nil rowStyle by default")
+    func longFormTextRowNilRowStyleByDefault() {
+        let row = LongFormTextRow(id: "notes", title: "Notes")
+        #expect(row.rowStyle == nil)
+    }
+
+    // MARK: AnyFormRow wrapping
+
+    @Test("AnyFormRow wraps LongFormTextRow and casts back correctly")
+    func anyFormRowWrapsLongFormTextRow() {
+        let row = LongFormTextRow(id: "notes", title: "Notes")
+        let anyRow = AnyFormRow(row)
+        let cast = anyRow.asType(LongFormTextRow.self)
+        #expect(cast != nil)
+    }
+
+    @Test("AnyFormRow wrapping LongFormTextRow carries id and title")
+    func anyFormRowLongFormTextRowCarriesMetadata() {
+        let row = LongFormTextRow(id: "notes", title: "Notes", subtitle: "Enter notes")
+        let anyRow = AnyFormRow(row)
+        #expect(anyRow.id == "notes")
+        #expect(anyRow.title == "Notes")
+        #expect(anyRow.subtitle == "Enter notes")
+    }
+
+    // MARK: ViewModel integration
+
+    @Test("LongFormTextRow default value is seeded into FormViewModel")
+    func longFormTextRowDefaultSeededIntoViewModel() {
+        let row = LongFormTextRow(id: "notes", title: "Notes", defaultValue: "Hello")
+        let form = FormDefinition(id: "f", title: "Form", rows: [AnyFormRow(row)], saveBehaviour: .none)
+        let vm = FormViewModel(formDefinition: form)
+        let value: String? = vm.value(for: "notes")
+        #expect(value == "Hello")
+    }
+}
