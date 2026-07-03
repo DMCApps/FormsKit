@@ -276,6 +276,18 @@ public final class FormViewModel {
 
         // Flatten once here — used to seed defaults and then stored as `allRows`.
         let flatRows = FormViewModel.allRows(in: formDefinition.rows)
+
+        // Duplicate row IDs (e.g. a section reusing its own ID for a child row) send
+        // `isRowVisible` into unbounded recursion. Fail loudly and immediately — in every
+        // build configuration — rather than let a malformed form hang the app at runtime.
+        let duplicateIDs = FormViewModel.duplicateRowIDs(in: flatRows)
+        if !duplicateIDs.isEmpty {
+            fatalError(
+                "FormsKit: duplicate row IDs found — every row (including FormSection/CollapsibleSection) "
+                    + "must have a unique id: \(duplicateIDs.joined(separator: ", "))"
+            )
+        }
+
         allRows = flatRows
 
         // Seed the store with row defaults. Persisted values are loaded
@@ -926,7 +938,7 @@ public final class FormViewModel {
     /// Returns a flattened array of all leaf rows, recursively expanding any `FormSection`
     /// or `CollapsibleSection` rows. Sections themselves are included so that their
     /// `onChange` actions can be inspected.
-    static func allRows(in rows: [AnyFormRow]) -> [AnyFormRow] {
+    nonisolated static func allRows(in rows: [AnyFormRow]) -> [AnyFormRow] {
         rows.flatMap { row -> [AnyFormRow] in
             if let section = row.asType(FormSection.self) {
                 // Include the section row itself (for its onChange actions) plus all its children.
@@ -937,6 +949,19 @@ public final class FormViewModel {
             }
             return [row]
         }
+    }
+
+    /// Returns the row IDs that appear more than once in `flatRows` (a list already
+    /// flattened via `allRows(in:)`). An empty result means every row ID in the form —
+    /// including `FormSection`/`CollapsibleSection` IDs — is unique.
+    ///
+    /// A duplicate ID (e.g. a section reusing its own ID for a child row) makes
+    /// `parentSection(of:in:)` resolve a row as its own ancestor, which sends
+    /// `isRowVisible` into unbounded recursion. Callers must reject duplicates before
+    /// relying on the parent-chain walk.
+    nonisolated static func duplicateRowIDs(in flatRows: [AnyFormRow]) -> [String] {
+        let counts = Dictionary(grouping: flatRows, by: \.id).mapValues(\.count)
+        return counts.filter { $0.value > 1 }.map(\.key).sorted()
     }
 
     /// Returns the `AnyFormRow` wrapping the `FormSection` or `CollapsibleSection` that
