@@ -106,6 +106,10 @@ extension FormTheme {
         /// Foreground color for subtitle text across all row types.
         public var subtitle: Color
 
+        /// Foreground color for `ButtonRow` title labels. Defaults to `.accentColor` so
+        /// tappable action rows visually stand out from static text rows.
+        public var buttonRowTitle: Color
+
         // MARK: Validation
 
         /// Color for validation error text and icons.
@@ -168,6 +172,7 @@ extension FormTheme {
         public init(
             rowTitle: Color = .secondary,
             subtitle: Color = .secondary,
+            buttonRowTitle: Color = .accentColor,
             error: Color = .red,
             saveButtonBackground: Color = .accentColor,
             saveButtonDisabledBackground: Color = .secondary,
@@ -184,6 +189,7 @@ extension FormTheme {
         ) {
             self.rowTitle = rowTitle
             self.subtitle = subtitle
+            self.buttonRowTitle = buttonRowTitle
             self.error = error
             self.saveButtonBackground = saveButtonBackground
             self.saveButtonDisabledBackground = saveButtonDisabledBackground
@@ -213,6 +219,10 @@ extension FormTheme {
         /// Font for subtitle text across all row types.
         public var subtitle: Font
 
+        /// Font for `ButtonRow` title labels. Defaults to a bold weight so tappable
+        /// action rows read as buttons rather than static text.
+        public var buttonRowTitle: Font
+
         /// Font for validation error messages.
         public var error: Font
 
@@ -234,6 +244,7 @@ extension FormTheme {
         public init(
             rowTitle: Font = .subheadline,
             subtitle: Font = .caption,
+            buttonRowTitle: Font = .subheadline.weight(.semibold),
             error: Font = .caption,
             saveButton: Font = .body.weight(.semibold),
             infoValue: Font = .caption,
@@ -243,6 +254,7 @@ extension FormTheme {
         ) {
             self.rowTitle = rowTitle
             self.subtitle = subtitle
+            self.buttonRowTitle = buttonRowTitle
             self.error = error
             self.saveButton = saveButton
             self.infoValue = infoValue
