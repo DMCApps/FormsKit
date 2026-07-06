@@ -8,21 +8,22 @@ struct ButtonRowView: View {
     private var style: ButtonRowStyle? { row.rowStyle as? ButtonRowStyle }
 
     var body: some View {
-        let titleColor = style?.titleColor ?? theme.colors.rowTitle
-        let titleFont = style?.titleFont ?? theme.fonts.rowTitle
+        let titleColor = style?.titleColor ?? theme.colors.buttonRowTitle
+        let titleFont = style?.titleFont ?? theme.fonts.buttonRowTitle
         let subtitleColor = style?.subtitleColor ?? theme.colors.subtitle
         let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
 
         Button(action: row.action) {
-            VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
+            VStack(alignment: .center, spacing: theme.spacing.headerSpacing) {
                 Text(row.title)
                     .font(titleFont)
                     .foregroundStyle(titleColor)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .center)
                 if let subtitle = row.subtitle {
                     Text(subtitle)
                         .font(subtitleFont)
                         .foregroundStyle(subtitleColor)
+                        .multilineTextAlignment(.center)
                 }
             }
         }
