@@ -223,4 +223,302 @@ struct SubFormSaveWithParentTests {
         stored = await childPersistence.stored
         #expect(stored["child"] == nil)
     }
+
+    // MARK: Phase 3 — save cascade
+
+    @Test("A child edit is persisted only after the parent's save()")
+    func childEditPersistedOnlyAfterParentSave() async {
+        let log = OrderLog()
+        let persistence = SpyPersistence(log: log)
+        let child = FormDefinition(
+            id: "child",
+            title: "Child",
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name"))],
+            persistence: persistence,
+            saveBehaviour: .withParent
+        )
+        let parent = FormDefinition(
+            id: "parent",
+            title: "Parent",
+            rows: [AnyFormRow(NavigationRow(id: "nav", title: "Nav", destination: child))],
+            persistence: persistence
+        )
+        let vm = FormViewModel(formDefinition: parent)
+        await vm.awaitReady()
+
+        let childVM = vm.childViewModel(for: "nav")!
+        childVM.setString("edited", for: "name")
+
+        var stored = await persistence.stored
+        #expect(stored["child"] == nil)
+
+        let result = await vm.save()
+
+        #expect(result == true)
+        stored = await persistence.stored
+        #expect(stored["child"] != nil)
+    }
+
+    @Test("Persist order is child then parent; onSave order is child then parent")
+    func persistAndOnSaveOrderIsChildThenParent() async {
+        let log = OrderLog()
+        let persistence = SpyPersistence(log: log)
+        let child = FormDefinition(
+            id: "child",
+            title: "Child",
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name"))],
+            persistence: persistence,
+            saveBehaviour: .withParent,
+            onSave: [FormSaveAction { _ in log.add("onSave:child") }]
+        )
+        let parent = FormDefinition(
+            id: "parent",
+            title: "Parent",
+            rows: [AnyFormRow(NavigationRow(id: "nav", title: "Nav", destination: child))],
+            persistence: persistence,
+            onSave: [FormSaveAction { _ in log.add("onSave:parent") }]
+        )
+        let vm = FormViewModel(formDefinition: parent)
+        await vm.awaitReady()
+
+        let result = await vm.save()
+
+        #expect(result == true)
+        #expect(log.events == ["persist:child", "persist:parent", "onSave:child", "onSave:parent"])
+    }
+
+    @Test("An invalid child blocks the save and names itself in saveError")
+    func invalidChildBlocksSave() async {
+        let log = OrderLog()
+        let persistence = SpyPersistence(log: log)
+        let child = FormDefinition(
+            id: "child",
+            title: "Child Screen",
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))],
+            persistence: persistence,
+            saveBehaviour: .withParent
+        )
+        let parent = FormDefinition(
+            id: "parent",
+            title: "Parent",
+            rows: [AnyFormRow(NavigationRow(id: "nav", title: "Nav", destination: child))],
+            persistence: persistence
+        )
+        let vm = FormViewModel(formDefinition: parent)
+        await vm.awaitReady()
+
+        let result = await vm.save()
+
+        #expect(result == false)
+        #expect(log.events.isEmpty)
+        #expect(vm.saveError?.localizedDescription.contains("Child Screen") == true)
+    }
+
+    @Test("A child persistence failure blocks the parent save and leaves it dirty")
+    func childPersistenceFailureBlocksSave() async {
+        let log = OrderLog()
+        let persistence = SpyPersistence(log: log, failing: ["child"])
+        let child = FormDefinition(
+            id: "child",
+            title: "Child",
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name"))],
+            persistence: persistence,
+            saveBehaviour: .withParent,
+            onSave: [FormSaveAction { _ in log.add("onSave:child") }]
+        )
+        let parent = FormDefinition(
+            id: "parent",
+            title: "Parent",
+            rows: [AnyFormRow(NavigationRow(id: "nav", title: "Nav", destination: child))],
+            persistence: persistence,
+            onSave: [FormSaveAction { _ in log.add("onSave:parent") }]
+        )
+        let vm = FormViewModel(formDefinition: parent)
+        await vm.awaitReady()
+
+        let childVM = vm.childViewModel(for: "nav")!
+        childVM.setString("edited", for: "name")
+
+        let result = await vm.save()
+
+        #expect(result == false)
+        #expect(!log.events.contains("persist:parent"))
+        #expect(!log.events.contains("onSave:parent"))
+        #expect(vm.saveError != nil)
+        #expect(vm.isDirty == true)
+    }
+
+    @Test("Parent isDirty is true after a child edit and false after a successful save")
+    func parentIsDirtyTracksChildEditThenClearsOnSave() async {
+        let log = OrderLog()
+        let persistence = SpyPersistence(log: log)
+        let (parent, child) = makeParentWithChild(childPersistence: persistence, parentPersistence: persistence)
+        await parent.awaitReady()
+
+        #expect(parent.isDirty == false)
+        child.setString("changed", for: "name")
+        #expect(parent.isDirty == true)
+
+        let result = await parent.save()
+
+        #expect(result == true)
+        #expect(parent.isDirty == false)
+        #expect(child.isDirty == false)
+    }
+
+    @Test("Grandchild persists before child before parent")
+    func saveCascadesThroughGrandchild() async {
+        let log = OrderLog()
+        let persistence = SpyPersistence(log: log)
+        let grandchild = FormDefinition(
+            id: "grandchild",
+            title: "Grandchild",
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name"))],
+            persistence: persistence,
+            saveBehaviour: .withParent
+        )
+        let child = FormDefinition(
+            id: "child",
+            title: "Child",
+            rows: [AnyFormRow(NavigationRow(id: "navGrandchild", title: "Nav", destination: grandchild))],
+            persistence: persistence,
+            saveBehaviour: .withParent
+        )
+        let parent = FormDefinition(
+            id: "parent",
+            title: "Parent",
+            rows: [AnyFormRow(NavigationRow(id: "navChild", title: "Nav", destination: child))],
+            persistence: persistence
+        )
+        let vm = FormViewModel(formDefinition: parent)
+        await vm.awaitReady()
+
+        let result = await vm.save()
+
+        #expect(result == true)
+        #expect(log.events == ["persist:grandchild", "persist:child", "persist:parent"])
+    }
+
+    @Test("An invalid grandchild blocks the save")
+    func invalidGrandchildBlocksSave() async {
+        let log = OrderLog()
+        let persistence = SpyPersistence(log: log)
+        let grandchild = FormDefinition(
+            id: "grandchild",
+            title: "Grandchild",
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))],
+            persistence: persistence,
+            saveBehaviour: .withParent
+        )
+        let child = FormDefinition(
+            id: "child",
+            title: "Child",
+            rows: [AnyFormRow(NavigationRow(id: "navGrandchild", title: "Nav", destination: grandchild))],
+            persistence: persistence,
+            saveBehaviour: .withParent
+        )
+        let parent = FormDefinition(
+            id: "parent",
+            title: "Parent",
+            rows: [AnyFormRow(NavigationRow(id: "navChild", title: "Nav", destination: child))],
+            persistence: persistence
+        )
+        let vm = FormViewModel(formDefinition: parent)
+        await vm.awaitReady()
+
+        let result = await vm.save()
+
+        #expect(result == false)
+        #expect(log.events.isEmpty)
+    }
+
+    @Test("A non-deferring NavigationRow's destination is not persisted by the parent's save")
+    func nonDeferringDestinationNotPersistedByParent() async {
+        let log = OrderLog()
+        let persistence = SpyPersistence(log: log)
+        let destination = FormDefinition(
+            id: "destination",
+            title: "Destination",
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name"))],
+            persistence: persistence
+        )
+        let parent = FormDefinition(
+            id: "parent",
+            title: "Parent",
+            rows: [AnyFormRow(NavigationRow(id: "nav", title: "Nav", destination: destination))],
+            persistence: persistence
+        )
+        let vm = FormViewModel(formDefinition: parent)
+        await vm.awaitReady()
+
+        #expect(vm.childViewModel(for: "nav") == nil)
+
+        let result = await vm.save()
+
+        #expect(result == true)
+        let stored = await persistence.stored
+        #expect(stored["destination"] == nil)
+        #expect(stored["parent"] != nil)
+    }
+
+    @Test("A hidden nav row's invalid child doesn't block save, and its values still persist")
+    func hiddenInvalidChildDoesNotBlockSave() async {
+        let log = OrderLog()
+        let persistence = SpyPersistence(log: log)
+        let child = FormDefinition(
+            id: "child",
+            title: "Child",
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name", validators: [.required()]))],
+            persistence: persistence,
+            saveBehaviour: .withParent
+        )
+        let parent = FormDefinition(
+            id: "parent",
+            title: "Parent",
+            rows: [
+                AnyFormRow(BooleanSwitchRow(
+                    id: "toggle",
+                    title: "Toggle",
+                    onChange: [.hideRow(id: "nav", when: [.equals(rowId: "toggle", bool: true)])]
+                )),
+                AnyFormRow(NavigationRow(id: "nav", title: "Nav", destination: child))
+            ],
+            persistence: persistence
+        )
+        let vm = FormViewModel(formDefinition: parent)
+        await vm.awaitReady()
+
+        vm.setBool(true, for: "toggle")
+        #expect(vm.visibleRows.contains { $0.id == "nav" } == false)
+
+        let result = await vm.save()
+
+        #expect(result == true)
+        let stored = await persistence.stored
+        #expect(stored["child"] != nil)
+    }
+
+    @Test("A child stuck in .loadFailed makes the parent's save() return false")
+    func childLoadFailedBlocksSave() async {
+        let child = FormDefinition(
+            id: "child",
+            title: "Child",
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name"))],
+            persistence: LoadFailingPersistence(),
+            saveBehaviour: .withParent
+        )
+        let parent = FormDefinition(
+            id: "parent",
+            title: "Parent",
+            rows: [AnyFormRow(NavigationRow(id: "nav", title: "Nav", destination: child))]
+        )
+        let vm = FormViewModel(formDefinition: parent)
+        await vm.awaitReady()
+
+        let childVM = vm.childViewModel(for: "nav")!
+        #expect(childVM.status.isLoadFailed == true)
+
+        let result = await vm.save()
+        #expect(result == false)
+    }
 }
