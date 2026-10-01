@@ -289,7 +289,9 @@ public final class FormViewModel {
         }
 
         // A condition, action or validator pointing at a row ID that doesn't exist (typo,
-        // renamed or removed row) silently does nothing. Catch it during development.
+        // renamed or removed row) silently does nothing. Catch it during development only —
+        // the scan is compiled out of release builds, where the assert couldn't fire anyway.
+        #if DEBUG
         let unknownIDs = FormViewModel.unknownReferencedRowIDs(in: flatRows)
         if !unknownIDs.isEmpty {
             assertionFailure(
@@ -297,6 +299,7 @@ public final class FormViewModel {
                     + "in form '\(formDefinition.id)': \(unknownIDs.joined(separator: ", "))"
             )
         }
+        #endif
 
         allRows = flatRows
 
