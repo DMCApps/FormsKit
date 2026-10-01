@@ -120,7 +120,7 @@ public struct MixedPersistenceEntry: Sendable {
 ///
 /// ## Scopes with a typed RowID enum
 ///
-/// If you use `TypedFormDefinition`, pass your enum values directly using the
+/// If your row IDs are a `String`-backed enum, pass the enum cases directly using the
 /// `RawRepresentable` convenience initializers on `RowScope`:
 ///
 /// ```swift

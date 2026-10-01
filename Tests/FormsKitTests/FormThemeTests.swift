@@ -643,34 +643,6 @@ struct FormThemeTests {
         #expect(a == b)
     }
 
-    // MARK: TypedFormDefinition theme forwarding
-
-    @Test("TypedFormDefinition array init forwards theme to underlying FormDefinition")
-    func typedFormDefinitionArrayInitForwardsTheme() {
-        enum Row: String { case name }
-        let theme = FormTheme(colors: .init(error: .orange))
-        let typed = TypedFormDefinition<Row>(id: "t", title: "T", rows: [], theme: theme)
-        #expect(typed.definition.theme.colors.error == .orange)
-    }
-
-    @Test("TypedFormDefinition DSL init forwards theme to underlying FormDefinition")
-    func typedFormDefinitionDSLInitForwardsTheme() {
-        enum Row: String { case name }
-        let theme = FormTheme(icons: .init(validationError: .system("exclamationmark.triangle.fill")))
-        let typed = TypedFormDefinition<Row>(id: "t", title: "T", theme: theme) {
-            TextInputRow(id: Row.name.rawValue, title: "Name")
-        }
-        #expect(typed.definition.theme.icons.validationError == .system("exclamationmark.triangle.fill"))
-    }
-
-    @Test("TypedFormDefinition theme defaults to FormTheme.default")
-    func typedFormDefinitionThemeDefaultsToDefault() {
-        enum Row: String { case name }
-        let typed = TypedFormDefinition<Row>(id: "t", title: "T", rows: [])
-        #expect(typed.definition.theme.colors.rowTitle == FormTheme.default.colors.rowTitle)
-        #expect(typed.definition.theme.icons.selectionCheckmark == FormTheme.default.icons.selectionCheckmark)
-    }
-
     // MARK: Row-level style: init parameter
 
     @Test("TextInputRow style: init parameter stores style as rowStyle")
