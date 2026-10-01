@@ -245,6 +245,8 @@ NavigationRow(
 )
 ```
 
+Give `advancedFormDefinition` `saveBehaviour: .withParent` to make it a sub-form that saves together with this one instead of showing its own Save button — see [`.withParent`](#save-behaviour) and `FormViewModel.childViewModel(for:)`.
+
 ---
 
 ### FormSection
@@ -610,7 +612,62 @@ FormDefinition(id: "preferences", title: "Preferences",
 // No save button, no automatic saving (display-only or manual control)
 FormDefinition(id: "about", title: "About",
                saveBehaviour: .none) { ... }
+
+// No save UI, no automatic saving — this form is a NavigationRow destination whose
+// values are validated and persisted when the PARENT form saves (see below).
+FormDefinition(id: "profile.subForm", title: "Profile Details",
+               saveBehaviour: .withParent) { ... }
 ```
+
+### Sub-Forms That Save With Their Parent (`.withParent`)
+
+Give a `NavigationRow`'s `destination` `saveBehaviour: .withParent` to make it a sub-form
+with no Save button of its own: the user edits it, navigates back with the system back
+button, and the **parent's** `save()` validates and persists it alongside the parent.
+
+```swift
+let addressForm = FormDefinition(
+    id: "settings.address",
+    title: "Address",
+    persistence: FormPersistenceUserDefaults(keyPrefix: "App"),
+    saveBehaviour: .withParent
+) {
+    TextInputRow(id: "street", title: "Street")
+}
+
+let settingsForm = FormDefinition(
+    id: "settings",
+    title: "Settings",
+    persistence: FormPersistenceUserDefaults(keyPrefix: "App"),
+    saveBehaviour: .buttonNavigationBar()
+) {
+    NavigationRow(id: "address", title: "Address", destination: addressForm)
+}
+```
+
+`FormViewModel` builds and owns a child `FormViewModel` for every `.withParent` destination,
+reachable via `childViewModel(for:)` — this is what lets `DynamicFormView` reuse the same
+instance across pushes instead of recreating it (and losing unsaved edits) every time.
+This recurses to any depth: a sub-form can itself have `.withParent` sub-forms.
+
+**Ordering and failure semantics**, from the parent's `save()`:
+1. Bails out unless the parent and every sub-form, recursively, are `.ready`.
+2. Validates the parent, then every **visible** sub-form recursively (a hidden
+   `NavigationRow`'s whole subtree is skipped — matching how hidden rows are already
+   excluded from validation). The first invalid sub-form's title is surfaced via
+   `FormValidationError.subFormInvalid(title:)`.
+3. Persists every sub-form **before** the parent, deepest first, in row order. Hidden
+   sub-forms are still persisted — only validation skips them.
+4. If any persist throws, `save()` returns `false` immediately. **There is no rollback**:
+   whatever already persisted in that pass stays committed, and no `isDirty` flag (parent
+   or sub-form) is cleared.
+5. Once every persist succeeds, every `isDirty` flag is cleared and `onSave` actions fire
+   bottom-up — sub-forms first, parent last — so a parent's `onSave` (which might do
+   something irreversible, like relaunching the app) can rely on every sub-form already
+   being durably saved.
+
+`isDirty` on the parent is `true` whenever the parent or any sub-form has unsaved changes.
+`reset()`, `clearPersistence()` and `awaitReady()` all cascade to every sub-form too.
 
 ### Post-Save Actions
 

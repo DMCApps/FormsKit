@@ -79,6 +79,12 @@ struct ContentView: View {
             title: "Debug Menu",
             subtitle: "Sub-form navigation and file-based persistence",
             destination: DebugMenuForm.definition
+        ),
+        CatalogueEntry(
+            id: "subFormSaveWithParent",
+            title: "Sub-Form Save With Parent",
+            subtitle: "Sub-forms with no Save button — persisted when the root form saves",
+            destination: SubFormSaveWithParentForm.definition
         )
     ]
 
