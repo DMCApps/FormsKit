@@ -25,10 +25,16 @@ public enum FormSaveBehaviour: Sendable {
     /// that contain only buttons with no persistent state.
     case none
 
-    /// The title to display on the save button, or nil for `.onChange` and `.none`.
+    /// No save UI and no auto-save. Values are validated and persisted when the parent
+    /// form (the one whose `NavigationRow` leads here) is saved. Set this on the
+    /// `FormDefinition` passed as a `NavigationRow`'s `destination` to make it a sub-form
+    /// that saves with its parent — see `FormViewModel.childViewModel(for:)`.
+    case withParent
+
+    /// The title to display on the save button, or nil for `.onChange`, `.none` and `.withParent`.
     var saveButtonTitle: String? {
         switch self {
-        case .onChange, .none:
+        case .onChange, .none, .withParent:
             return nil
         case let .buttonNavigationBar(title), let .buttonBottomForm(title), let .buttonStickyBottom(title):
             return title

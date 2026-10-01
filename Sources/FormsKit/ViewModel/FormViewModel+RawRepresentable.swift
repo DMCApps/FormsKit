@@ -22,6 +22,12 @@ public extension FormViewModel {
         rawValue(for: rowId.rawValue)
     }
 
+    /// Returns the child `FormViewModel` owned for the `NavigationRow` with the given ID
+    /// (enum case overload).
+    func childViewModel(for navigationRowId: some RawRepresentable<String>) -> FormViewModel? {
+        childViewModel(for: navigationRowId.rawValue)
+    }
+
     /// Set a raw `AnyCodableValue` for a row (enum case overload).
     func setValue(_ value: AnyCodableValue?, for rowId: some RawRepresentable<String>) {
         setValue(value, for: rowId.rawValue)

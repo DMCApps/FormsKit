@@ -266,6 +266,12 @@ public final class FormViewModel {
     /// lifetime of the view model — safe because `FormDefinition.rows` is a `let`.
     private let allRows: [AnyFormRow]
 
+    /// Child view models for `NavigationRow`s whose destination opts into
+    /// `.withParent`, keyed by the nav row's ID. Built once in `init` — each child
+    /// builds its own `childViewModels` recursively, so grandchildren are reachable
+    /// through `child.childViewModel(for:)`.
+    private let childViewModels: [String: FormViewModel]
+
     // MARK: - Initialisation
 
     /// - Parameters:
@@ -302,6 +308,17 @@ public final class FormViewModel {
         #endif
 
         allRows = flatRows
+
+        // Build a child view model for every NavigationRow whose destination defers its
+        // save to this form. This recurses naturally — each child's own init builds its
+        // own children — so grandchildren are reachable through the child's accessor.
+        var children: [String: FormViewModel] = [:]
+        for row in flatRows {
+            if let navRow = row.asType(NavigationRow.self), case .withParent = navRow.destination.saveBehaviour {
+                children[navRow.id] = FormViewModel(formDefinition: navRow.destination)
+            }
+        }
+        childViewModels = children
 
         // Seed the store with row defaults. Persisted values are loaded
         // asynchronously below so that all persistence backends (sync or async)
@@ -345,6 +362,15 @@ public final class FormViewModel {
     /// Returns the raw `AnyCodableValue` for the given row ID.
     public func rawValue(for rowId: String) -> AnyCodableValue? {
         values[rowId]
+    }
+
+    /// Returns the child `FormViewModel` owned for the `NavigationRow` with the given ID,
+    /// or `nil` if that row's destination doesn't opt into `.withParent`.
+    ///
+    /// Pass the result to `DynamicFormView(viewModel:)` so edits in the sub-form are kept
+    /// alive across navigation and saved by this form's `save()`.
+    public func childViewModel(for navigationRowId: String) -> FormViewModel? {
+        childViewModels[navigationRowId]
     }
 
     // MARK: - Value Writing
@@ -815,6 +841,16 @@ public final class FormViewModel {
     }
 
     // MARK: - Private Helpers
+
+    /// Child view models paired with their owning `NavigationRow`, in row order.
+    /// Dictionary iteration order is not deterministic, so every cascade (dirty, reset,
+    /// clear, save) walks this instead of `childViewModels.values` directly.
+    private var orderedChildren: [(row: AnyFormRow, child: FormViewModel)] {
+        allRows.compactMap { row in
+            guard let child = childViewModels[row.id] else { return nil }
+            return (row, child)
+        }
+    }
 
     /// Run all validators matching the given trigger for a specific row.
     private func runValidators(for rowId: String, trigger: ValidationTrigger) {
