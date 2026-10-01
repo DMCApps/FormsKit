@@ -240,8 +240,17 @@ public final class FormViewModel {
     /// The most recent save error, if any.
     public private(set) var saveError: Error?
 
-    /// True when any value has changed since the last successful save or load.
-    public private(set) var isDirty: Bool = false
+    /// True when any value on this form has changed since the last successful save or load.
+    /// Backs the public `isDirty`, which also folds in children — don't read this directly.
+    private var hasOwnChanges = false
+
+    /// True when any value has changed since the last successful save or load, on this
+    /// form or on any deferring sub-form owned via `childViewModel(for:)`. A child's
+    /// `@Observable` changes are tracked through this computed property, so observing
+    /// `isDirty` on the parent also reacts to edits made inside a sub-form.
+    public var isDirty: Bool {
+        hasOwnChanges || childViewModels.values.contains { $0.isDirty }
+    }
 
     // MARK: - Private State
 
@@ -378,7 +387,7 @@ public final class FormViewModel {
     /// Set a raw `AnyCodableValue` for a row, triggering applicable validators and actions.
     public func setValue(_ value: AnyCodableValue?, for rowId: String) {
         values[rowId] = value
-        isDirty = true
+        hasOwnChanges = true
         // Clear stale errors so the UI updates immediately.
         errors[rowId] = []
         // Fire onChange validators.
@@ -634,7 +643,7 @@ public final class FormViewModel {
         guard validateAll() else { return false }
 
         guard let persistence = formDefinition.persistence else {
-            isDirty = false
+            hasOwnChanges = false
             dispatchOnSaveActions()
             return true
         }
@@ -644,7 +653,7 @@ public final class FormViewModel {
 
         do {
             try await persistence.save(values, formId: formDefinition.id)
-            isDirty = false
+            hasOwnChanges = false
             status = .ready
             dispatchOnSaveActions()
             return true
@@ -672,12 +681,18 @@ public final class FormViewModel {
     /// hierarchy has had a chance to react to status changes — for example, reading
     /// debug configuration values during app startup before any UI is shown.
     ///
+    /// Also awaits every deferring sub-form owned via `childViewModel(for:)`, recursively,
+    /// so programmatic readers and tests see fully loaded values throughout the tree.
+    ///
     /// ```swift
     /// await form.awaitReady()
     /// api.environment = form.value(for: .apiEnvironment) // guaranteed to be loaded
     /// ```
     public func awaitReady() async {
         await loadFromPersistence()
+        for child in childViewModels.values {
+            await child.awaitReady()
+        }
     }
 
     // MARK: - Load
@@ -733,7 +748,7 @@ public final class FormViewModel {
             }
             store.merge(loaded)
             values = store
-            isDirty = false
+            hasOwnChanges = false
             errors = [:]
             status = .ready
         } catch is CancellationError {
@@ -763,7 +778,7 @@ public final class FormViewModel {
         }
         values = store
         errors = [:]
-        isDirty = false
+        hasOwnChanges = false
         saveError = nil
         // Cancel all pending debounce timers.
         debounceTimers.values.forEach { $0.cancel() }
@@ -789,6 +804,8 @@ public final class FormViewModel {
             status = .needsLoad
             loadTask = Task { [weak self] in await self?.performLoad() }
         }
+        // Cascade to deferring sub-forms so the whole tree returns to its defaults together.
+        childViewModels.values.forEach { $0.reset() }
     }
 
     /// Clears the most recent save error. Call this when dismissing a save-failure alert.
@@ -803,10 +820,16 @@ public final class FormViewModel {
         }
     }
 
-    /// Clear persisted data for this form.
+    /// Clear persisted data for this form and every deferring sub-form owned via
+    /// `childViewModel(for:)`. Children are cleared even when this form itself has no
+    /// persistence backend configured.
     public func clearPersistence() async {
-        guard let persistence = formDefinition.persistence else { return }
-        try? await persistence.clear(formId: formDefinition.id)
+        if let persistence = formDefinition.persistence {
+            try? await persistence.clear(formId: formDefinition.id)
+        }
+        for child in childViewModels.values {
+            await child.clearPersistence()
+        }
     }
 
     // MARK: - Error Helpers
@@ -951,7 +974,7 @@ public final class FormViewModel {
             let shouldClear = conditions.isEmpty || conditions.allSatisfy { $0.evaluate(with: values) }
             if shouldClear {
                 values[targetRowId] = nil
-                isDirty = true
+                hasOwnChanges = true
                 errors[targetRowId] = []
             }
 
@@ -962,7 +985,7 @@ public final class FormViewModel {
             // two rows' setValue actions reference each other and never reach a fixed point.
             if let newValue = valueFactory(values), newValue != values[targetRowId] {
                 values[targetRowId] = newValue
-                isDirty = true
+                hasOwnChanges = true
                 errors[targetRowId] = []
             }
 

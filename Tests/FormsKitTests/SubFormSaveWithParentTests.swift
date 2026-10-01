@@ -160,4 +160,67 @@ struct SubFormSaveWithParentTests {
         let byEnum = vm.childViewModel(for: ParentRowID.nav)
         #expect(byString === byEnum)
     }
+
+    // MARK: Phase 2 — dirty, reset, clear, awaitReady
+
+    private func makeParentWithChild(childPersistence: (any FormPersistence)? = nil,
+                                      parentPersistence: (any FormPersistence)? = nil) -> (parent: FormViewModel, child: FormViewModel) {
+        let child = FormDefinition(
+            id: "child",
+            title: "Child",
+            rows: [AnyFormRow(TextInputRow(id: "name", title: "Name", defaultValue: "default"))],
+            persistence: childPersistence,
+            saveBehaviour: .withParent
+        )
+        let parent = FormDefinition(
+            id: "parent",
+            title: "Parent",
+            rows: [AnyFormRow(NavigationRow(id: "nav", title: "Nav", destination: child))],
+            persistence: parentPersistence
+        )
+        let vm = FormViewModel(formDefinition: parent)
+        return (vm, vm.childViewModel(for: "nav")!)
+    }
+
+    @Test("An edit in the child makes the parent dirty")
+    func childEditMakesParentDirty() async {
+        let (parent, child) = makeParentWithChild()
+        await parent.awaitReady()
+
+        #expect(parent.isDirty == false)
+        child.setString("changed", for: "name")
+        #expect(parent.isDirty == true)
+    }
+
+    @Test("reset() cascades to the child")
+    func resetCascadesToChild() async {
+        let (parent, child) = makeParentWithChild()
+        await parent.awaitReady()
+
+        child.setString("changed", for: "name")
+        #expect(parent.isDirty == true)
+
+        parent.reset()
+        await parent.awaitReady()
+
+        let name: String? = child.value(for: "name")
+        #expect(name == "default")
+        #expect(parent.isDirty == false)
+    }
+
+    @Test("clearPersistence() cascades to the child")
+    func clearPersistenceCascadesToChild() async {
+        let log = OrderLog()
+        let childPersistence = SpyPersistence(log: log)
+        let (parent, _) = makeParentWithChild(childPersistence: childPersistence)
+        await parent.awaitReady()
+
+        try? await childPersistence.save(FormValueStore(), formId: "child")
+        var stored = await childPersistence.stored
+        #expect(stored["child"] != nil)
+
+        await parent.clearPersistence()
+        stored = await childPersistence.stored
+        #expect(stored["child"] == nil)
+    }
 }
