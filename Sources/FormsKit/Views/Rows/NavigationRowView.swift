@@ -17,7 +17,11 @@ struct NavigationRowView: View {
         let subtitleFont = style?.subtitleFont ?? theme.fonts.subtitle
 
         NavigationLink {
-            DynamicFormView(formDefinition: row.destination)
+            if let child = viewModel.childViewModel(for: row.id) {
+                DynamicFormView(viewModel: child)
+            } else {
+                DynamicFormView(formDefinition: row.destination)
+            }
         } label: {
             VStack(alignment: .leading, spacing: theme.spacing.headerSpacing) {
                 Text(row.title)

@@ -54,10 +54,17 @@ public enum FormValidationError: LocalizedError {
     /// The form has live validation errors that must be fixed before saving.
     case hasLiveErrors
 
+    /// A visible deferring sub-form (a `.withParent` `NavigationRow` destination) failed
+    /// validation. The associated title is that sub-form's `FormDefinition.title`, so the
+    /// user knows which screen to revisit — its own errors are populated for when they do.
+    case subFormInvalid(title: String)
+
     public var errorDescription: String? {
         switch self {
         case .hasLiveErrors:
             return "Please fix the form errors before saving."
+        case let .subFormInvalid(title):
+            return "Please fix the errors in \"\(title)\" before saving."
         }
     }
 }
@@ -152,16 +159,17 @@ public final class FormViewModel {
     /// // Extension in your module — observes values and streams snapshots.
     /// extension FormViewModel {
     ///     var valueStream: AsyncStream<FormValueStore> {
-    ///         AsyncStream { continuation in
-    ///             func observe() {
-    ///                 withObservationTracking {
-    ///                     continuation.yield(values)  // yields a value-type copy
-    ///                 } onChange: {
-    ///                     Task { @MainActor in observe() }
-    ///                 }
+    ///         // makeStream keeps observe() main-actor isolated; the AsyncStream { } closure is not.
+    ///         let (stream, continuation) = AsyncStream.makeStream(of: FormValueStore.self)
+    ///         func observe() {
+    ///             _ = withObservationTracking {
+    ///                 continuation.yield(values)  // yields a value-type copy
+    ///             } onChange: {
+    ///                 Task { @MainActor in observe() }
     ///             }
-    ///             observe()
     ///         }
+    ///         observe()
+    ///         return stream
     ///     }
     /// }
     ///
@@ -240,8 +248,17 @@ public final class FormViewModel {
     /// The most recent save error, if any.
     public private(set) var saveError: Error?
 
-    /// True when any value has changed since the last successful save or load.
-    public private(set) var isDirty: Bool = false
+    /// True when any value on this form has changed since the last successful save or load.
+    /// Backs the public `isDirty`, which also folds in children — don't read this directly.
+    private var hasOwnChanges = false
+
+    /// True when any value has changed since the last successful save or load, on this
+    /// form or on any deferring sub-form owned via `childViewModel(for:)`. A child's
+    /// `@Observable` changes are tracked through this computed property, so observing
+    /// `isDirty` on the parent also reacts to edits made inside a sub-form.
+    public var isDirty: Bool {
+        hasOwnChanges || childViewModels.values.contains { $0.isDirty }
+    }
 
     // MARK: - Private State
 
@@ -265,6 +282,12 @@ public final class FormViewModel {
     /// All leaf rows in the form, flattened from nested sections. Immutable for the
     /// lifetime of the view model — safe because `FormDefinition.rows` is a `let`.
     private let allRows: [AnyFormRow]
+
+    /// Child view models for `NavigationRow`s whose destination opts into
+    /// `.withParent`, keyed by the nav row's ID. Built once in `init` — each child
+    /// builds its own `childViewModels` recursively, so grandchildren are reachable
+    /// through `child.childViewModel(for:)`.
+    private let childViewModels: [String: FormViewModel]
 
     // MARK: - Initialisation
 
@@ -302,6 +325,17 @@ public final class FormViewModel {
         #endif
 
         allRows = flatRows
+
+        // Build a child view model for every NavigationRow whose destination defers its
+        // save to this form. This recurses naturally — each child's own init builds its
+        // own children — so grandchildren are reachable through the child's accessor.
+        var children: [String: FormViewModel] = [:]
+        for row in flatRows {
+            if let navRow = row.asType(NavigationRow.self), case .withParent = navRow.destination.saveBehaviour {
+                children[navRow.id] = FormViewModel(formDefinition: navRow.destination)
+            }
+        }
+        childViewModels = children
 
         // Seed the store with row defaults. Persisted values are loaded
         // asynchronously below so that all persistence backends (sync or async)
@@ -347,12 +381,21 @@ public final class FormViewModel {
         values[rowId]
     }
 
+    /// Returns the child `FormViewModel` owned for the `NavigationRow` with the given ID,
+    /// or `nil` if that row's destination doesn't opt into `.withParent`.
+    ///
+    /// Pass the result to `DynamicFormView(viewModel:)` so edits in the sub-form are kept
+    /// alive across navigation and saved by this form's `save()`.
+    public func childViewModel(for navigationRowId: String) -> FormViewModel? {
+        childViewModels[navigationRowId]
+    }
+
     // MARK: - Value Writing
 
     /// Set a raw `AnyCodableValue` for a row, triggering applicable validators and actions.
     public func setValue(_ value: AnyCodableValue?, for rowId: String) {
         values[rowId] = value
-        isDirty = true
+        hasOwnChanges = true
         // Clear stale errors so the UI updates immediately.
         errors[rowId] = []
         // Fire onChange validators.
@@ -586,11 +629,32 @@ public final class FormViewModel {
 
     // MARK: - Save
 
-    /// Validate and persist the current values.
-    /// - Returns: `true` if validation passed and persistence succeeded (or no persistence).
+    /// Validate and persist the current values, cascading through every deferring sub-form
+    /// owned via `childViewModel(for:)`.
+    ///
+    /// Order of operations:
+    /// 1. Bails out unless this form and every descendant (recursively) are `.ready`.
+    /// 2. Bails out if this form already has live `.onChange`/debounced errors visible to
+    ///    the user (`saveError = .hasLiveErrors`), exactly as it did with no children.
+    /// 3. Runs `validateAll()` on this form, and recursively on every **visible** deferring
+    ///    sub-form — a hidden `NavigationRow`'s whole subtree is skipped, matching how hidden
+    ///    rows are already excluded elsewhere. Every visible sub-form is validated (so its
+    ///    errors are populated for when the user navigates to it), even after an earlier one
+    ///    has already failed. If any fail, `saveError = .subFormInvalid(title:)` names the
+    ///    first bad one in row order.
+    /// 4. Persists every descendant **before** this form, deepest first, in row order — then
+    ///    this form last. Hidden sub-forms are persisted too; only validation skips them.
+    /// 5. If a persist throws, `saveError` is set and `save()` returns `false` immediately.
+    ///    **There is no rollback** — any descendant already persisted in this pass stays
+    ///    committed, and no `isDirty` flag (on this form or any descendant) is cleared.
+    /// 6. Once every persist succeeds, every descendant's and this form's `isDirty` is
+    ///    cleared, then `onSave` actions fire bottom-up (descendants first, this form last).
+    ///
+    /// - Returns: `true` if validation passed and every persist succeeded (or had no
+    ///   persistence configured).
     @discardableResult
     public func save() async -> Bool {
-        guard status == .ready else { return false }
+        guard status == .ready, allDescendantsReady else { return false }
 
         // If there are already live errors visible to the user, surface an alert
         // prompting them to fix those before saving rather than silently failing.
@@ -605,28 +669,44 @@ public final class FormViewModel {
             return false
         }
 
-        guard validateAll() else { return false }
-
-        guard let persistence = formDefinition.persistence else {
-            isDirty = false
-            dispatchOnSaveActions()
-            return true
+        let selfValid = validateAll()
+        let firstBadSubFormTitle = firstInvalidSubFormTitle()
+        if let firstBadSubFormTitle {
+            saveError = FormValidationError.subFormInvalid(title: firstBadSubFormTitle)
         }
+        guard selfValid, firstBadSubFormTitle == nil else { return false }
 
         status = .saving
         saveError = nil
 
-        do {
-            try await persistence.save(values, formId: formDefinition.id)
-            isDirty = false
-            status = .ready
-            dispatchOnSaveActions()
-            return true
-        } catch {
-            saveError = error
-            status = .ready
-            return false
+        // Deepest descendants first, then this form last — a parent's onSave may act on
+        // the assumption that its children are already durably saved.
+        let descendants = descendantsPostOrder()
+        for vm in descendants + [self] {
+            guard let persistence = vm.formDefinition.persistence else { continue }
+            do {
+                try await persistence.save(vm.values, formId: vm.formDefinition.id)
+            } catch {
+                // No rollback: whatever already persisted in this pass stays committed,
+                // and isDirty is left untouched everywhere so the user still sees unsaved
+                // changes where they truly remain unsaved.
+                saveError = error
+                status = .ready
+                return false
+            }
         }
+
+        for vm in descendants + [self] {
+            vm.hasOwnChanges = false
+        }
+        status = .ready
+
+        for vm in descendants {
+            vm.dispatchOnSaveActions()
+        }
+        dispatchOnSaveActions()
+
+        return true
     }
 
     // MARK: - Awaiting Readiness
@@ -646,12 +726,18 @@ public final class FormViewModel {
     /// hierarchy has had a chance to react to status changes — for example, reading
     /// debug configuration values during app startup before any UI is shown.
     ///
+    /// Also awaits every deferring sub-form owned via `childViewModel(for:)`, recursively,
+    /// so programmatic readers and tests see fully loaded values throughout the tree.
+    ///
     /// ```swift
     /// await form.awaitReady()
     /// api.environment = form.value(for: .apiEnvironment) // guaranteed to be loaded
     /// ```
     public func awaitReady() async {
         await loadFromPersistence()
+        for child in childViewModels.values {
+            await child.awaitReady()
+        }
     }
 
     // MARK: - Load
@@ -707,7 +793,7 @@ public final class FormViewModel {
             }
             store.merge(loaded)
             values = store
-            isDirty = false
+            hasOwnChanges = false
             errors = [:]
             status = .ready
         } catch is CancellationError {
@@ -737,7 +823,7 @@ public final class FormViewModel {
         }
         values = store
         errors = [:]
-        isDirty = false
+        hasOwnChanges = false
         saveError = nil
         // Cancel all pending debounce timers.
         debounceTimers.values.forEach { $0.cancel() }
@@ -763,6 +849,8 @@ public final class FormViewModel {
             status = .needsLoad
             loadTask = Task { [weak self] in await self?.performLoad() }
         }
+        // Cascade to deferring sub-forms so the whole tree returns to its defaults together.
+        childViewModels.values.forEach { $0.reset() }
     }
 
     /// Clears the most recent save error. Call this when dismissing a save-failure alert.
@@ -777,10 +865,16 @@ public final class FormViewModel {
         }
     }
 
-    /// Clear persisted data for this form.
+    /// Clear persisted data for this form and every deferring sub-form owned via
+    /// `childViewModel(for:)`. Children are cleared even when this form itself has no
+    /// persistence backend configured.
     public func clearPersistence() async {
-        guard let persistence = formDefinition.persistence else { return }
-        try? await persistence.clear(formId: formDefinition.id)
+        if let persistence = formDefinition.persistence {
+            try? await persistence.clear(formId: formDefinition.id)
+        }
+        for child in childViewModels.values {
+            await child.clearPersistence()
+        }
     }
 
     // MARK: - Error Helpers
@@ -815,6 +909,50 @@ public final class FormViewModel {
     }
 
     // MARK: - Private Helpers
+
+    /// Child view models paired with their owning `NavigationRow`, in row order.
+    /// Dictionary iteration order is not deterministic, so every cascade (dirty, reset,
+    /// clear, save) walks this instead of `childViewModels.values` directly.
+    private var orderedChildren: [(row: AnyFormRow, child: FormViewModel)] {
+        allRows.compactMap { row in
+            guard let child = childViewModels[row.id] else { return nil }
+            return (row, child)
+        }
+    }
+
+    /// True when every deferring sub-form, recursively, is `.ready`. Visibility is not
+    /// considered here — `save()` won't proceed while any descendant (hidden or not) is
+    /// still loading or failed to load.
+    private var allDescendantsReady: Bool {
+        childViewModels.values.allSatisfy { $0.status == .ready && $0.allDescendantsReady }
+    }
+
+    /// Every descendant deferring sub-form in post-order (a child's own children before the
+    /// child itself), in row order at each level. `save()` persists this list before itself,
+    /// so the deepest sub-forms land first. Includes hidden sub-forms — only validation
+    /// filters on visibility.
+    private func descendantsPostOrder() -> [FormViewModel] {
+        orderedChildren.flatMap { _, child in child.descendantsPostOrder() + [child] }
+    }
+
+    /// Recursively validates every **visible** deferring sub-form, without short-circuiting —
+    /// every one in the subtree is validated (so each has its errors populated for when the
+    /// user navigates to it), even once an earlier sibling has already been found invalid.
+    /// A hidden `NavigationRow`'s whole subtree is skipped entirely, matching how hidden rows
+    /// are already excluded from validation elsewhere.
+    /// - Returns: the title of the first invalid sub-form encountered in row order, or `nil`
+    ///   if every visible sub-form validates.
+    private func firstInvalidSubFormTitle() -> String? {
+        var firstBadTitle: String?
+        for (row, child) in orderedChildren where isRowVisible(row) {
+            let childValid = child.validateAll()
+            let childHasInvalidDescendant = child.firstInvalidSubFormTitle() != nil
+            if firstBadTitle == nil, !childValid || childHasInvalidDescendant {
+                firstBadTitle = child.formDefinition.title
+            }
+        }
+        return firstBadTitle
+    }
 
     /// Run all validators matching the given trigger for a specific row.
     private func runValidators(for rowId: String, trigger: ValidationTrigger) {
@@ -915,7 +1053,7 @@ public final class FormViewModel {
             let shouldClear = conditions.isEmpty || conditions.allSatisfy { $0.evaluate(with: values) }
             if shouldClear {
                 values[targetRowId] = nil
-                isDirty = true
+                hasOwnChanges = true
                 errors[targetRowId] = []
             }
 
@@ -926,7 +1064,7 @@ public final class FormViewModel {
             // two rows' setValue actions reference each other and never reach a fixed point.
             if let newValue = valueFactory(values), newValue != values[targetRowId] {
                 values[targetRowId] = newValue
-                isDirty = true
+                hasOwnChanges = true
                 errors[targetRowId] = []
             }
 

@@ -11,16 +11,18 @@ extension FormViewModel {
     /// and safe to hand off to non-`@MainActor` code.
     @MainActor
     var valueStream: AsyncStream<FormValueStore> {
-        AsyncStream { continuation in
-            func observe() {
-                withObservationTracking {
-                    continuation.yield(values)
-                } onChange: {
-                    Task { @MainActor in observe() }
-                }
+        // `makeStream` keeps `observe()` in this main-actor getter. The `AsyncStream { }`
+        // build closure is nonisolated, so reading `values` inside it doesn't compile.
+        let (stream, continuation) = AsyncStream.makeStream(of: FormValueStore.self)
+        func observe() {
+            _ = withObservationTracking {
+                continuation.yield(values)
+            } onChange: {
+                Task { @MainActor in observe() }
             }
-            observe()
         }
+        observe()
+        return stream
     }
 }
 

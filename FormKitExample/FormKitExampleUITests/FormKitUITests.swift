@@ -489,6 +489,31 @@ final class FormKitUITests: XCTestCase {
 
         XCTAssertTrue(menuPicker.waitForExistence(timeout: 5), "Menu picker for 'sizeMenu' should exist in Row Types form")
     }
+
+    // MARK: - 11. Sub-form save with parent
+
+    func testSubFormSaveWithParentPersistsEditAcrossNavigation() throws {
+        openForm(titled: "Sub-Form Save With Parent")
+        openSubForm(id: "profile")
+
+        // A .withParent sub-form shows no save UI of its own.
+        XCTAssertFalse(saveButton().exists)
+
+        let nameField = field("displayName")
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.tap()
+        typeSlowly("Ada Lovelace", into: nameField)
+
+        // Go back with the system back button — nothing was saved.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // Re-enter the sub-form: the edit survives because the parent owns a single,
+        // stable child view model instead of creating a new one on every push.
+        openSubForm(id: "profile")
+        let reenteredField = field("displayName")
+        XCTAssertTrue(reenteredField.waitForExistence(timeout: 5))
+        XCTAssertEqual(reenteredField.value as? String, "Ada Lovelace")
+    }
 }
 
 // MARK: - XCUIElement helpers
