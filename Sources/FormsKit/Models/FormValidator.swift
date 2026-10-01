@@ -179,6 +179,10 @@ public struct FormValidator: Sendable {
     /// Always receives both the row's own value and the full form store.
     public let validate: @Sendable (AnyCodableValue?, FormValueStore) -> String?
 
+    /// IDs of other rows this validator reads (e.g. the `rowId` of `.matches`).
+    /// Used by `FormViewModel` to flag references to rows that don't exist.
+    var referencedRowIDs: [String] = []
+
     /// Single-trigger init. Use this for validators that only need the row's own value.
     /// The `FormValueStore` parameter is handled internally.
     public init(trigger: ValidationTrigger = .onSave,
@@ -594,9 +598,11 @@ public extension FormValidator {
                         message: String = "Values do not match",
                         triggers: [ValidationTrigger],
                         errorPosition: ErrorPosition = .belowRow) -> FormValidator {
-        FormValidator(triggers: triggers, errorPosition: errorPosition, validateWithStore: { value, store in
+        var validator = FormValidator(triggers: triggers, errorPosition: errorPosition, validateWithStore: { value, store in
             guard value != store[rowId] else { return nil }
             return message
         })
+        validator.referencedRowIDs = [rowId]
+        return validator
     }
 }

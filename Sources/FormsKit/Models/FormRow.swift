@@ -181,6 +181,20 @@ public enum FormRowAction: Sendable {
         case let .custom(timing, _): return timing
         }
     }
+
+    /// IDs of every row this action targets or reads in its conditions.
+    /// `.setValue` closures and `.custom` handlers are opaque — only their target is known.
+    var referencedRowIDs: [String] {
+        switch self {
+        case let .showRow(id, conditions, _), let .disableRow(id, conditions, _),
+             let .hideRow(id, conditions, _), let .clearValue(id, conditions, _):
+            return [id] + conditions.flatMap(\.referencedRowIDs)
+        case let .setValue(id, _, _):
+            return [id]
+        case .runValidation, .custom:
+            return []
+        }
+    }
 }
 
 // MARK: - FormRow Protocol

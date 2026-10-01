@@ -186,3 +186,28 @@ public extension FormCondition {
         .equals(rowId: rowId, value: .bool(bool))
     }
 }
+
+// MARK: - Referenced Row IDs
+
+extension FormCondition {
+    /// IDs of every row this condition reads, including those in nested `.and`/`.or`/`.not`.
+    /// `.custom` predicates are opaque and contribute nothing.
+    var referencedRowIDs: [String] {
+        switch self {
+        case let .equals(rowId, _), let .notEquals(rowId, _),
+             let .contains(rowId, _), let .notContains(rowId, _),
+             let .greaterThan(rowId, _), let .greaterThanOrEqual(rowId, _),
+             let .lessThan(rowId, _), let .lessThanOrEqual(rowId, _):
+            return [rowId]
+        case let .isEmpty(rowId), let .isNotEmpty(rowId),
+             let .isTrue(rowId), let .isFalse(rowId):
+            return [rowId]
+        case .custom:
+            return []
+        case let .and(conditions), let .or(conditions):
+            return conditions.flatMap(\.referencedRowIDs)
+        case let .not(condition):
+            return condition.referencedRowIDs
+        }
+    }
+}
