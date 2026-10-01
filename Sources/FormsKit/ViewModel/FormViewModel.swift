@@ -288,6 +288,19 @@ public final class FormViewModel {
             )
         }
 
+        // A condition, action or validator pointing at a row ID that doesn't exist (typo,
+        // renamed or removed row) silently does nothing. Catch it during development only —
+        // the scan is compiled out of release builds, where the assert couldn't fire anyway.
+        #if DEBUG
+        let unknownIDs = FormViewModel.unknownReferencedRowIDs(in: flatRows)
+        if !unknownIDs.isEmpty {
+            assertionFailure(
+                "FormsKit: conditions, actions or validators reference row IDs that don't exist "
+                    + "in form '\(formDefinition.id)': \(unknownIDs.joined(separator: ", "))"
+            )
+        }
+        #endif
+
         allRows = flatRows
 
         // Seed the store with row defaults. Persisted values are loaded
@@ -962,6 +975,28 @@ public final class FormViewModel {
     nonisolated static func duplicateRowIDs(in flatRows: [AnyFormRow]) -> [String] {
         let counts = Dictionary(grouping: flatRows, by: \.id).mapValues(\.count)
         return counts.filter { $0.value > 1 }.map(\.key).sorted()
+    }
+
+    /// Returns the row IDs referenced by `onChange` actions (targets and conditions),
+    /// `.matches` validators and `.belowRow(id:)` error positions that don't belong to
+    /// any row in `flatRows`. An empty result means every inspectable reference resolves.
+    ///
+    /// `.custom` conditions/actions and `.setValue` closures are opaque and aren't checked.
+    nonisolated static func unknownReferencedRowIDs(in flatRows: [AnyFormRow]) -> [String] {
+        let knownIDs = Set(flatRows.map(\.id))
+        var referencedIDs = Set<String>()
+        for row in flatRows {
+            for action in row.onChange {
+                referencedIDs.formUnion(action.referencedRowIDs)
+            }
+            for validator in row.validators {
+                referencedIDs.formUnion(validator.referencedRowIDs)
+                if case let .belowRow(id?) = validator.errorPosition {
+                    referencedIDs.insert(id)
+                }
+            }
+        }
+        return referencedIDs.subtracting(knownIDs).sorted()
     }
 
     /// Returns the `AnyFormRow` wrapping the `FormSection` or `CollapsibleSection` that

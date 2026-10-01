@@ -747,7 +747,7 @@ let form = FormDefinition(
 
 #### With a typed RowID enum
 
-If you use `TypedFormDefinition`, pass your enum values directly — no `.rawValue` needed:
+If your row IDs are a `String`-backed enum, pass the enum cases directly — no `.rawValue` needed:
 
 ```swift
 enum LoginRow: String {
@@ -1058,7 +1058,7 @@ let form = FormDefinition(
 
 ## Type-Safe API
 
-`TypedFormDefinition` and `TypedFormViewModel` bind a `RawRepresentable` enum as the row ID type, making row IDs compile-time checked.
+Declare row IDs as a `String`-backed enum and pass the cases anywhere a row ID is expected — rows, conditions, actions, validators and `FormViewModel` all have `RawRepresentable` overloads, so no `.rawValue` is needed.
 
 ```swift
 // 1. Declare your row ID enum
@@ -1066,33 +1066,30 @@ enum ProfileRow: String {
     case name, email, bio, notifications
 }
 
-// 2. Build a TypedFormDefinition
-let form = TypedFormDefinition<ProfileRow>(
+// 2. Build the form with enum cases
+let form = FormDefinition(
     id: "profile",
     title: "Profile",
     saveBehaviour: .buttonNavigationBar()
 ) {
-    TextInputRow(id: ProfileRow.name.rawValue,          title: "Name")
-    TextInputRow(id: ProfileRow.email.rawValue,         title: "Email")
-    TextInputRow(id: ProfileRow.bio.rawValue,           title: "Bio")
-    BooleanSwitchRow(id: ProfileRow.notifications.rawValue, title: "Notifications")
+    TextInputRow(id: ProfileRow.name,             title: "Name")
+    TextInputRow(id: ProfileRow.email,            title: "Email")
+    TextInputRow(id: ProfileRow.bio,              title: "Bio")
+    BooleanSwitchRow(id: ProfileRow.notifications, title: "Notifications")
 }
 
-// 3. Create a typed view model
-let typedVM = TypedFormViewModel(form: form)
+// 3. Read and write through FormViewModel with enum cases
+let viewModel = FormViewModel(formDefinition: form)
+let name: String? = viewModel.value(for: ProfileRow.name)
+viewModel.setString("Jane", for: ProfileRow.name)
+viewModel.rowDidBlur(ProfileRow.email)
 
-// 4. Use the typed API — row IDs are enums, not strings
-let name: String? = typedVM.value(for: .name)
-typedVM.setString("Jane", for: .name)
-typedVM.rowDidBlur(.email)
-
-// 5. Bind the inner viewModel to DynamicFormView
-DynamicFormView(formDefinition: form.definition, viewModel: typedVM.viewModel)
+DynamicFormView(formDefinition: form, viewModel: viewModel)
 ```
 
-### RawRepresentable Overloads
+### Conditions and Validators
 
-Conditions and validators also accept your enum directly:
+Conditions and validators accept your enum directly too:
 
 ```swift
 // Condition
