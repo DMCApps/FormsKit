@@ -159,16 +159,17 @@ public final class FormViewModel {
     /// // Extension in your module — observes values and streams snapshots.
     /// extension FormViewModel {
     ///     var valueStream: AsyncStream<FormValueStore> {
-    ///         AsyncStream { continuation in
-    ///             func observe() {
-    ///                 withObservationTracking {
-    ///                     continuation.yield(values)  // yields a value-type copy
-    ///                 } onChange: {
-    ///                     Task { @MainActor in observe() }
-    ///                 }
+    ///         // makeStream keeps observe() main-actor isolated; the AsyncStream { } closure is not.
+    ///         let (stream, continuation) = AsyncStream.makeStream(of: FormValueStore.self)
+    ///         func observe() {
+    ///             _ = withObservationTracking {
+    ///                 continuation.yield(values)  // yields a value-type copy
+    ///             } onChange: {
+    ///                 Task { @MainActor in observe() }
     ///             }
-    ///             observe()
     ///         }
+    ///         observe()
+    ///         return stream
     ///     }
     /// }
     ///

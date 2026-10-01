@@ -1263,16 +1263,17 @@ Because `FormValueStore` is a value type, reading `values` on the main actor giv
 ```swift
 extension FormViewModel {
     var valueStream: AsyncStream<FormValueStore> {
-        AsyncStream { continuation in
-            func observe() {
-                withObservationTracking {
-                    continuation.yield(values)  // yields a value-type copy at this instant
-                } onChange: {
-                    Task { @MainActor in observe() }
-                }
+        // makeStream keeps observe() main-actor isolated; the AsyncStream { } closure is not.
+        let (stream, continuation) = AsyncStream.makeStream(of: FormValueStore.self)
+        func observe() {
+            _ = withObservationTracking {
+                continuation.yield(values)  // yields a value-type copy at this instant
+            } onChange: {
+                Task { @MainActor in observe() }
             }
-            observe()
         }
+        observe()
+        return stream
     }
 }
 ```
