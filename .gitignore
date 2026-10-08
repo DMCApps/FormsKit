@@ -21,3 +21,7 @@ Tuist/.build/
 # Claude
 .claude
 Claude.md
+
+# Tuist-generated at package root (local-path integration)
+/FormsKit.xcodeproj/
+/Derived/
