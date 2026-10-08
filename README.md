@@ -7,6 +7,7 @@ A declarative, type-safe form building framework for SwiftUI on iOS 17+. FormKit
 ## Contents
 
 - [Requirements](#requirements)
+- [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Row Types](#row-types)
   - [CollapsibleSection](#collapsiblesection)
@@ -42,12 +43,29 @@ A declarative, type-safe form building framework for SwiftUI on iOS 17+. FormKit
 
 ---
 
+## Installation
+
+Add FormsKit with Swift Package Manager:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/DMCApps/FormsKit.git", .upToNextMinor(from: "0.1.2")),
+]
+```
+
+Then add `"FormsKit"` to your target's dependencies.
+
+> **Note:** FormsKit is pre-1.0. Minor versions (`0.x.0`) may contain breaking changes, so pin with
+> `.upToNextMinor(from:)` rather than `from:`.
+
+---
+
 ## Quick Start
 
 Define a `FormDefinition`, then hand it to `DynamicFormView`:
 
 ```swift
-import FormKit
+import FormsKit
 import SwiftUI
 
 struct ProfileForm: View {
@@ -1141,7 +1159,7 @@ let name: String? = viewModel.value(for: ProfileRow.name)
 viewModel.setString("Jane", for: ProfileRow.name)
 viewModel.rowDidBlur(ProfileRow.email)
 
-DynamicFormView(formDefinition: form, viewModel: viewModel)
+DynamicFormView(viewModel: viewModel)
 ```
 
 ### Conditions and Validators
